@@ -30,6 +30,8 @@ There are 2 reads with exact pattern, starting at the same site.
 
 :exclamation:**Note:** The pat file is sorted by CpG_index column, which is different from the genome browser order (sort -k1,1 -k2,2n)
 
-#### remarks / future work:
+#### compressing and indexing
+pat file is compressed using [bgzip](http://www.htslib.org/doc/bgzip.html) and indexed using [tabix](http://www.htslib.org/doc/tabix.html) (with a \*csi file). 
+This compression is compatible with gzip, and with the [indexing](https://github.com/nloyfer/wgbs_tools/blob/master/docs/index.md), allows for a *fast random access* (see [view](https://github.com/nloyfer/wgbs_tools/blob/master/docs/view.md) command).
 
 
