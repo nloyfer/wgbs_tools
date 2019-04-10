@@ -2,7 +2,7 @@
 
 The unq format is an extension for the [pat format](https://github.com/nloyfer/wgbs_tools/blob/master/docs/pat_format.md).
 This format also keeps the information about reads lengths, and higher resolution locations.
-ItA gzipped tab separated file with five columns: chromosome, start, length, methylation_pattern, and count.
+It is a gzipped tab separated file with five columns: chromosome, start, length, methylation_pattern, and count.
 chrom, methylation_pattern and count are similar as in the pat format.
 * **start**: The read's beginning locus.
 * **length**: The read's length in base-pair.
