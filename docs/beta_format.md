@@ -5,7 +5,7 @@ holding a matrix of uint8 values with dimensions of (NR_SITES x 2).
 For each of the NR_SITES CpG sites in the genome, it holds 2 values: the #meth and #covered. 
 Meaning, the i'th row in the matrix corresponds to the i'th CpG site:
 - **#meth**: the number of times the i'th site (CpGi) site is observed in a methylated state.
-- **#coverage**: the total number of times i'th site (CpGi) site is observed. #coverage==0 is equivalent to a missing value (NaN).
+- **#coverage**: the total number of times i'th site (CpGi) is observed. #coverage==0 is equivalent to a missing value (NaN).
 
 CpGi's beta value is obtained by dividing *#meth* / *#coverage*.
 
