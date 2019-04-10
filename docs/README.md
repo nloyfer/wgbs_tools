@@ -6,7 +6,7 @@ usage:
 wgbs_tools COMMAND OPTIONS
 ```
 
-Currently supuporting the following commands:
+Currently supporting the following commands:
 * bam2pat
 * bed2beta
 * beta2bed
