@@ -1,5 +1,5 @@
 # wgbs_tools
-Manipulating WGBS data, using the pat, unq and beta formats.
+Manipulating WGBS data, using the [pat](https://github.com/nloyfer/wgbs_tools/blob/master/docs/pat_format.md), [unq](https://github.com/nloyfer/wgbs_tools/blob/master/docs/unq_format.md) and [beta](https://github.com/nloyfer/wgbs_tools/blob/master/docs/beta_format.md) formats.
 
 usage:
 ```
