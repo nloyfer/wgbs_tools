@@ -4,6 +4,7 @@ import numpy as np
 import os.path as op
 import argparse
 from utils_wgbs import load_beta_data, add_GR_args, BedFileWrap
+from multiprocessing import Pool
 from genomic_region import GenomicRegion
 
 
@@ -33,6 +34,10 @@ def parse_args():
     return args
 
 
+def pretty_name(beta_path):
+    return op.splitext(op.basename(beta_path))[0]
+
+
 def beta_cov_by_bed(beta_path, bed_wrapper):
     nr_sites = 0
     total_cov = 0
@@ -40,14 +45,17 @@ def beta_cov_by_bed(beta_path, bed_wrapper):
         table = load_beta_data(beta_path, gr.sites)[:, 1]
         nr_sites += table.size
         total_cov += table.sum()
-    return total_cov / nr_sites
+    return total_cov / nr_sites if nr_sites else 0
 
 
-def beta_cov(beta_path, sites=None, bed_wrapper=None):
+def beta_cov(beta_path, sites=None, bed_wrapper=None, print_res=False):
     if bed_wrapper:
-        return beta_cov_by_bed(beta_path, bed_wrapper)
+        res = beta_cov_by_bed(beta_path, bed_wrapper)
     else:
-        return np.mean(load_beta_data(beta_path, sites)[:, 1])
+        res = np.mean(load_beta_data(beta_path, sites)[:, 1])
+    if print_res:
+        print('{}\t{:.2f}'.format(pretty_name(beta_path), res))
+    return res
 
 
 def main():
@@ -55,23 +63,23 @@ def main():
     Calculate the average coverage of one or more beta files.
     Print the results.
     """
+
     args = parse_args()
 
     bedw = BedFileWrap(args.bed_file) if args.bed_file else None
-    covs = []
-    names = []
 
-    for beta in args.betas:
-        cov = beta_cov(beta, sites=GenomicRegion(args).sites, bed_wrapper=bedw)
-        covs.append(cov)
-        name = op.splitext(op.basename(beta))[0]
-        names.append(name)
-        print('{}\t{:.2f}'.format(name, cov))
+    processes = []
+    with Pool(16) as p:
+        for beta in args.betas:
+            params = (beta, GenomicRegion(args).sites, bedw, True)
+            processes.append(p.apply_async(beta_cov, params))
+        p.close()
+        p.join()
+    covs = [pr.get() for pr in processes]
 
     if args.plot:
-        plot_hist(names, covs)
+        plot_hist([pretty_name(b) for b in args.betas], covs)
 
 
 if __name__ == '__main__':
     main()
-

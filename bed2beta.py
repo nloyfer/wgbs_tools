@@ -5,7 +5,7 @@ import os.path as op
 import sys
 import pandas as pd
 import numpy as np
-from utils_wgbs import delete_or_skip, splitextgz, trim_to_uint8, validate_files_list, load_dict
+from utils_wgbs import delete_or_skip, splitextgz, trim_to_uint8, validate_files_list, load_dict, eprint
 
 
 def load_bed(bed_path, nrows, mm9=False):  # todo: Do I need to sort the bed file?
@@ -26,7 +26,7 @@ def bed2betas(args):
     try:
         rf = None       # Reference dictionary
         for bed in args.bed_paths:
-            print('Converting {}...'.format(op.basename(bed)), file=sys.stderr)
+            eprint('Converting {}...'.format(op.basename(bed)))
             # Check if bed should be skipped:
             outpath = op.join(args.outdir, splitextgz(op.basename(bed))[0]) + '.beta'
             if not delete_or_skip(outpath, args.force):
@@ -42,7 +42,7 @@ def bed2betas(args):
             trim_to_uint8(np.array(res[['meth', 'total']])).tofile(outpath)
 
     except pd.errors.ParserError as e:
-        print('Invalid input file.\n{}'.format(e), file=sys.stderr)
+        eprint('Invalid input file.\n{}'.format(e))
         return
 
 

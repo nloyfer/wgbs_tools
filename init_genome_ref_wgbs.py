@@ -1,14 +1,7 @@
 #!/usr/bin/python3 -u
 
 import argparse
-from utils_wgbs import validate_files_list, splitextgz, delete_or_skip, trim_to_uint8, load_beta_data, \
-    validate_single_file
-import subprocess
-import numpy as np
-import os.path as op
-import sys
-import os
-from index_wgbs import index_single_file
+from utils_wgbs import  delete_or_skip, validate_single_file, eprint
 import re
 import numpy as np
 import pandas as pd
@@ -57,14 +50,9 @@ def dump_df(df, path):
 
 
 def bgzip_tabix_dict(dict_path):
-    print('bgzip and index...', file=sys.stderr)
-    r = subprocess.call('bgzip -@ 4 -f ' + dict_path, shell=True)
-    if r:
-        print('Error while bgzip', file=sys.stderr)
-        return
-    r = subprocess.call('tabix -Cf -b 2 -e 2 {}.gz'.format(dict_path), shell=True)
-    if r:
-        print('Error while indexing with tabix', file=sys.stderr)   # todo: make exception
+    eprint('bgzip and index...')
+    subprocess.check_call('bgzip -@ 4 -f ' + dict_path, shell=True)
+    subprocess.check_call('tabix -Cf -b 2 -e 2 {}.gz'.format(dict_path), shell=True)
 
 
 def init_ref_files(ref_fasta, out_dir):
@@ -72,7 +60,7 @@ def init_ref_files(ref_fasta, out_dir):
     c_cpg_sizes = {}        # chromosome sizes (#sites)
     c_sizes = {}            # chromosomes sizes (#bp)
 
-    print('Loading fasta...', file=sys.stderr)
+    eprint('Loading fasta...')
     fiter = fasta_iter(ref_fasta)
     # Parse genome reference fasta, chromosome by chromosome
     for ff in sorted(fiter, key=pair_chromosome_order):
@@ -112,20 +100,19 @@ def init_ref_files(ref_fasta, out_dir):
     dump_df(c_cpg_sizes, c_cpg_size_path)
 
 
-# def main1():
-#     # outpath = 'a.tsv'
-#     # gref = 'test.fa'
-#     out_dir = 'references'
-#     test(gref, out_dir)
-#     # if gref != '/cs/cbio/netanel/indexes/WholeGenomeFasta/genome.fa':
-#     #     os.system('cat ' + outpath)
-#     # GenomeRefParser(gref, 30).read_ref()
+def set_output_dir(name):
+    out_dir = op.join(op.dirname(__file__), 'references')
+    if not op.isdir(out_dir):
+        os.mkdir(out_dir)
+    return op.join(out_dir, name)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
-    parser.add_argument('genome_ref')
-    parser.add_argument('-o', '--out_dir')
+    parser.add_argument('genome_ref', help='path to a genome *.fa file')
+    parser.add_argument('name', help='name of the genome (e.g. hg19, mm9...).\n'
+                                     'A directory of this name will be created '
+                                     'in references/')
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing files if existed')
     args = parser.parse_args()
     return args
@@ -142,16 +129,13 @@ def main():
     validate_single_file(genome_ref, '.fa')
 
     # construct output_dir
-    out_dir = args.out_dir
-    if not out_dir:
-        out_dir = op.dirname(genome_ref)
-    if not op.isdir(out_dir):
-        print('Invalid output dir:', out_dir, file=sys.stderr)
-        return
+    out_dir = set_output_dir(args.name)
+    eprint('Setting up genome reference files in {}'.format(out_dir))
     if not delete_or_skip(op.join(out_dir, 'CpG.bed.gz'), args.force):
         return
 
     init_ref_files(genome_ref, out_dir)
+
 
 if __name__ == '__main__':
     main()

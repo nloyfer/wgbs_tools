@@ -7,6 +7,7 @@ import pandas as pd
 from io import StringIO
 import sys
 
+
 HG19_NR_SITES = 28217448  # total number of CpG sites in hg19 (fixed)
 DIR = op.dirname(os.path.realpath(__file__)) + '/'
 
@@ -18,8 +19,10 @@ collapse_pat_script = SRC_DIR + 'collapse_pat.pl'
 match_maker_tool = DIR + 'pipeline_wgbs/match_maker'
 patter_tool = DIR + 'pipeline_wgbs/patter'
 
-MAX_PAT_LEN = 150           # maximal read length in sites
-MAX_READ_LEN = 1000         # maximal read length in bp
+MAX_PAT_LEN = 150  # maximal read length in sites
+MAX_READ_LEN = 1000  # maximal read length in bp
+
+default_blocks_path = '/cs/cbio/netanel/blocks/outputs/nps20_genome.tsv.gz'  # todo: not generic
 
 
 class IllegalArgumentError(ValueError):
@@ -43,7 +46,7 @@ class GenomeRefPaths:
         if self.genome == 'hg19':
             return HG19_NR_SITES
         else:
-            return int(pd.read_table(self.chrom_cpg_sizes, usecols=[1], header=None).sum())
+            return int(pd.read_csv(self.chrom_cpg_sizes, sep='\t', usecols=[1], header=None).sum())
 
     def join(self, file):
         path = op.join(self.refdir, file)
@@ -60,18 +63,32 @@ class GenomeRefPaths:
         return refdir
 
 
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
 
 class BedFileWrap:
     def __init__(self, bed_path):
         self.bed = bed_path
         validate_single_file(bed_path)
-        self.df = pd.read_table(self.bed, usecols=[0, 1, 2], names=['chr', 'start', 'end'], header=None)
+        self.df = pd.read_csv(self.bed, usecols=[0, 1, 2], sep='\t',
+                              # names=['chr', 'start', 'end'])
+                              names=['chr', 'start', 'end'], header='infer', comment='#')
 
     def iter_grs(self):
         from genomic_region import GenomicRegion
         for _, r in self.df.iterrows():
             yield GenomicRegion(region='{}:{}-{}'.format(*r))
         # todo: check bed file has no overlaps?
+
+    def fast_iger_regions(self):
+        for _, r in self.df.iterrows():
+            yield '{}:{}-{}'.format(*r)
+
+
+def validate_dir(directory):
+    if not op.isdir(directory):
+        raise IllegalArgumentError('Invalid directory:\n{}'.format(directory))
 
 
 def color_text(txt, cdict, scheme=16):
@@ -83,19 +100,29 @@ def color_text(txt, cdict, scheme=16):
         raise IllegalArgumentError('Invalid color scheme: {}'.format(scheme))
 
 
-
 # def build_tool_path(tool_path):
 #     return op.join(os.path.dirname(os.path.realpath(__file__)), tool_path)
+
+def validate_prefix(prefix):
+    """
+    Return if prefix is a prefix of a file name inside a valid directory
+    Raise exception otherwise
+    """
+    if op.isdir(prefix):
+        raise IllegalArgumentError('Invalid prefix: {} is a directory.'.format(prefix))
+    dirname = op.dirname(prefix)
+    if not op.isdir(dirname):
+        raise IllegalArgumentError('Invalid prefix: no such directory: {}'.format(dirname))
 
 
 def load_dict(nrows=None, genome_name='hg19'):
     d_path = GenomeRefPaths(genome_name).dict_path
-    return pd.read_table(d_path, header=None, names=['chr', 'start'], usecols=[0, 1], nrows=nrows)
+    return pd.read_csv(d_path, header=None, names=['chr', 'start'], sep='\t', usecols=[0, 1], nrows=nrows)
 
 
 def load_dict_section(region, genome_name='hg19'):
     cmd = 'tabix {} {}'.format(GenomeRefPaths(genome_name).dict_path, region)
-    return read_shell(cmd, header=None, names=['chr', 'start', 'idx'])
+    return read_shell(cmd, names=['chr', 'start', 'idx'])
 
 
 def add_GR_args(parser, required=False):
@@ -104,6 +131,13 @@ def add_GR_args(parser, required=False):
     region_or_sites.add_argument('-s', "--sites", help='a CpG index range, of the form: "450000-450050"')
     region_or_sites.add_argument('-r', "--region", help='genomic region of the form "chr1:10,000-10,500"')
     parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
+
+
+def beta2vec(data, min_cov=1, na=np.nan):
+    cond = data[:, 1] >= min_cov
+    vec = np.divide(data[:, 0], data[:, 1], where=cond)  # normalize to range [0, 1)
+    vec[~cond] = na
+    return vec
 
 
 def trim_to_uint8(data):
@@ -128,7 +162,7 @@ def load_dists(start, nr_sites, genome):
 
 
 def load_beta_data(beta_path, sites=None):
-    if not (op.isfile(beta_path) and beta_path.endswith('.beta')):
+    if not (op.isfile(beta_path) and (beta_path.endswith('.beta') or beta_path.endswith('.bin'))):
         raise IllegalArgumentError("Invalid beta file:\n{}".format(beta_path))
 
     if sites is None:
@@ -136,7 +170,7 @@ def load_beta_data(beta_path, sites=None):
     else:
         start, end = sites
         with open(beta_path, 'rb') as f:
-            f.seek((start - 1) * 2)   # fix base-1 annotations
+            f.seek((start - 1) * 2)  # fix base-1 annotations
             data = np.fromfile(f, dtype=np.uint8, count=((end - start) * 2)).reshape((-1, 2))
 
     assert data.size, 'Data table is empty!'
@@ -146,14 +180,13 @@ def load_beta_data(beta_path, sites=None):
 def load_borders(borders_path, gr):
     validate_single_file(borders_path, '.gz')
     if not (op.isfile(borders_path + '.csi') or op.isfile(borders_path + '.tbi')):
-        print('No csi found for file {}. Attempting to index it...'.format(borders_path), file=sys.stderr)
-        from index_wgbs import index_single_file
-        if index_single_file(borders_path, force=True):
-            raise IllegalArgumentError("no csi file for ", borders_path)
+        eprint('No csi found for file {}. Attempting to index it...'.format(borders_path))
+        from index_wgbs import Indxer
+        Indxer(borders_path, force=True).run()
 
     cmd = 'tabix {} {}'.format(borders_path, gr.region_str)
     res = subprocess.check_output(cmd, shell=True).decode()
-    df = pd.read_table(StringIO(res), names=['start', 'end'], header=None, usecols=[3, 4])
+    df = pd.read_csv(StringIO(res), sep='\t', names=['start', 'end'], header=None, usecols=[3, 4])
     df = df - gr.sites[0]
 
     # remove blocks with < MIN_SITES_PER_BLOCKS sites:
@@ -211,8 +244,11 @@ def validate_single_file(file, suff=None):
     :param suff: 'beta', 'pat.gz' or 'unq.gz'
     """
 
+    if file is None:
+        raise IllegalArgumentError("Input file is None")
+
     if not (op.isfile(file)):
-        raise IllegalArgumentError("No such file: " + file)
+        raise IllegalArgumentError("No such file: {}".format(file))
 
     if not suff:
         suff = splitextgz(file)[1]
@@ -220,11 +256,9 @@ def validate_single_file(file, suff=None):
         raise IllegalArgumentError("file must end with {}:".format(suff), file)
 
     if suff in ('.pat.gz', '.unq.gz') and not op.isfile(file + '.csi'):
-        print('No csi found for file {}. Attempting to index it...'.format(file), file=sys.stderr)
-        from index_wgbs import index_single_file
-        if index_single_file(file, force=True):
-            raise IllegalArgumentError("no csi file for ", file)
-        # raise IllegalArgumentError("no csi file for ", file)
+        eprint('No csi found for file {}. Attempting to index it...'.format(file))
+        from index_wgbs import Indxer
+        Indxer(file, force=True).run()
 
 
 def splitextgz(input_file):
@@ -259,7 +293,7 @@ def delete_or_skip(output_file, force):
         else:
             msg = 'File {} already exists. Skipping it.'.format(output_file)
             msg += 'Use [-f] flag to force overwrite.'
-            print(msg, file=sys.stderr)
+            eprint(msg)
             return False
     return True
 
@@ -285,10 +319,9 @@ def read_shell(command, **kwargs):
         if not txt:
             return pd.DataFrame()
         with StringIO(txt) as buffer:
-            return pd.read_table(buffer, **kwargs)
+            return pd.read_csv(buffer, sep='\t', header=None, **kwargs)
     else:
         message = ("Shell command returned non-zero exit status: {0}\n\n"
                    "Command was:\n{1}\n\n"
                    "Standard error was:\n{2}")
         raise IOError(message.format(proc.returncode, command, error.decode()))
-
