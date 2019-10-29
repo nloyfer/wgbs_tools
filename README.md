@@ -25,3 +25,8 @@ g++ -std=c++11 pipeline_wgbs/patter.cpp -o pipeline_wgbs/patter
 g++ -std=c++11 pipeline_wgbs/match_maker.cpp -o pipeline_wgbs/match_maker
 
 ```
+
+Now you can convert `pat.gz` and `beta` files out of `bam` files:
+```bash
+python3 wgbs_tools.py bam2pat BAM_PATH [-o OUT_DIR]
+```
