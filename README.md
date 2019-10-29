@@ -12,7 +12,7 @@ First make sure you have an indexed reference genome fasta file (e.g `hg19.fa` &
 
 ```bash
 # Download the repository
-git clone URL
+git clone https://github.com/nloyfer/wgbs_tools.git
 cd wgbs_tools
 # Setup reference genome names GENOME_NAME (e.g hg19).
 # This step may take a few minutes.
