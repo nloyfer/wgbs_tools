@@ -1,6 +1,6 @@
 import re
 import subprocess
-from utils_wgbs import IllegalArgumentError, GenomeRefPaths
+from utils_wgbs import IllegalArgumentError, GenomeRefPaths, eprint
 import sys
 import numpy as np
 import pandas as pd
@@ -13,7 +13,8 @@ class GenomicRegion:
         self.sites = None
         self.region_str = None
         self.bp_tuple = None
-        self.chr_cpg_sz = None      # DataFrame of chromosomes sizes (in number of sites)
+        self.chrs_sz = None      # DataFrame of chromosomes sizes (in number of sites)
+        self.name = name
 
         # todo: this could be prettier
         if args is not None:
@@ -42,7 +43,7 @@ class GenomicRegion:
         chrom2, region_to = self.index2locus(s2 - 1)  # non-inclusive
         region_to += 1  # include the hole last site (C and G)
         if self.chrom != chrom2:
-            print('ERROR: sites range cross chromosomes! ({}, {})'.format(s1, s2), file=sys.stderr)
+            eprint('ERROR: sites range cross chromosomes! ({}, {})'.format(s1, s2))
             raise IllegalArgumentError('Invalid sites input')
 
         # Update GR fields:
@@ -51,7 +52,7 @@ class GenomicRegion:
         self.bp_tuple = (region_from, region_to)
 
     def _chrome_size(self):
-        df = pd.read_table(self.genome.chrom_sizes, header=None, names=['chr', 'size'])
+        df = pd.read_csv(self.genome.chrom_sizes, sep='\t', header=None, names=['chr', 'size'])
         return int(df[df['chr'] == self.chrom]['size'])
 
     def parse_region(self, region):
@@ -97,7 +98,7 @@ class GenomicRegion:
             raise IllegalArgumentError('Invalid genomic region: {}. No CpGs in range'.format(self.region_str))
 
         s1, s2 = self._sites_str_to_tuple(res)
-        s2 += 1     # non-inclusive
+        # s2 += 1     # non-inclusive
         return s1, s2
 
     def _sites_str_to_tuple(self, sites_str):
@@ -116,10 +117,11 @@ class GenomicRegion:
         raise IllegalArgumentError('sites must be of format: ([\d])-([\d]).\nGot: {}'.format(sites_str))
 
     def index2chrom(self, site):
-        if self.chr_cpg_sz is None:
-            self.chr_cpg_sz = pd.read_table(self.genome.chrom_cpg_sizes, header=None, names=['chr', 'size'])
-            self.chr_cpg_sz['borders'] = np.cumsum(self.chr_cpg_sz['size'])
-        return self.chr_cpg_sz['chr'].loc[self.chr_cpg_sz['borders'].searchsorted(site)[0]]
+        if self.chrs_sz is None:
+            self.chrs_sz = pd.read_csv(self.genome.chrom_cpg_sizes, header=None, names=['chr', 'size'], sep='\t')
+            self.chrs_sz['borders'] = np.cumsum(self.chrs_sz['size'])
+        cind = np.searchsorted(np.array(self.chrs_sz['borders']).flatten(), site)
+        return self.chrs_sz['chr'].loc[cind]
 
     def index2locus(self, index):
         """
@@ -142,8 +144,13 @@ class GenomicRegion:
 
     def __str__(self):
         if self.sites is None:
-            return 'All genome'
+            return 'Whole genome'
         s1, s2 = self.sites
         f, t = self.bp_tuple
         return 'Position {} ({:,} sites, {:,} bp, sites {}-{})'.format(self.region_str, s2 - s1, t - f + 1, s1, s2)
 
+    def is_whole(self):
+        """
+        :return: True iff no filters (-r, -s) were applied. i.e, this gr is the whole genome.
+        """
+        return self.sites is None

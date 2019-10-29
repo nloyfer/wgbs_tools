@@ -25,7 +25,7 @@ FLAGS_FILTER = 1796  # filter flags with these bits
 
 
 def pat_unq(out_path):
-    # sort and drop duplicated lines # todo: need to drop duplicates?
+    # sort
     tmp_path = out_path + '.tmp'
 
     subprocess.call("sort " + out_path + " -k2,2n -k3,3 -o " + tmp_path, shell=True)
@@ -63,7 +63,7 @@ def proc_chr(input_path, out_path, region, genome, paired_end, debug):
     if paired_end:
         # change reads order, s.t paired reads will appear in adjacent lines
         cmd += "{} | ".format(match_maker_tool)
-    cmd += "{} {} {} > {}".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes, out_path)  # todo: pipe to sort? check if faster
+    cmd += "{} {} {} > {}".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes, out_path)
     print(cmd)
     subprocess.call(cmd, shell=True)
 
@@ -147,8 +147,9 @@ class Bam2Pat:
 
         # generate beta file and bgzip the pat, unq files:
         beta_path = pat2beta(pat_path, self.out_dir)
-        print('bgzipping...')
+        print('bgzipping and indexing:')
         for f in (pat_path, unq_path):
+            print('{}...'.format(f))
             subprocess.call('bgzip -f@ 14 {f} && tabix -fCb 2 -e 2 {f}.gz'.format(f=f), shell=True)
 
 

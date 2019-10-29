@@ -9,24 +9,25 @@ from utils_wgbs import validate_files_list
 from multiprocessing import Pool
 from os.path import splitext, basename
 import sys
-from utils_wgbs import load_beta_data, trim_to_uint8
+from utils_wgbs import load_beta_data, trim_to_uint8, default_blocks_path, eprint
 
-# todo: supply this blocks file in wgbs_tools directory.
-default_blocks_path = '/cs/cbio/netanel/blocks/outputs/nps20_genome.tsv.gz'
+
+def get_bins(df):
+    end = 28217449  # todo: read this from a reference file
+    arr = np.unique(np.concatenate([[1], df['ssite'], df['esite'], [end]]))
+    arr.sort()
+    isin = np.isin(arr, np.concatenate([df['ssite'], [df['esite'][df.shape[0] - 1]]]))
+    return arr - 1, isin
 
 
 def apply_filter_wrapper(args, blocks_bins, finds, beta_path, df):
-
     try:
         # load beta file:
         data = load_beta_data(beta_path)
 
         # reduce to blocks:
-        reduced_data = np.add.reduceat(data, blocks_bins)
-
-        # filter data by min/max length and min/max #CpGs:
-        reduced_data[:, 0][finds] = 0
-        reduced_data[:, 1][finds] = 0
+        blocks_bins[-1] -= 1
+        reduced_data = np.add.reduceat(data, blocks_bins)[finds][:-1]
 
         # dump to file
         out_name = splitext(splitext(basename(args.blocks_file))[0])[0]
@@ -38,10 +39,13 @@ def apply_filter_wrapper(args, blocks_bins, finds, beta_path, df):
         print('saved to file:', out_name)
 
         if args.bedGraph:
-            beta_vals = reduced_data[:, 0] / reduced_data[:, 1]
+            with np.errstate(divide='ignore', invalid='ignore'):
+                beta_vals = reduced_data[:, 0] / reduced_data[:, 1]
+                print(beta_vals.shape, df.shape)
             # beta_vals[reduced_data[:, 1] == 0] = np.nan
             df['beta'] = beta_vals
-            df.to_csv(out_name.replace('.bin', '.bedGraph'), sep='\t', index=None, header=None, na_rep=-1,
+            df.to_csv(out_name.replace('.bin', '.bedGraph'), sep='\t',
+                      index=None, header=None, na_rep=-1,
                       float_format='%.2f')
 
     except Exception as e:
@@ -53,6 +57,7 @@ def main():
     """
     Collapse beta file to blocks binary file, of the same beta format
     """
+
     args = parse_args()
     files = args.input_files
     validate_files_list(files, '.beta')
@@ -63,19 +68,21 @@ def main():
 
     names = ['chr', 'sloc', 'eloc', 'ssite', 'esite']
     df = pd.read_csv(args.blocks_file, sep='\t', usecols=[0, 1, 2, 3, 4], header=None, names=names)
-    bplens = np.array(df['eloc'] - df['sloc']).flatten()
-    cpglens = np.array(df['esite'] - df['ssite']).flatten()
 
-    cpglen_indices = (args.max_sites < cpglens) | (cpglens < args.min_sites)
-    bplen_indices = (args.max_bp < bplens) | (bplens < args.min_bp)
-    filtered_indices = cpglen_indices | bplen_indices
+    nr_removed = df[df.ssite == df.esite].shape[0]
+    if nr_removed:
+        eprint('removed {} regions with no CpGs'.format(nr_removed))
 
-    blocks_bins = np.array(df['ssite']).flatten() - 1
+    if args.debug:
+        print(df[df.ssite == df.esite])
 
-    print('starting Pool, with {} binary to collapse...'.format(len(files)))
+    df = df[df.ssite < df.esite]
+    blocks_bins, filtered_indices = get_bins(df)
+
     with Pool() as p:
         for beta_path in files:
-            params = (args, blocks_bins, filtered_indices, beta_path, df[['chr', 'sloc', 'eloc']])
+            params = (args, blocks_bins,
+                      filtered_indices, beta_path, df[['chr', 'sloc', 'eloc']])
             p.apply_async(apply_filter_wrapper, params)
         p.close()
         p.join()
@@ -90,11 +97,7 @@ def parse_args():
     parser.add_argument('-b', '--blocks_file', help='blocks path', default=default_blocks_path)
     parser.add_argument('-o', '--out_dir', help='output directory. Default is "."', default='.')
     parser.add_argument('--bedGraph', action='store_true', help='output a text file in addition to binary file')
-
-    parser.add_argument('--min_sites', help='Minimum sites per block. Default is 0', type=int, default=0)
-    parser.add_argument('--max_sites', help='Maximum sites per block. Default is inf', type=int, default=sys.maxsize)
-    parser.add_argument('--min_bp', help='Minimal block length (bp). Default is 0', type=int, default=0)
-    parser.add_argument('--max_bp', help='Maximal block length (bp). Default is inf', type=int, default=sys.maxsize)
+    parser.add_argument('--debug', '-d', action='store_true')
 
     return parser.parse_args()
 

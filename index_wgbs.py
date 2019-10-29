@@ -4,85 +4,92 @@ import argparse
 import os.path as op
 import sys
 import subprocess
-from utils_wgbs import IllegalArgumentError # todo: use this exception instead of returning non zero codes
-
-def index_bgzipped_file(input_file):
-    """
-    Create a csi index for a pat file, assuming it's bgzipped
-    :return: 0 iff succeeded
-    """
-    if input_file.endswith('unq.gz') or input_file.endswith('pat.gz'):
-        tabix_params = ' -C -b 2 -e 2 '
-    elif input_file.endswith('tsv.gz') or input_file.endswith('bed.gz'):
-        tabix_params = ' -p bed '
-    else:
-        raise IllegalArgumentError('Couldn\'t index file of unknown format: {}'.format(input_file))
-
-    cmd = 'tabix {} {}'.format(tabix_params, input_file)
-    return subprocess.call(cmd, shell=True)
+from utils_wgbs import delete_or_skip, splitextgz, IllegalArgumentError, eprint
 
 
-def bgzip_and_index_file(input_file):
-    """
-    bgzip and index uncompressed pat / unq input file
-    :return: 0 iff succeeded in both operations
-    """
-    r = subprocess.call('bgzip -@ 4 ' + input_file, shell=True)
-    if not r:
-        r = index_bgzipped_file(input_file + '.gz')
-    return r
+class PatUnq:
+    def __init__(self, input_file):
+        self.input_file = input_file
+        self.suffixes = ['pat', 'unq']
+        self.tabix_flags = ' -C -b 2 -e 2 -m 12 '
+        self.sort_flags = '-k2,2n'
+        self.ind_suff = '.csi'
+        self.tosort = True
 
 
-def validate_file_suffix(input_file):
-    """
-    Make sure file suffix is one of the following:
-    pat, pat.gz, unq, unq.gz
-    :return: False it is not.
-    """
-    legit_file_suff = False
-    for suf in ('.pat', '.pat.gz', '.unq', '.unq.gz'):
-        if input_file.endswith(suf):
-            legit_file_suff = True
-    if not legit_file_suff:
-        print('Index only supports pat or unq files.', input_file, file=sys.stderr)
-        return False
-    return True
+class BedTsv:
+    def __init__(self, input_file):
+        self.input_file = input_file
+        self.suffixes = ['bed', 'tsv']
+        self.tabix_flags = ' -p bed '
+        self.sort_flags = '-k1,1 -k2,2n'
+        self.ind_suff = '.tbi'
+        self.tosort = False
 
 
-def index_single_file(input_file, force):
-    from utils_wgbs import delete_or_skip
+class Indxer:
+    def __init__(self, input_file, force):
+        self.force = force
+        self.in_file = input_file
+        self.suff = splitextgz(self.in_file)[1][1:]
+        c = BedTsv if 'bed' in self.suff or 'tsv' in self.suff else PatUnq
+        self.ftype = c(input_file)
+        self.validate_file()
 
-    # validate input file
-    if not (op.isfile(input_file)):
-        print("no such file:", input_file, file=sys.stderr)
-        return 1
+    def index_bgzipped_file(self):
+        """
+        Create a csi index for the file, assuming it's bgzipped
+        :return: 0 iff succeeded
+        """
+        cmd = 'tabix {} {}'.format(self.ftype.tabix_flags, self.in_file + '.gz')
+        r = subprocess.call(cmd, shell=True, stderr=subprocess.PIPE)
+        #if not r:
+        #    eprint('Success in indexing')
+        return r
 
-    # # validate file suffix # todo: throws exception for tsv when loading blocks file in beta_vis.py
-    # if not validate_file_suffix(input_file):
-    #     return 1
+    def bgzip(self):
+        """ bgzip uncompressed input file """
+        f = self.in_file
+        # check if file is sorted. If not, sort it: #todo: does not work properly for unq file!!
+        flags = self.ftype.sort_flags
+        if self.ftype.tosort and 'pat' in self.suff:
+            if subprocess.call('sort {} -cs {}'.format(flags, f), shell=True):
+                eprint('{} is not sorted. Sorting...'.format(f))
+                subprocess.check_call('sort {fl} {f} -o {f}'.format(fl=flags, f=f), shell=True)
 
-    # if index already exists delete it or skip it
-    if not delete_or_skip(input_file + '.csi', force):
-        return 1
+        # bgzip the file:
+        subprocess.check_call('bgzip -@ 4 -f ' + f, shell=True)
 
-    if input_file.endswith('.gz'):
+    def validate_file(self):
+        """
+        Make sure file exists, and its suffix is one of the following:
+        pat, unq, bed, tsv [.gz]
+        """
 
-        # try indexing it:
-        r = index_bgzipped_file(input_file)
+        if not op.isfile(self.in_file):
+            raise IllegalArgumentError("no such file: {}".format(self.in_file))
 
-        if r == 1:  # couldn't index because the file is gzipped instead of bgzipped
-            # ungzip and bgzip
-            subprocess.call(['unpigz', input_file])
-            r = bgzip_and_index_file(op.splitext(input_file)[0])
-            if not r:
-                print('Success in indexing', file=sys.stderr)
+        suffs = self.ftype.suffixes
+        if not self.suff in [x + '.gz' for x in suffs] + suffs:
+            raise IllegalArgumentError('Index only supports pat, unq, bed, tsv formats')
 
-    else:  # uncompressed file
-        r = bgzip_and_index_file(input_file)
+    def run(self):
 
-    if r:
-        print('Failed with error code', r, file=sys.stderr)
-    return r
+        # if index already exists delete it or skip it
+        if not delete_or_skip(self.in_file + self.ftype.ind_suff, self.force):
+            return
+
+        if self.in_file.endswith('.gz'):
+            self.in_file = op.splitext(self.in_file)[0]
+            # try indexing it:
+            if not self.index_bgzipped_file():
+                return  # success
+            # couldn't index because the file is gzipped instead of bgzipped
+            subprocess.check_call(['unpigz', self.in_file + '.gz'])
+
+        self.bgzip()
+        self.index_bgzipped_file()
+#        print('success')
 
 
 def parse_args():
@@ -101,9 +108,8 @@ def main():
     bgzips them and generate an index for them (csi).
     """
     args = parse_args()
-
     for input_file in args.input_files:
-        index_single_file(input_file, args.force)
+        Indxer(input_file, args.force).run()
     return 0
 
 

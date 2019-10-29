@@ -21,16 +21,16 @@ num2color_dict = {
 
 
 class PatVis:
-    def __init__(self, file, gr, blocks_path, no_color=False, strict=False, max_reps=10, space_reads=True):
-        self.gr = gr
-        self.max_reps = max_reps
-        self.strict = strict
-        self.start, self.end = gr.sites
+    def __init__(self, args, file):
+        self.gr = GenomicRegion(args)
+        self.max_reps = args.max_reps
+        self.strict = args.strict
+        self.start, self.end = self.gr.sites
         self.file = file
-        self.no_color = no_color
-        self.space_reads = space_reads
+        self.no_color = args.no_color
         self.max_width = self.end - self.start + 2 * MAX_PAT_LEN  # maximal width of the output (in characters)
-        self.blocks_path = blocks_path
+        self.blocks_path = args.blocks_path
+        self.no_dense = args.no_dense
 
         self.fullres = self.get_block()
 
@@ -38,7 +38,7 @@ class PatVis:
         ctable = self.fullres['table']
 
         borders = load_borders(self.blocks_path, self.gr) + self.start - self.fullres['start']
-        if not borders:
+        if not borders.size:
             return self.fullres['text'], markers
 
         # pad right columns with space, if there are missing sites before the last border/s
@@ -82,7 +82,61 @@ class PatVis:
     def get_block(self):
         df = ViewPat(self.file, None, self.gr, self.strict).perform_view(dump=False)
         if not df.empty:
-            return cyclic_print(df, self.max_width, self.max_reps, self.space_reads)
+            return self.cyclic_print(df)
+
+    def cyclic_print(self, df):
+        table = np.zeros((MAX_LINES_PER_BLOCK, self.max_width), dtype=np.int8)
+        first_to_show = df.loc[0, 'start']
+        row = -1
+
+        for idx, read in df.iterrows():
+            # _, read_start, patt, count = row
+            read_start = int(read[1])
+            patt = read[2]
+            count = int(read[3])
+
+            # perform multiple times for reads with count > 1, but no more than "max_reps" times:
+            for c in range(min(self.max_reps, count)):
+
+                # find the relative starting point of the current read
+                col = read_start - first_to_show
+                if col < 0:
+                    raise IllegalArgumentError('Error: Input file must be sorted by CpG_ID!')
+
+                # find the first available row to insert current read:
+                if self.no_dense:
+                    row += 1
+                else:
+                    row = np.argmin(table[:, col])
+
+                # insert read and spaces:
+                for j, l in enumerate(patt):
+                    table[row, col + j] = str2int[l]
+                table[row, :col][table[row, :col] == 0] = 1
+                table[row, col + len(patt)] = 1
+
+        nr_lines = int(np.argmin(table[:, 0]))
+        width = np.max(np.argmin(table, axis=1))
+        table = table[:nr_lines, :width]
+        table[table == 0] = 1
+
+        # Translate ints table to characters table
+        table = table.astype(np.str)
+        for key in int2str.keys():
+            table = np.core.defchararray.replace(table, str(key), int2str[key])
+
+        # Convert table to one long string
+        res = ''
+        for row in range(nr_lines):
+            res += ''.join(list(table[row, :])) + '\n'
+
+        fullres = {'start': first_to_show,
+                   'chr': df.loc[0, 'chr'],
+                   'text': res,
+                   'width': width,
+                   'table': table,
+                   'score': calc_score(df)}
+        return fullres
 
 
 def calc_score(df):
@@ -92,58 +146,6 @@ def calc_score(df):
     score = int(100 * nm / ntotal) if ntotal else 'NA'
     return score
 
-
-def cyclic_print(df, max_width, max_reps, space_reads=True):
-    table = np.zeros((MAX_LINES_PER_BLOCK, max_width), dtype=np.int8)
-    first_to_show = df.loc[0, 'start']
-
-    for idx, row in df.iterrows():
-        _, read_start, patt, count = row
-        read_start = int(read_start)
-        count = int(count)
-
-        # perform multiple times for reads with count > 1, but no more than "max_reps" times:
-        for c in range(min(max_reps, count)):
-
-            # find the relative starting point of the current read
-            col = read_start - first_to_show
-            if col < 0:
-                raise IllegalArgumentError('Error: Input file must be sorted by CpG_ID!')
-
-            # find the first available row to insert current read:
-            row = np.argmin(table[:, col])
-
-            # insert read and spaces:
-            for j, l in enumerate(patt):
-                table[row, col + j] = str2int[l]
-            table[row, :col][table[row, :col] == 0] = 1
-            if space_reads:
-                table[row, col + len(patt)] = 1
-
-    nr_lines = int(np.argmin(table[:, 0]))
-    width = np.max(np.argmin(table, axis=1))
-    table = table[:nr_lines, :width]
-    table[table == 0] = 1
-
-    # Translate ints table to characters table
-    table = table.astype(np.str)
-    for key in int2str.keys():
-        table = np.core.defchararray.replace(table, str(key), int2str[key])
-
-    # Convert table to one long string
-    res = ''
-    for row in range(nr_lines):
-        res += ''.join(list(table[row, :])) + '\n'
-
-    fullres = {'start': first_to_show,
-               'chr': df.loc[0, 'chr'],
-               'text': res,
-               'width': width,
-               'table': table,
-               'score': calc_score(df)}
-    return fullres
-
-
 def main(args):
     validate_files_list(args.input_files, '.pat.gz')
 
@@ -151,4 +153,6 @@ def main(args):
     print(gr)
     for pat_file in args.input_files:
         print(splitextgz(op.basename(pat_file))[0])     # print file name
-        PatVis(pat_file, gr, args.blocks_path, args.no_color, args.strict, args.max_reps).print_results()
+        PatVis(args, pat_file).print_results()
+
+
