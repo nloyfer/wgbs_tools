@@ -4,7 +4,7 @@ import argparse
 import os.path as op
 import sys
 import pandas as pd
-from utils_wgbs import delete_or_skip, load_beta_data, load_dict, validate_files_list
+from utils_wgbs import delete_or_skip, load_beta_data, load_dict, validate_files_list, eprint
 
 
 def betas2beds(betas, outdir='.', genome='hg19', force=True, debug=False):
@@ -16,7 +16,7 @@ def betas2beds(betas, outdir='.', genome='hg19', force=True, debug=False):
 
     rf = None       # Reference dictionary
     for beta in betas:
-        print('Converting {}...'.format(op.basename(beta)), file=sys.stderr)
+        eprint('Converting {}...'.format(op.basename(beta)))
         # Check if beta should be skipped:
         outpath = op.join(outdir, op.splitext(op.basename(beta))[0]) + '.bed'   # todo: optional gzip?
         if not delete_or_skip(outpath, force):
