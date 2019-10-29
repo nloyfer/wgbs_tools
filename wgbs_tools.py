@@ -1,8 +1,12 @@
 #!/usr/bin/python3 -u
 
+import matplotlib
+#matplotlib.use('Agg')
+import time
+from datetime import timedelta
 from unittest.mock import patch
 import sys
-from utils_wgbs import IllegalArgumentError
+from utils_wgbs import IllegalArgumentError, eprint
 from view import main as view_main
 from merge import main as merge_main
 from index_wgbs import main as index_main
@@ -17,10 +21,9 @@ from beta_to_450k import main as beta_to_450k_main
 from beta_to_blocks import main as beta_to_blocks_main
 from bam2pat import main as bam2pat_main
 from mix_pat import main as mix_pat_main
-from dmb import main as dmb_main
-import time
-from datetime import timedelta
-
+from init_genome_ref_wgbs import main as init_genome_main
+from frag_len import main as frag_len_main
+from convert import main as convert_main
 
 """
 Dependencies:
@@ -31,7 +34,6 @@ python3.5
 numpy
 pandas
 """
-
 
 callbacks = {
     'vis': vis_main,
@@ -48,9 +50,12 @@ callbacks = {
     'beta_to_blocks': beta_to_blocks_main,
     'bam2pat': bam2pat_main,
     'mix_pat': mix_pat_main,
-    'dmb': dmb_main
-    # todo: unq2beta, collapse_beta_to_blocks
+    'init_genome': init_genome_main,
+    'frag_len': frag_len_main,
+    'convert': convert_main
+    # todo: unq2beta
 }
+
 
 # todo:
 # tests
@@ -73,24 +78,14 @@ def print_help(short=False):
             msg += docs
     if short:
         msg += '\nUse [-h] or COMMAND -h flag for additional information'
-    print(msg, file=sys.stderr)
+    eprint(msg)
 
 
-def main():
-
-    if len(sys.argv) < 2 or (len(sys.argv) == 2 and sys.argv[1] in ('-h', '--help')):
-        print_help()
-        return
-
-    print_time = False
-    if '--time' in sys.argv:
-        sys.argv.remove('--time')
-        print_time = True
-        start_time = time.time()
+def run_command():
     try:
         command = sys.argv[1]
         if command not in callbacks.keys():
-            print('Invalid command:', command, file=sys.stderr)
+            eprint('Invalid command:', command)
             print_help(short=True)
             return 1
 
@@ -98,11 +93,27 @@ def main():
             callbacks[command]()
 
     except IllegalArgumentError as e:
-        print('Invalid input argument\n{}'.format(e), file=sys.stderr)
+        eprint('Invalid input argument\n{}'.format(e))
         return 1
 
-    if print_time:
-        print('time:', timedelta(seconds=time.time() - start_time), file=sys.stderr)
+
+def time_wrap():
+    sys.argv.remove('--time')
+    start_time = time.time()
+    r = run_command()
+    eprint('time:', timedelta(seconds=time.time() - start_time))
+    return r
+
+
+def main():
+    if len(sys.argv) < 2 or (len(sys.argv) == 2 and sys.argv[1] in ('-h', '--help')):
+        print_help()
+        return
+
+    if '--time' in sys.argv:
+        return time_wrap()
+    else:
+        return run_command()
 
 
 if __name__ == '__main__':
