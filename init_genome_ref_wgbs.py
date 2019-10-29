@@ -46,6 +46,7 @@ def is_valid_chrome(chrome):
 
 
 def dump_df(df, path):
+    print('Dumping data frame to path:', path)
     df.to_csv(path, index=None, header=None, sep='\t')
 
 
@@ -68,6 +69,7 @@ def init_ref_files(ref_fasta, out_dir):
         if not is_valid_chrome(chrName):
             # print('Invalid:', chrName)
             continue
+        print(chrName)
         # else:
         #     print('valid:', chrName)
         tf = pd.DataFrame([m.start() + 1 for m in re.finditer('CG', seq.upper())], columns=['loc'])
