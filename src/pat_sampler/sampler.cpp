@@ -17,8 +17,8 @@ std::vector<std::string> line2tokens(std::string &line) {
         result.push_back(cell);
 
     // validate line
-    if (result.size() != 4)
-        throw std::invalid_argument("too many/few columns in file, line: " + line);
+    if (result.size() < 4)
+        throw std::invalid_argument("too few columns in file, line: " + line);
     return result;
 }
 
@@ -29,9 +29,15 @@ void consider_line(std::vector<std::string> &tokens, double rate) {
     std::default_random_engine generator (seed);
 
     std::binomial_distribution<int> distribution (count, rate);
+
     int newcount = distribution(generator);
     if (newcount) {
-        std::cout << tokens[0] << "\t" << tokens[1] << "\t" << tokens[2] << "\t" << newcount << std::endl;
+        tokens[3] = std::to_string(newcount);
+        int i = 0;
+        for (; i < tokens.size() - 1; i++) {
+            std::cout << tokens[i] << "\t";
+        }
+        std::cout << tokens[i] << std::endl;
     }
 }
 
