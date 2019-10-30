@@ -69,6 +69,7 @@ def init_ref_files(ref_fasta, out_dir):
         if not is_valid_chrome(chrName):
             # print('Invalid:', chrName)
             continue
+        print(chrName)
         # else:
         #     print('valid:', chrName)
         print(chrName)
