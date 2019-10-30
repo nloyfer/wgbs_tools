@@ -1,7 +1,7 @@
 #!/usr/bin/python3 -u
 
 import argparse
-from utils_wgbs import  delete_or_skip, validate_single_file, eprint
+from utils_wgbs import delete_or_skip, validate_single_file, eprint, IllegalArgumentError
 import re
 import numpy as np
 import pandas as pd
@@ -10,7 +10,6 @@ import os
 from itertools import groupby
 import subprocess
 import sys
-
 
 gref = '/cs/cbio/netanel/indexes/WholeGenomeFasta/genome.fa'
 
@@ -46,7 +45,9 @@ def is_valid_chrome(chrome):
 
 
 def dump_df(df, path):
+    print('Dumping data frame to path:', path)
     df.to_csv(path, index=None, header=None, sep='\t')
+    print('finished dumping', path)
 
 
 def bgzip_tabix_dict(dict_path):
@@ -56,9 +57,9 @@ def bgzip_tabix_dict(dict_path):
 
 
 def init_ref_files(ref_fasta, out_dir):
-    df = pd.DataFrame()     # Full dict: Chr    Start   End    CpGIndex
-    c_cpg_sizes = {}        # chromosome sizes (#sites)
-    c_sizes = {}            # chromosomes sizes (#bp)
+    df = pd.DataFrame()  # Full dict: Chr    Start   End    CpGIndex
+    c_cpg_sizes = {}  # chromosome sizes (#sites)
+    c_sizes = {}  # chromosomes sizes (#bp)
 
     eprint('Loading fasta...')
     fiter = fasta_iter(ref_fasta)
@@ -70,6 +71,7 @@ def init_ref_files(ref_fasta, out_dir):
             continue
         # else:
         #     print('valid:', chrName)
+        print(chrName)
         tf = pd.DataFrame([m.start() + 1 for m in re.finditer('CG', seq.upper())], columns=['loc'])
         tf['chr'] = chrName
         df = pd.concat([df, tf[['chr', 'loc']]])
@@ -93,18 +95,35 @@ def init_ref_files(ref_fasta, out_dir):
     c_sizes = pd.DataFrame.from_dict(c_sizes, orient='index').reset_index()
     c_cpg_sizes = pd.DataFrame.from_dict(c_cpg_sizes, orient='index').reset_index()
 
-    c_size_path = op.join(out_dir, 'chrome.size')
-    c_cpg_size_path = op.join(out_dir, 'CpG.chrome.size')
+    dump_df(c_sizes, op.join(out_dir, 'chrome.size'))
+    dump_df(c_cpg_sizes, op.join(out_dir, 'CpG.chrome.size'))
 
-    dump_df(c_sizes, c_size_path)
-    dump_df(c_cpg_sizes, c_cpg_size_path)
+    # create symbolic link for the reference genome fasta:
+    link_fasta_to_refdir(ref_fasta, out_dir)
+
+
+def link_fasta_to_refdir(fasta_path, out_dir):
+    def link_single(src, dst):
+        if not op.isfile(src):
+            raise IllegalArgumentError('Invalid reference genome file: {}'.format(src))
+        src = op.abspath(fasta_path)
+        dst = op.join(out_dir, dst)
+        subprocess.check_output('ln -s {} {}'.format(src, dst), shell=True)
+
+    link_single(fasta_path, 'genome.fa')
+    link_single(fasta_path + '.fai', 'genome.fa.fai')
 
 
 def set_output_dir(name):
-    out_dir = op.join(op.dirname(__file__), 'references')
-    if not op.isdir(out_dir):
-        os.mkdir(out_dir)
-    return op.join(out_dir, name)
+    def mkdir(d):
+        if not op.isdir(d):
+            os.mkdir(d)
+
+    references_dir = op.join(op.dirname(__file__), 'references')
+    mkdir(references_dir)
+    out_dir = op.join(references_dir, name)
+    mkdir(out_dir)
+    return out_dir
 
 
 def parse_args():
