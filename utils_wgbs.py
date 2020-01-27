@@ -22,7 +22,8 @@ patter_tool = DIR + 'pipeline_wgbs/patter'
 MAX_PAT_LEN = 150  # maximal read length in sites
 MAX_READ_LEN = 1000  # maximal read length in bp
 
-default_blocks_path = '/cs/cbio/netanel/blocks/outputs/nps20_genome.tsv.gz'  # todo: not generic
+default_blocks_path = '/cs/cbio/netanel/blocks/outputs/blocks.s101.p15.bed.gz'  # todo: not generic
+hg19_anno_path = '/cs/cbio/netanel/blocks/outputs/anno/g2.tsv.gz'  # todo: not generic (move it to references)"
 
 
 class IllegalArgumentError(ValueError):
@@ -46,7 +47,7 @@ class GenomeRefPaths:
         if self.genome == 'hg19':
             return HG19_NR_SITES
         else:
-            return int(pd.read_csv(self.chrom_cpg_sizes, sep='\t', usecols=[1], header=None).sum())
+            return int(self.get_chrom_cpg_size_table()['size'].sum())
 
     def join(self, file):
         path = op.join(self.refdir, file)
@@ -61,6 +62,9 @@ class GenomeRefPaths:
         if not op.isdir(refdir):
             raise IllegalArgumentError('Invalid reference name: {}'.format(self.genome))
         return refdir
+
+    def get_chrom_cpg_size_table(self):
+        return pd.read_csv(self.chrom_cpg_sizes, header=None, names=['chr', 'size'], sep='\t')
 
 
 def eprint(*args, **kwargs):
@@ -131,6 +135,7 @@ def add_GR_args(parser, required=False):
     region_or_sites.add_argument('-s', "--sites", help='a CpG index range, of the form: "450000-450050"')
     region_or_sites.add_argument('-r', "--region", help='genomic region of the form "chr1:10,000-10,500"')
     parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
+    parser.add_argument('--no_anno', help='Do not print genomic annotations', action='store_true')
 
 
 def beta2vec(data, min_cov=1, na=np.nan):
@@ -186,6 +191,7 @@ def load_borders(borders_path, gr):
 
     cmd = 'tabix {} {}'.format(borders_path, gr.region_str)
     res = subprocess.check_output(cmd, shell=True).decode()
+    #print(cmd)
     df = pd.read_csv(StringIO(res), sep='\t', names=['start', 'end'], header=None, usecols=[3, 4])
     df = df - gr.sites[0]
 
@@ -284,7 +290,8 @@ def delete_or_skip(output_file, force):
     :return: False iff file should be skipped
     """
     # if file already exists, delete it or skip it
-
+    if output_file is None:
+        return True
     if op.isfile(output_file):
         if force:
             os.remove(output_file)
