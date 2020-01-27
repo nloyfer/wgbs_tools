@@ -1,9 +1,10 @@
 import re
 import subprocess
-from utils_wgbs import IllegalArgumentError, GenomeRefPaths, eprint
+from utils_wgbs import IllegalArgumentError, GenomeRefPaths, eprint, StringIO, hg19_anno_path
 import sys
 import numpy as np
 import pandas as pd
+import os.path as op
 
 
 class GenomicRegion:
@@ -13,8 +14,9 @@ class GenomicRegion:
         self.sites = None
         self.region_str = None
         self.bp_tuple = None
-        self.chrs_sz = None      # DataFrame of chromosomes sizes (in number of sites)
+        self.chrs_sz = None  # DataFrame of chromosomes sizes (in number of sites)
         self.name = name
+        self.args = args
 
         # todo: this could be prettier
         if args is not None:
@@ -31,6 +33,23 @@ class GenomicRegion:
             raise IllegalArgumentError('Invalid GR init {}'.format(region))
 
         self.nr_sites = None if self.sites is None else self.sites[1] - self.sites[0]
+        self.annotation = self.add_anno()
+
+    def add_anno(self):
+        if self.args is None or self.genome_name != 'hg19' or self.is_whole():
+            return
+        if self.args.no_anno:
+            return
+        try:
+            if not op.isfile(hg19_anno_path):
+                return
+            cmd = 'tabix {} {} | cut -f3- | uniq'.format(hg19_anno_path, self.region_str)
+            res = subprocess.check_output(cmd, shell=True).decode().strip()
+            return res
+        except:
+            eprint('Failed to retrieve annotation for reagion ', self.region_str)
+            return
+        return annotation
 
     def parse_sites(self, sites_str):
         """ Parse input of the type -s / --sites (e.g 15-25) """
@@ -91,6 +110,7 @@ class GenomicRegion:
         cmd = 'tabix {} {} | '.format(self.genome.dict_path, self.region_str)
         # cmd += 'awk \'{if (NR == 1) {first=substr($4,4)}}END{print first"-"substr($4,4)}\''
         cmd += 'awk \'{if (NR == 1) {first=$3}}END{print first"-"$3+1}\''
+        # eprint(cmd)
         res = subprocess.check_output(cmd, shell=True).decode()
 
         # throw error if there are no CpGs in range
@@ -118,7 +138,7 @@ class GenomicRegion:
 
     def index2chrom(self, site):
         if self.chrs_sz is None:
-            self.chrs_sz = pd.read_csv(self.genome.chrom_cpg_sizes, header=None, names=['chr', 'size'], sep='\t')
+            self.chrs_sz = self.genome.get_chrom_cpg_size_table()
             self.chrs_sz['borders'] = np.cumsum(self.chrs_sz['size'])
         cind = np.searchsorted(np.array(self.chrs_sz['borders']).flatten(), site)
         return self.chrs_sz['chr'].loc[cind]
@@ -147,7 +167,11 @@ class GenomicRegion:
             return 'Whole genome'
         s1, s2 = self.sites
         f, t = self.bp_tuple
-        return 'Position {} ({:,} sites, {:,} bp, sites {}-{})'.format(self.region_str, s2 - s1, t - f + 1, s1, s2)
+        # res = '{} ({:,} sites, {:,} bp, sites {}-{})'.format(self.region_str, s2 - s1, t - f + 1, s1, s2)
+        res = '{} - {:,}bp, {:,}CpGs: {}-{}'.format(self.region_str, t - f + 1, s2 - s1, s1, s2)
+        if self.annotation:
+            res += '\n' + self.annotation
+        return res
 
     def is_whole(self):
         """
