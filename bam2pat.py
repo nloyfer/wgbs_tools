@@ -71,11 +71,12 @@ def proc_chr(input_path, out_path, region, genome, paired_end, debug):
 
 
 class Bam2Pat:
-    def __init__(self, bam_path, out_dir, gr, debug):
-        self.out_dir = out_dir
-        self.bam_path = bam_path
-        self.debug = debug
-        self.gr = gr
+    def __init__(self, args):
+        self.args = args
+        self.out_dir = args.out_dir
+        self.bam_path = args.bam_path
+        self.debug = args.debug
+        self.gr = GenomicRegion(args)
         self.validate_input()
 
     def validate_input(self):
@@ -146,7 +147,7 @@ class Bam2Pat:
         list(map(os.remove, [x for l in res for x in l]))
 
         # generate beta file and bgzip the pat, unq files:
-        beta_path = pat2beta(pat_path, self.out_dir)
+        beta_path = pat2beta(pat_path, self.out_dir, self.args.genome)
         print('bgzipping and indexing:')
         for f in (pat_path, unq_path):
             print('{}...'.format(f))
@@ -177,7 +178,7 @@ def main():
         return
 
     # else
-    Bam2Pat(args.bam_path, args.out_dir, GenomicRegion(args), args.debug).start_threads()
+    Bam2Pat(args).start_threads()
 
 
 if __name__ == '__main__':
