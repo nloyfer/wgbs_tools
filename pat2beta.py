@@ -1,12 +1,12 @@
 #!/usr/bin/python3 -u
 
 import argparse
-from utils_wgbs import validate_single_file, PAT2BETA_TOOL, delete_or_skip, splitextgz, IllegalArgumentError
+from utils_wgbs import validate_single_file, PAT2BETA_TOOL, delete_or_skip, splitextgz, IllegalArgumentError, GenomeRefPaths
 import subprocess
 import os.path as op
 
 
-def pat2beta(pat_path, out_dir, force=True):
+def pat2beta(pat_path, out_dir, genome, force=True):
     if pat_path.endswith('.pat.gz'):
         cmd = 'gunzip -cd'
     elif pat_path.endswith('.pat'):
@@ -17,7 +17,8 @@ def pat2beta(pat_path, out_dir, force=True):
     out_beta = op.join(out_dir, splitextgz(op.basename(pat_path))[0] + '.beta')
     if not delete_or_skip(out_beta, force):
         return
-    cmd += ' {} | {} {}'.format(pat_path, PAT2BETA_TOOL, out_beta)
+    nr_sites = GenomeRefPaths(genome).nr_sites
+    cmd += ' {} | {} {} {}'.format(pat_path, PAT2BETA_TOOL, out_beta, nr_sites)
     r = subprocess.call(cmd, shell=True)
     if r:
         raise IllegalArgumentError('Failed generating beta from pat. error code: {}. {}'.format(r, pat_path))
@@ -29,7 +30,7 @@ def parse_args():
     parser.add_argument('pat_path', help='A pat[.gz] file')
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing file if existed')
     parser.add_argument('-o', '--out_dir', help='Output directory for the beta file. [.]', default='.')
-    # todo: add genome paramter and support mm9
+    parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
     return parser.parse_args()
 
 
@@ -39,7 +40,7 @@ def main():
     """
     args = parse_args()
     validate_single_file(args.pat_path)
-    pat2beta(args.pat_path, args.out_dir, args.force)
+    pat2beta(args.pat_path, args.out_dir, args.genome, args.force)
 
 
 if __name__ == '__main__':
