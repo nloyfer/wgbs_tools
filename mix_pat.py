@@ -71,7 +71,7 @@ class Mixer:
             v += ' --sub_sample {}'.format(self.adj_rates[i])
             view_flags.append(v)
         m = MergePats(self.pats, prefix_i, self.labels)
-        m.fast_merge_pats(view_flags=view_flags)
+        m.fast_merge_pats(view_flags=view_flags, local_hack=self.args.local_hack)
 
     def validate_labels(self, labels):
         if labels is None:
@@ -103,7 +103,7 @@ class Mixer:
             beta = pat.replace('.pat.gz', '.beta')
             if not op.isfile(beta):
                 eprint('No beta file compatible to {} was found. Generate it...'.format(pat))
-                pat2beta(pat, op.dirname(pat))
+                pat2beta(pat, op.dirname(pat), self.args.genome)
             if self.bed:
                 cov = beta_cov_by_bed(beta, self.bed)
             else:
@@ -178,10 +178,12 @@ def parse_args():
     parser.add_argument('--strict', action='store_true', help='Truncate reads that start/end outside the given region. '
                                                               'Only relevant if "region", "sites" '
                                                               'or "bed_file" flags are given.')
+    parser.add_argument('--local_hack', action='store_true', help='wgbs_tools bash overrun')
 
     out_or_pref = parser.add_mutually_exclusive_group()
     out_or_pref.add_argument('-p', '--prefix', help='Prefix of output file.')
     out_or_pref.add_argument('-o', '--out_dir', help='Output directory [.]', default='.')
+    parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
 
     args = parser.parse_args()
     return args
