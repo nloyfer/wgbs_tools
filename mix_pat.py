@@ -183,7 +183,7 @@ def parse_args():
     out_or_pref = parser.add_mutually_exclusive_group()
     out_or_pref.add_argument('-p', '--prefix', help='Prefix of output file.')
     out_or_pref.add_argument('-o', '--out_dir', help='Output directory [.]', default='.')
-    parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
+    #parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
 
     args = parser.parse_args()
     return args
