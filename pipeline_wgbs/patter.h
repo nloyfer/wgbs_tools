@@ -39,7 +39,7 @@ public:
 
     void load_genome_ref();
     int find_cpg_inds_offset();
-    long fasta_index();
+    std::vector<long> fasta_index();
 
 
     void print_stats_msg();
