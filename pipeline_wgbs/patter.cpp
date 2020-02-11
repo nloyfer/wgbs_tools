@@ -75,16 +75,24 @@ int patter::find_cpg_inds_offset() {
 
 }
 
-long patter::fasta_index() {
+std::vector<long> patter::fasta_index() {
+    /**
+     * Read the genome.fa.fai file
+     * It has 5 columns:
+     * NAME, LENGTH, OFFSET, LINEBASES, LINEWIDTH, QUALOFFSET
+     */
     std::ifstream index_file(ref_path + ".fai", std::ios::in);
     if (!(index_file)) {
         throw std::invalid_argument(" Error: Unable to read index (fai) path: " + ref_path + ".fai");
     }
+    std::vector<long> fai_numbers;
     // parse index file, load the right chromosome
     for (std::string line_str; std::getline(index_file, line_str);) {
         std::vector <std::string> tokens = line2tokens(line_str);
         if (tokens[0] == chr) {
-            return std::stol(tokens[2]);
+            fai_numbers.push_back(std::stol(tokens[1]));
+            fai_numbers.push_back(std::stol(tokens[2]));
+            return fai_numbers;
         }
     }
     throw std::invalid_argument(" Error: chromosome not found in fai file: " + chr);
@@ -100,9 +108,9 @@ void patter::load_genome_ref() {
     }
 
     // Read fai:
-    long offset_in_file = fasta_index();
+    std::vector<long> fai_numbers = fasta_index();
     // Jump to the beginning of the chromosome:
-    ref_file.seekg(offset_in_file);
+    ref_file.seekg(fai_numbers[1]);
 
     // parse *.fa file, load the lines (of 'chr') to one long string
     for (std::string line_str; std::getline(ref_file, line_str);) {
@@ -112,10 +120,10 @@ void patter::load_genome_ref() {
         for (auto &c: line_str) c = (char) toupper(c);  // change all characters to Uppercase
         genome_ref += line_str;
     }
-
     // Was the reference sequence loaded? (not empty)
-    if (genome_ref.empty()) {
-        throw std::invalid_argument(" Error: Reference genome of chromosome " + chr + "is empty!");
+    if (genome_ref.length() != fai_numbers[0]) {
+        std::cerr << chr << "'s length is " << genome_ref.length() << " != " << fai_numbers[0] << std::endl;
+        throw std::invalid_argument(" Error: Reference genome's length is wrong. chromosome " + chr);
     }
 
     // parse genome to generate a CpG indexes map: <locus, CpG-Index>
