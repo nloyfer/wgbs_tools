@@ -78,8 +78,8 @@ int patter::find_cpg_inds_offset() {
 std::vector<long> patter::fasta_index() {
     /**
      * Read the genome.fa.fai file
-     * It has 5 columns:
-     * NAME, LENGTH, OFFSET, LINEBASES, LINEWIDTH, QUALOFFSET
+     * It has 5 columns: NAME, LENGTH, OFFSET, LINEBASES, LINEWIDTH, QUALOFFSET
+     * Find the line corresponding to 'chr', and return LENGTH and OFFSET.
      */
     std::ifstream index_file(ref_path + ".fai", std::ios::in);
     if (!(index_file)) {
