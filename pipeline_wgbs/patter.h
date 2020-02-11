@@ -14,6 +14,8 @@
 #include <regex>
 #include <unordered_map>
 
+#define MAX_PAT_LEN 300
+
 struct reads_stats {
     int nr_pairs = 0;
     int nr_empty = 0;
@@ -36,8 +38,8 @@ public:
     patter(std::string refpath, std::string cspath): ref_path(refpath), chrom_sz_path(cspath) {}
 
     void load_genome_ref();
-    int pre_inds();
-    std::vector<long> fasta_index();
+    int find_cpg_inds_offset();
+    long fasta_index();
 
 
     void print_stats_msg();

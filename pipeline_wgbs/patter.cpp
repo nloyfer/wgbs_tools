@@ -12,6 +12,7 @@ std::string TAB = "\t";
 
 //bool DEBUG = true;
 bool DEBUG = false;
+
 /*
  * Interesting flags (paird-end):
  * read1, read2 = (99, 147)
@@ -22,98 +23,106 @@ bool DEBUG = false;
  * 2 or 18
  */
 
-std::vector<std::string> line2tokens(std::string &line) {
+std::vector <std::string> line2tokens(std::string &line) {
     /** Break string line to words (a vector of string tokens) */
-    std::vector<std::string> result;
+    std::vector <std::string> result;
     std::string cell;
     std::stringstream lineStream(line);
-    while(getline(lineStream, cell, '\t')) {
+    while (getline(lineStream, cell, '\t')) {
         result.push_back(cell);
     }
 //    if (result.empty()) { throw std::runtime_error("line2tokens: tokens shouldn't be empty!"); }
     return result;
 }
 
-void print_vec(std::vector<std::string> &vec){
+void print_vec(std::vector <std::string> &vec) {
     /** print a vector to stderr, tab separated */
     for (auto &j: vec)
         std::cerr << j << TAB;
     std::cerr << std::endl;
 }
 
-void vec2string(std::vector<std::string> &vec) {
+void vec2string(std::vector <std::string> &vec) {
     /** print a 5 items vector to stdout, tab separated */
     if (vec.size() == 5)  // vec length must be either 5 or 0.
         std::cout << vec[0] + TAB + vec[1] + TAB + vec[2] + TAB + vec[3] + TAB + vec[4] << std::endl;
 }
 
 
-int patter::pre_inds() {
+int patter::find_cpg_inds_offset() {
+    /**
+     * Find the CpG-Index offset of the current chromosome.
+     * i.e., How many CpGs there are before the first CpG in the current chromosome
+     */
 
+    // Open file CpG.chrome.size
     std::ifstream index_file(chrom_sz_path, std::ios::in);
     if (!(index_file)) {
-        throw std::invalid_argument( " Error: Unable to read chrome_sizes path: " + chrom_sz_path);
+        throw std::invalid_argument(" Error: Unable to read chrome_sizes path: " + chrom_sz_path);
     }
-    int res = 0;
-    // parse chrome size file, accumulate index
+
+    // parse chrome size file, accumulate offset
+    int offset = 0;
     for (std::string line_str; std::getline(index_file, line_str);) {
-        if (line_str.substr(0, chr.length()) == chr) {
-            return res;
-        }
-        else {
-            std::vector<std::string> tokens = line2tokens(line_str);
-            res += (std::stoi(tokens[1]));
+        std::vector <std::string> tokens = line2tokens(line_str);
+        if (tokens[0] == chr) {
+            return offset;
+        } else {
+            offset += std::stoi(tokens[1]);
         }
     }
     throw std::invalid_argument("Invalid chromosome " + chr);
 
 }
 
-std::vector<long> patter::fasta_index() {
+long patter::fasta_index() {
     std::ifstream index_file(ref_path + ".fai", std::ios::in);
     if (!(index_file)) {
-        throw std::invalid_argument( " Error: Unable to read index (fai) path: " + ref_path + ".fai");
+        throw std::invalid_argument(" Error: Unable to read index (fai) path: " + ref_path + ".fai");
     }
     // parse index file, load the right chromosome
     for (std::string line_str; std::getline(index_file, line_str);) {
-        if (line_str.substr(0, chr.length()) == chr) {
-            std::cerr << line_str << std::endl;
-            std::vector<std::string> tokens = line2tokens(line_str);
-            std::vector<long> res;
-            res.push_back(std::stol(tokens[1]));
-            res.push_back(std::stol(tokens[2]));
-            return res;
+        std::vector <std::string> tokens = line2tokens(line_str);
+        if (tokens[0] == chr) {
+            return std::stol(tokens[2]);
         }
     }
-    throw std::invalid_argument( " Error: chromosome not found in fai file: " + chr);
+    throw std::invalid_argument(" Error: chromosome not found in fai file: " + chr);
 }
 
 void patter::load_genome_ref() {
     /** Load the genome reference, corresponding to chromosome */
 
-    // Read fai:
-    std::vector<long> indexes = fasta_index();
-
     // Open genome.fa file:
     std::ifstream ref_file(ref_path, std::ios::in);
     if (!(ref_file)) {
-        throw std::invalid_argument( " Error: Unable to read reference path: " + ref_path );
+        throw std::invalid_argument(" Error: Unable to read reference path: " + ref_path);
     }
-    ref_file.seekg(indexes[1]);
 
-    // parse reference file, load the right chromosome
+    // Read fai:
+    long offset_in_file = fasta_index();
+    // Jump to the beginning of the chromosome:
+    ref_file.seekg(offset_in_file);
+
+    // parse *.fa file, load the lines (of 'chr') to one long string
     for (std::string line_str; std::getline(ref_file, line_str);) {
-        if (line_str[0] == '>')
-                break;
-        for (auto & c: line_str) c = (char)toupper(c);  // change all characters to Uppercase
+        if (line_str[0] == '>') {
+            break;
+        }
+        for (auto &c: line_str) c = (char) toupper(c);  // change all characters to Uppercase
         genome_ref += line_str;
     }
 
+    // Was the reference sequence loaded? (not empty)
+    if (genome_ref.empty()) {
+        throw std::invalid_argument(" Error: Reference genome of chromosome " + chr + "is empty!");
+    }
+
     // parse genome to generate a CpG indexes map: <locus, CpG-Index>
-    int pre = pre_inds();
-    for (int i = 1, IlmnID = 1 + pre; i < genome_ref.length(); i++) {
-        if ((genome_ref[i] == 'G') && (genome_ref[i - 1] == 'C'))
-            dict.insert(std::make_pair(i, IlmnID++));
+    int cpg_ind_offset = find_cpg_inds_offset();
+    for (int loc = 1, IlmnID = 1 + cpg_ind_offset; loc < genome_ref.length(); loc++) {
+        if ((genome_ref[loc] == 'G') && (genome_ref[loc - 1] == 'C'))
+            dict.insert(std::make_pair(loc, IlmnID++));
     }
 }
 
@@ -131,8 +140,7 @@ std::string patter::clean_seq(std::string seq, std::string CIGAR) {
     for (auto c: CIGAR) {
         if (isdigit(c)) {
             cur_num.push_back(c);
-        }
-        else {
+        } else {
             nums.push_back(stoul(cur_num));
             cur_num.clear();
             chars.push_back(c);
@@ -145,17 +153,14 @@ std::string patter::clean_seq(std::string seq, std::string CIGAR) {
         if (chars[i] == 'M') {
             adjusted_seq += seq.substr(0, nums[i]);
             seq = seq.substr(nums[i], seq.length() - nums[i]);
-        }
-        else if (chars[i] == 'D') {
-            for (int j=0; j < nums[i]; j++)
+        } else if (chars[i] == 'D') {
+            for (int j = 0; j < nums[i]; j++)
                 adjusted_seq += 'N';
-        }
-        else if ((chars[i] == 'I') || (chars[i] == 'S')){
+        } else if ((chars[i] == 'I') || (chars[i] == 'S')) {
             seq = seq.substr(nums[i], seq.length() - nums[i]);
-        }
-        else {
-            throw std::invalid_argument( "Unknown CIGAR character: " +
-                                                 std::string(1, chars[i]) );
+        } else {
+            throw std::invalid_argument("Unknown CIGAR character: " +
+                                        std::string(1, chars[i]));
         }
     }
 
@@ -169,10 +174,9 @@ int patter::locus2CpGIndex(int locus) {
     auto search = dict.find(locus);
     if (search != dict.end()) {
         start_site = search->second;
-    }
-    else {
+    } else {
         // This is an internal error - should never happen.
-        throw std::logic_error( "Internal Error. Unknown CpG locus: " + std::to_string(locus) );
+        throw std::logic_error("Internal Error. Unknown CpG locus: " + std::to_string(locus));
     }
     return start_site;
 }
@@ -234,66 +238,58 @@ int compareSeqToRef(std::string &seq,
     return cpg_inds[0];
 }
 
-void patter::merge_and_print(std::vector<std::string> l1, std::vector<std::string> l2) {
+void patter::merge_and_print(std::vector <std::string> l1, std::vector <std::string> l2) {
     /** Merge 2 complementary lines to a single output.
      * One or more of the lines may be empty */
 
-    //
+    //  First line is empty
     if (l1.empty()) {
         return vec2string(l2);
     }
+    // Second line is empty
     if (l2.empty()) {
         return vec2string(l1);
     }
 
+    // Swap lines s.t l1 starts before l2
     if (stoi(l1[1]) > stoi(l2[1])) {
-        std::vector<std::string> tmp = l1;
+        std::vector <std::string> tmp = l1;
         l1 = l2;
         l2 = tmp;
     }
 
     int start1 = stoi(l1[1]), start2 = stoi(l2[1]);
-    std::string meth1 = l1[2], meth2 = l2[2];
+    std::string pat1 = l1[2], pat2 = l2[2];
 
-//    std::cerr << "meth1, meth2" << std::endl;
-//    std::cerr << start1 << std::endl;
-//    std::cerr << meth1 << std::endl;
-//    std::cerr << start2 << std::endl;
-//    std::cerr << meth2 << std::endl;
+    std::string merged_pat;
+    int last_site = std::max(start1 + pat1.length(), start2 + pat2.length());
 
-    std::string meth;
-    auto n1 = (int)meth1.length(), n2 = (int)meth2.length();
-    int end1 = start1 + n1, end2 = start2 + n2;
-    int m = (end2 > start1 + n1) ? end2 : end1;
+    if (last_site - start1 > MAX_PAT_LEN) // sanity check: make sure the two reads are not too far apart
+        throw std::invalid_argument("invalid pairing. merged read is too long");
 
-    if (m - start1 > 300) // sanity check: make sure the two reads are not too far apart
-        throw std::invalid_argument( "invalid pairing. merged read is too long" );
+    for (int i = start1; i < last_site; i++)
+        merged_pat += ".";
 
-    for (int i = start1; i < m; i++)
-        meth += ".";
+    for (int i = 0; i < pat1.length(); i++)
+        merged_pat[i] = pat1[i];
 
-    for (int i = 0; i < meth1.length(); i++)
-        meth[i] = meth1[i];
-
-    for (int i = 0; i < n2; i++) {
+    for (int i = 0; i < pat2.length(); i++) {
         int adj_i = i + start2 - start1;
-        if (meth[adj_i] == '.') {
-            meth[adj_i] = meth2[i];
-        }
-        else if ((meth2[i] != '.') && (meth[adj_i] != meth2[i])){
+        if (merged_pat[adj_i] == '.') {
+            merged_pat[adj_i] = pat2[i];
+        } else if ((pat2[i] != '.') && (merged_pat[adj_i] != pat2[i])) {
             // read1 and read2 disagree. treat this case as a missing value for now
             // future work: consider only the read with the higher quality.
-            meth[adj_i] = '.';
+            merged_pat[adj_i] = '.';
         }
     }
     l1[1] = std::to_string(start1);
-    l1[2] = meth;
+    l1[2] = merged_pat;
     vec2string(l1);
 }
 
 
-
-std::vector<std::string> patter::samLineToPatVec(std::vector<std::string> tokens) {
+std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> tokens) {
     /** Given tokens of a sam line:
      *       QNAME, FLAG, RNAME (chrom), POS, MAPQ, CIGAR, RNEXT,
      *       PNEXT, TLEN, SEQ, QUAL, and possibly more.
@@ -304,14 +300,14 @@ std::vector<std::string> patter::samLineToPatVec(std::vector<std::string> tokens
      *  and update the corresponding counter
      *  */
 
-    std::vector<std::string> res;
+    std::vector <std::string> res;
     if (tokens.empty()) {
         return res;
     }
     try {
 
         if (tokens.size() < 11) {
-            throw std::invalid_argument( "too few arguments in line" );
+            throw std::invalid_argument("too few arguments in line");
         }
         unsigned long start_locus = stoul(tokens[3]);   // Fourth field from bam file
         int samflag = stoi(tokens[1]);
@@ -344,7 +340,7 @@ std::vector<std::string> patter::samLineToPatVec(std::vector<std::string> tokens
         }
 
         // translate first CpG locus to CpG index
-        int start_site = locus2CpGIndex((int)start_locus + first_ind);
+        int start_site = locus2CpGIndex((int) start_locus + first_ind);
 
         // Push results into res vector and return:
         res.push_back(tokens[2]);                                  // chr
@@ -361,9 +357,9 @@ std::vector<std::string> patter::samLineToPatVec(std::vector<std::string> tokens
 
         return res;
     }
-    catch(std::exception &e){
+    catch (std::exception &e) {
         std::string msg = "[ " + chr + " ] " + "Exception while processing line "
-                           + std::to_string(line_i) + ". Line content: \n";
+                          + std::to_string(line_i) + ". Line content: \n";
         std::cerr << msg;
         print_vec(tokens);
         std::cerr << e.what() << std::endl;
@@ -374,11 +370,10 @@ std::vector<std::string> patter::samLineToPatVec(std::vector<std::string> tokens
 }
 
 
+void patter::proc2lines(std::vector <std::string> tokens1,
+                        std::vector <std::string> tokens2) {
 
-void patter::proc2lines(std::vector<std::string> tokens1,
-                        std::vector<std::string> tokens2){
-
-    std::vector<std::string> l1, l2;
+    std::vector <std::string> l1, l2;
 
     /** print result to stdout */
     try {
@@ -386,14 +381,14 @@ void patter::proc2lines(std::vector<std::string> tokens1,
         if ((!(tokens2.empty())) && (!(tokens1.empty()))
             && (tokens1[0] != tokens2[0])) {
             readsStats.nr_invalid += 2;
-            throw std::invalid_argument( "lines are not complements!" );
+            throw std::invalid_argument("lines are not complements!");
         }
         l1 = samLineToPatVec(tokens1);
         l2 = samLineToPatVec(tokens2);
 
         merge_and_print(l1, l2);
     }
-    catch(std::exception &e){
+    catch (std::exception &e) {
         std::string msg = "[ " + chr + " ] Exception while merging. lines ";
         msg += std::to_string(line_i) + ". Line content: \n";
         std::cerr << msg;
@@ -409,12 +404,12 @@ bool patter::first_line(std::string &line) {
     // find out if the input is paired- or single-end
     try {
         // find out if single- or paired-end
-        std::vector<std::string> tokens = line2tokens(line);
-        auto flag = (uint16_t)stoi(tokens.at(1));
+        std::vector <std::string> tokens = line2tokens(line);
+        auto flag = (uint16_t) stoi(tokens.at(1));
         chr = tokens.at(2);
         return (flag & 1);     // file is paired end iff flag 0x1 is on
     }
-    catch(std::exception &e){
+    catch (std::exception &e) {
         std::cerr << "[ " + chr + " ]" << "Invalid first line: \n" << line;
         std::cerr << "\nexception: " << e.what() << std::endl;
         throw e;
@@ -425,10 +420,10 @@ bool patter::first_line(std::string &line) {
 void patter::print_stats_msg() {
     /** print informative summary message */
 
-    int sucess = line_i ? int((1.0 - ((double)readsStats.nr_invalid / line_i)) * 100.0) : 0;
+    int sucess = line_i ? int((1.0 - ((double) readsStats.nr_invalid / line_i)) * 100.0) : 0;
 
     std::string msg = "[ " + chr + " ] ";
-    msg += "finished " + std::to_string(line_i) + " lines. " ;
+    msg += "finished " + std::to_string(line_i) + " lines. ";
     if (paired_end) {
         msg += "(" + std::to_string(readsStats.nr_pairs) + " pairs). ";
     }
@@ -448,7 +443,7 @@ void patter::action() {
 
     bool first_in_pair = true;
 //    std::ios_base::sync_with_stdio(false);
-    std::vector<std::string> tokens1, tokens2;
+    std::vector <std::string> tokens1, tokens2;
     for (std::string line_str; std::getline(std::cin, line_str); line_i++) {
 
         // print progress
@@ -490,16 +485,14 @@ void patter::action() {
 }
 
 
-
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     clock_t begin = clock();
 
     try {
         if (argc == 3) {
             patter p(argv[1], argv[2]);
             p.action();
-        }
-        else
+        } else
             throw std::invalid_argument("Usage: patter GENOME_PATH CPG_CHROM_SIZE_PATH");
     }
     catch (std::exception &e) {
