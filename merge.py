@@ -2,7 +2,7 @@
 
 import argparse
 from utils_wgbs import validate_files_list, splitextgz, delete_or_skip, trim_to_uint8, load_beta_data, \
-    collapse_pat_script, IllegalArgumentError
+    collapse_pat_script, IllegalArgumentError, main_script
 import subprocess
 import numpy as np
 import os.path as op
@@ -42,13 +42,11 @@ class MergePats:
         merge_sort_open_pats(tmps, self.out_nogzip)
 
     def compose_view_cmd(self, i, view_flags, labels):
-        pat = self.pats[i]
-        view_cmd = ''
         if view_flags is None:
-            view_cmd += ' <(zcat {p}'.format(p=pat)
+            view_cmd = ' <(gunzip -c'
         else:
-            view_cmd += ' <(wgbs_tools view {flags} {p} '.format(p=pat,
-                                                                 flags=view_flags[i])
+            view_cmd = ' <({wt} view {flags}'.format(wt=main_script, flags=view_flags[i])
+        view_cmd += ' {}'.format(self.pats[i])
         tagcmd = ''
         if labels is not None:
             tagcmd = ' | sed s/\$/\'\t\'{}/'.format(labels[i])
@@ -80,7 +78,7 @@ def merge_sort_open_pats(open_pats, merged_path, remove_open_pats=True):
     :return: path of compressed merged pat
     """
     # merge-sort all pats:
-    pat_with_dups = merged_path + '.with_dups'          # i.e "prefix.pat.with_dups"
+    pat_with_dups = merged_path + '.with_dups'  # i.e "prefix.pat.with_dups"
     cmd = 'sort -m -k2,2n -k3,3 ' + ' '.join(open_pats)
     cmd += ' -o {} '.format(pat_with_dups)
     subprocess.check_call(cmd, shell=True)
@@ -94,8 +92,8 @@ def merge_sort_open_pats(open_pats, merged_path, remove_open_pats=True):
     # collapse "almost duplicated" lines:   # todo: use python instead of perl. pandas duplicates, then loop.
     subprocess.check_call('{} {} > {}'.format(collapse_pat_script, pat_with_dups, merged_path), shell=True)
 
-    #df = pd.read_csv(pat_with_dups, sep='\t', header=None)
-    #collapse_adup_df(df)
+    # df = pd.read_csv(pat_with_dups, sep='\t', header=None)
+    # collapse_adup_df(df)
     os.remove(pat_with_dups)
 
     # bgzip and index the output
@@ -104,11 +102,7 @@ def merge_sort_open_pats(open_pats, merged_path, remove_open_pats=True):
     return merged_path + '.gz'
 
 
-
-
-
-
-#def compose_cols_names(pat_path, names):
+# def compose_cols_names(pat_path, names):
 #    peek = pd.read_csv(pat_path, sep='\t', header=None, nrows=1)
 #    i = 0
 #    while len(peek.columns) > len(names):
@@ -118,7 +112,7 @@ def merge_sort_open_pats(open_pats, merged_path, remove_open_pats=True):
 
 
 def collapse_adup_df(df):
-    """ given a dataframe, collapse almost duplicated lines and return it """#    
+    """ given a dataframe, collapse almost duplicated lines and return it """  #
     print(df)
     names_to_test = list(df.columns).remove(2)
     bs = df.duplicates(subset=names_to_test)
@@ -126,7 +120,8 @@ def collapse_adup_df(df):
     print(df)
     return df
 
-#def collapse_adup(pat_in, pat_out):
+
+# def collapse_adup(pat_in, pat_out):
 #    for cf in df_generator(pat_in, 10):
 #        collapse_adup_df(cf)
 #        cf.to_csv(pat_out, sep='\t', header=None, index=None, mode='a')
@@ -190,6 +185,7 @@ def parse_args():
     # parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--labels', nargs='+', help='labels for the mixed reads. '
                                                     'Default is None')
+
     args = parser.parse_args()
     return args
 

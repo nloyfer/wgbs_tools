@@ -25,6 +25,7 @@ MAX_READ_LEN = 1000  # maximal read length in bp
 default_blocks_path = '/cs/cbio/netanel/blocks/outputs/blocks.s101.p15.bed.gz'  # todo: not generic
 hg19_anno_path = '/cs/cbio/netanel/blocks/outputs/anno/g2.tsv.gz'  # todo: not generic (move it to references)"
 
+main_script = DIR + 'wgbs_tools.py'
 
 class IllegalArgumentError(ValueError):
     pass
