@@ -17,7 +17,7 @@ import multiprocessing
 class Mixer:
 
     def __init__(self, args):
-        print('im mixer')
+        print('in mixer')
         self.args = args
         self.gr = GenomicRegion(args)
         self.pats = args.pat_files
@@ -35,7 +35,8 @@ class Mixer:
 
     def generate_prefix(self, outdir, prefix):
         if prefix:
-            validate_dir(op.dirname(prefix))
+            if op.dirname(prefix):
+                validate_dir(op.dirname(prefix))
             return prefix
         else:
             validate_dir(outdir)
@@ -70,8 +71,9 @@ class Mixer:
                 v += ' -s {}-{}'.format(*self.gr.sites)
             v += ' --sub_sample {}'.format(self.adj_rates[i])
             view_flags.append(v)
+        print('prefix:', prefix_i)
         m = MergePats(self.pats, prefix_i, self.labels)
-        m.fast_merge_pats(view_flags=view_flags, local_hack=self.args.local_hack)
+        m.fast_merge_pats(view_flags=view_flags)
 
     def validate_labels(self, labels):
         if labels is None:
@@ -178,7 +180,6 @@ def parse_args():
     parser.add_argument('--strict', action='store_true', help='Truncate reads that start/end outside the given region. '
                                                               'Only relevant if "region", "sites" '
                                                               'or "bed_file" flags are given.')
-    parser.add_argument('--local_hack', action='store_true', help='wgbs_tools bash overrun')
 
     out_or_pref = parser.add_mutually_exclusive_group()
     out_or_pref.add_argument('-p', '--prefix', help='Prefix of output file.')
