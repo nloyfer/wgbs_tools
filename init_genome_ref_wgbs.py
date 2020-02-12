@@ -92,7 +92,7 @@ class InitGenome:
         # CpG.bed.gz - Dictionary mapping locus to CpG-Index
         df = self.find_cpgs_loci()
         df.reset_index(drop=True, inplace=True)
-        eprint('Composing CpG-Index dictionary..')
+        eprint('Composing CpG-Index dictionary...')
         df['site'] = df.index + 1
         self.dump_df(df, 'CpG.bed')
         self.bgzip_tabix_dict(op.join(self.out_dir, 'CpG.bed'))
