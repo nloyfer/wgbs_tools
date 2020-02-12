@@ -18,7 +18,8 @@ class InitGenome:
         self.args = args
         self.ref_path = args.genome_ref
         self.force = args.force
-        self.out_dir = self.make_output_dir(args.name)
+        self.name = args.name
+        self.out_dir = self.make_output_dir()
 
         # validate input files
         validate_single_file(self.ref_path, '.fa')
@@ -63,8 +64,7 @@ class InitGenome:
         except pd.errors.ParserError as e:
             raise IllegalArgumentError('Invalid fai file.\n{}'.format(e))
 
-    @staticmethod
-    def make_output_dir(name):
+    def make_output_dir(self):
         """  equivalent to mkdir -p DIR/references/name/ """
 
         def mkdir(d):
@@ -72,14 +72,14 @@ class InitGenome:
                 os.mkdir(d)
             return d
 
-        return mkdir(op.join(mkdir(op.join(DIR, 'references')), name))
+        return mkdir(op.join(mkdir(op.join(DIR, 'references')), self.name))
 
     def find_cpgs_loci(self):
 
         processes = []
         with Pool(self.args.threads) as p:
-            for chrName in self.sorted_chroms():
-                params = (chrName, self.ref_path, self.fai_df, self.args.debug)
+            for chrom in self.fai_df['chr']:
+                params = (chrom, self.ref_path, self.fai_df, self.args.debug)
                 processes.append(p.apply_async(load_seq_by_chrom, params))
             p.close()
             p.join()
@@ -91,7 +91,6 @@ class InitGenome:
 
         # CpG.bed.gz - Dictionary mapping locus to CpG-Index
         df = self.find_cpgs_loci()
-        exit()
         df.reset_index(drop=True, inplace=True)
         eprint('Composing CpG-Index dictionary..')
         df['site'] = df.index + 1
@@ -111,6 +110,21 @@ class InitGenome:
         ncgs['size'] = ncgs['size'].astype(int)
         self.dump_df(ncgs[['chr', 'size']], 'CpG.chrome.size')
 
+        self.validate_nr_sites(df.shape[0])
+        eprint('Finished initialization of genome ', self.name)
+
+    def validate_nr_sites(self, nr_sites):
+        if self.args.debug:
+            return
+        d = {
+            'mm9': 13120864,
+            'hg19': 28217448
+        }
+        if self.name in d.keys():
+            if nr_sites != d[self.name]:
+                eprint('Warning: number of sites of the reference '
+                       'genome {} is usually {}, but you got {}'.format(self.name, d[self.name], nr_sites))
+
     def link_file(self, src, dst):
         if not op.isfile(src):
             raise IllegalArgumentError('Invalid reference genome file: {}'.format(src))
@@ -118,22 +132,8 @@ class InitGenome:
         dst = op.join(self.out_dir, dst)
         cmd = 'ln -s {s} {d}'.format(s=src, d=dst)
         if op.islink(dst):
-            cmd = 'unlink {} && '.format(dst) + cmd
+            os.unlink(dst)
         subprocess.check_output(cmd, shell=True)
-
-    def sorted_chroms(self):
-        chroms = self.fai_df['chr'].to_list()
-        if self.args.no_sort:
-            return chroms
-
-        res = sorted(chroms, key=chromosome_order)
-        return res
-
-    def fasta_iter(self, fasta_name):
-        """ Based on: https://www.biostars.org/p/710/ """
-        faiter = (x[1] for x in groupby(open(fasta_name), lambda line: line[0] == ">"))
-        for header in faiter:
-            yield (header.__next__()[1:].strip(), "".join(s.strip() for s in faiter.__next__()))
 
     def bgzip_tabix_dict(self, dict_path):
         eprint('bgzip and index...')
@@ -146,7 +146,7 @@ class InitGenome:
 
 
 def load_seq_by_chrom(chrom, ref_path, fai_df, debug):
-    # print(chrom)
+    eprint(chrom)
 
     # get chromosome's location in the fasta
     chrom, size, offset, width = fai_df[fai_df['chr'] == chrom].values[0]
@@ -174,7 +174,6 @@ def load_seq_by_chrom(chrom, ref_path, fai_df, debug):
     # Find CpG sites loci
     tf = pd.DataFrame([m.start() + 1 for m in re.finditer('CG', seq)], columns=['loc'])
     tf['chr'] = chrom
-    print(chrom, 'nr of sites:', tf.shape[0])
     return tf[['chr', 'loc']]
 
 
