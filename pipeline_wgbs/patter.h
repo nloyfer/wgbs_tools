@@ -13,6 +13,8 @@
 #include <fstream>
 #include <regex>
 #include <unordered_map>
+#include <sstream>      // std::stringstream
+
 
 #define MAX_PAT_LEN 300
 
