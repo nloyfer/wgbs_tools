@@ -2,7 +2,7 @@
 
 #### Dependencies
 - samtools
-- python version >=3
+- python 3+
 - c++ boost library
 
 
