@@ -7,7 +7,7 @@
 
 
 #### Quick start
-First make sure you have an indexed reference genome fasta file (e.g `hg19.fa` & `hg19.fa.fai`).
+First make sure you have a reference genome fasta (e.g `hg19.fa`).
 
 
 ```bash
