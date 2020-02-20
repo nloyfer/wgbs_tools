@@ -121,14 +121,14 @@ void patter::load_genome_ref() {
         genome_ref += line_str;
     }
     // Was the reference sequence loaded? (not empty)
-    if (genome_ref.length() != fai_numbers[0]) {
+    if ((long) genome_ref.length() != fai_numbers[0]) {
         std::cerr << chr << "'s length is " << genome_ref.length() << " != " << fai_numbers[0] << std::endl;
         throw std::invalid_argument(" Error: Reference genome's length is wrong. chromosome " + chr);
     }
 
     // parse genome to generate a CpG indexes map: <locus, CpG-Index>
     int cpg_ind_offset = find_cpg_inds_offset();
-    for (int loc = 1, IlmnID = 1 + cpg_ind_offset; loc < genome_ref.length(); loc++) {
+    for (int loc = 1, IlmnID = 1 + cpg_ind_offset; loc < (int) genome_ref.length(); loc++) {
         if ((genome_ref[loc] == 'G') && (genome_ref[loc - 1] == 'C'))
             dict.insert(std::make_pair(loc, IlmnID++));
     }
@@ -157,12 +157,12 @@ std::string patter::clean_seq(std::string seq, std::string CIGAR) {
 
     // build the adjusted seq, using original seq and the vectors:
     std::string adjusted_seq;
-    for (int i = 0; i < chars.size(); i++) {
+    for (int i = 0; i < (int) chars.size(); i++) {
         if (chars[i] == 'M') {
             adjusted_seq += seq.substr(0, nums[i]);
             seq = seq.substr(nums[i], seq.length() - nums[i]);
         } else if (chars[i] == 'D') {
-            for (int j = 0; j < nums[i]; j++)
+            for (unsigned long j = 0; j < nums[i]; j++)
                 adjusted_seq += 'N';
         } else if ((chars[i] == 'I') || (chars[i] == 'S')) {
             seq = seq.substr(nums[i], seq.length() - nums[i]);
@@ -202,7 +202,7 @@ int compareSeqToRef(std::string &seq,
 
     // find CpG indexes on reference sequence
     std::vector<int> cpg_inds;
-    for (int j = 0; j < ref.length() - 1; j++) {
+    for (unsigned long j = 0; j < ref.length() - 1; j++) {
         if ((ref[j] == 'C') && (ref[j + 1] == 'G')) {
             cpg_inds.push_back(j);
         }
@@ -218,7 +218,7 @@ int compareSeqToRef(std::string &seq,
     int shift = reversed ? 1 : 0;
 
     char cur_status;
-    for (auto j: cpg_inds) {
+    for (unsigned long j: cpg_inds) {
         j += shift;
         char s = seq[j];
         cur_status = UNKNOWN;
@@ -278,10 +278,10 @@ void patter::merge_and_print(std::vector <std::string> l1, std::vector <std::str
     for (int i = start1; i < last_site; i++)
         merged_pat += ".";
 
-    for (int i = 0; i < pat1.length(); i++)
+    for (unsigned long i = 0; i < pat1.length(); i++)
         merged_pat[i] = pat1[i];
 
-    for (int i = 0; i < pat2.length(); i++) {
+    for (unsigned long i = 0; i < pat2.length(); i++) {
         int adj_i = i + start2 - start1;
         if (merged_pat[adj_i] == '.') {
             merged_pat[adj_i] = pat2[i];

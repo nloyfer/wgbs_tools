@@ -33,7 +33,7 @@ void consider_line(std::vector<std::string> &tokens, double rate) {
     int newcount = distribution(generator);
     if (newcount) {
         tokens[3] = std::to_string(newcount);
-        int i = 0;
+        unsigned int i = 0;
         for (; i < tokens.size() - 1; i++) {
             std::cout << tokens[i] << "\t";
         }

@@ -144,7 +144,7 @@ void filter_singles(std::vector<std::string> &data, std::vector<std::string> &si
 
     std::vector<std::string> optimistics;
     int cur_pos = stoi(line2tokens(last_line)[3]);
-    for (int i = 0; i < data.size(); i++) {
+    for (unsigned int i = 0; i < data.size(); i++) {
         if (stoi(line2tokens(data[i])[7]) < cur_pos)    // read i has no hope finding a mate
             singles.push_back(data[i]);
         else
@@ -158,7 +158,6 @@ void action() {
     std::vector<std::string> singles;   // lines with no current match
 
     std::ostream &outfile(std::cout);
-    std::ostream &os = outfile;
 
     int line_i = 0;
 //    std::ios_base::sync_with_stdio(false);  // improves reading speed by x70
