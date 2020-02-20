@@ -27,6 +27,7 @@ Now you can convert `pat.gz` and `beta` files out of `bam` files:
 python3 wgbs_tools.py bam2pat BAM_PATH
 ```
 
+#### Usage examples
 Once you have `pat` and `beta` files, you can use wgbs_tools to visualize them. For example:
 
 ```bash
