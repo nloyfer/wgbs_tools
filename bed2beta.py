@@ -34,7 +34,7 @@ def bed2betas(args):
 
             # Load dict (at most once) and bed
             if rf is None:
-                rf = load_dict(nrows, args.genome)
+                rf = load_dict(nrows=nrows, genome_name=args.genome)
             df = load_bed(bed, nrows, args.genome == 'mm9')
 
             # merge dict with bed, then dump

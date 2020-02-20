@@ -120,9 +120,10 @@ def validate_prefix(prefix):
         raise IllegalArgumentError('Invalid prefix: no such directory: {}'.format(dirname))
 
 
-def load_dict(nrows=None, genome_name='hg19'):
+def load_dict(nrows=None, skiprows=None, genome_name='hg19'):
     d_path = GenomeRefPaths(genome_name).dict_path
-    return pd.read_csv(d_path, header=None, names=['chr', 'start'], sep='\t', usecols=[0, 1], nrows=nrows)
+    return pd.read_csv(d_path, header=None, names=['chr', 'start'], sep='\t', usecols=[0, 1], nrows=nrows,
+                       skiprows=skiprows)
 
 
 def load_dict_section(region, genome_name='hg19'):

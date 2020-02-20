@@ -1,7 +1,7 @@
 #!/usr/bin/python3 -u
 
 import argparse
-from utils_wgbs import validate_files_list
+from utils_wgbs import validate_files_list, add_GR_args
 from beta2bw import BetaToBigWig
 
 
@@ -11,8 +11,7 @@ def parse_args():
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing files if existed')
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('--outdir', '-o', default='.', help='Output directory. Default is current directory [.]')
-    parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
-
+    add_GR_args(parser)
     args = parser.parse_args()
     return args
 
