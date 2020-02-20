@@ -4,7 +4,7 @@ import numpy as np
 import os.path as op
 import argparse
 from utils_wgbs import load_beta_data, add_GR_args, BedFileWrap
-from multiprocessing import Pool
+import multiprocessing
 from genomic_region import GenomicRegion
 
 
@@ -69,7 +69,7 @@ def main():
     bedw = BedFileWrap(args.bed_file) if args.bed_file else None
 
     processes = []
-    with Pool(16) as p:
+    with multiprocessing.Pool(multiprocessing.cpu_count()) as p:
         for beta in args.betas:
             params = (beta, GenomicRegion(args).sites, bedw, True)
             processes.append(p.apply_async(beta_cov, params))
