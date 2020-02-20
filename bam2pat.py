@@ -117,7 +117,10 @@ class Bam2Pat:
                 print("Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output, error))
                 return []
             chroms = list(sorted(output.decode()[:-1].split('\n'), key=chromosome_order))
-            return chroms
+            
+            # remove random chromosomes
+            vchroms = [c for c in chroms if 'random' not in c]
+            return vchroms
             # return ['chr{}'.format(i) for i in list(range(1, 23)) + ['X', 'Y', 'M']]
 
     def start_threads(self):
