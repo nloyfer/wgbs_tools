@@ -85,7 +85,7 @@ class Indxer:
             if not self.index_bgzipped_file():
                 return  # success
             # couldn't index because the file is gzipped instead of bgzipped
-            subprocess.check_call(['unpigz', self.in_file + '.gz'])
+            subprocess.check_call(['gunzip', self.in_file + '.gz'])
 
         self.bgzip()
         self.index_bgzipped_file()
