@@ -6,8 +6,7 @@ from beta_vis import main as beta_vis_main
 from pat_vis import main as pat_vis_main
 
 
-
-def parse_args():   # todo: seperate args parsing for beta and pat
+def parse_args():  # todo: seperate args parsing for beta and pat
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('input_files', nargs='+', help='A pat.gz file or one or more beta files')
     parser.add_argument('-d', '--dists', action='store_true', help='print results with distances (kind of log scale)')
@@ -19,8 +18,9 @@ def parse_args():   # todo: seperate args parsing for beta and pat
     parser.add_argument("--no_color", action='store_true', help='Print without colors.')
     parser.add_argument('--strict', action='store_true', help='Truncate reads that start/end outside the given region. '
                                                               'Only relevant for pat files.')
-    parser.add_argument('--max_reps', '-m', type=int, default=10, help='Pat vis: Display a read at most "max_reps" times, '
-                                                                 'if it is repeating itself. [10]')
+    parser.add_argument('--max_reps', '-m', type=int, default=10,
+                        help='Pat vis: Display a read at most "max_reps" times, '
+                             'if it is repeating itself. [10]')
     parser.add_argument('--min_len', type=int, default=1,
                         help='Pat vis: Display only reads covering at least MIN_LEN CpG sites [1]')
     parser.add_argument('--color_scheme', '-cs', type=int, default=256,

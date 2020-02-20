@@ -7,7 +7,6 @@ import pandas as pd
 from io import StringIO
 import sys
 
-
 HG19_NR_SITES = 28217448  # total number of CpG sites in hg19 (fixed)
 DIR = op.dirname(os.path.realpath(__file__)) + '/'
 
@@ -23,9 +22,9 @@ MAX_PAT_LEN = 150  # maximal read length in sites
 MAX_READ_LEN = 1000  # maximal read length in bp
 
 default_blocks_path = '/cs/cbio/netanel/blocks/outputs/blocks.s101.p15.bed.gz'  # todo: not generic
-hg19_anno_path = '/cs/cbio/netanel/blocks/outputs/anno/g2.tsv.gz'  # todo: not generic (move it to references)"
 
 main_script = DIR + 'wgbs_tools.py'
+
 
 class IllegalArgumentError(ValueError):
     pass
@@ -41,6 +40,9 @@ class GenomeRefPaths:
         self.chrom_sizes = self.join('chrome.size')
         self.revdict_path = self.join('CpG.rev.bin')
         self.genome_path = self.join('genome.fa')
+        self.annotations = self.join('annotations.bed.gz')
+        if not op.isfile(self.annotations):
+            self.annotations = None
 
         self.nr_sites = self.count_nr_sites()
 
@@ -193,7 +195,7 @@ def load_borders(borders_path, gr):
 
     cmd = 'tabix {} {}'.format(borders_path, gr.region_str)
     res = subprocess.check_output(cmd, shell=True).decode()
-    #print(cmd)
+    # print(cmd)
     df = pd.read_csv(StringIO(res), sep='\t', names=['start', 'end'], header=None, usecols=[3, 4])
     df = df - gr.sites[0]
 
