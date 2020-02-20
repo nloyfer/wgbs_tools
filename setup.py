@@ -37,6 +37,7 @@ def main():
     except RuntimeError as e:
         eprint(e)
         os.chdir(curdir)
+        return
 
     os.chdir(curdir)
 
