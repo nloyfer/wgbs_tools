@@ -74,7 +74,6 @@ class BetaToBigWig:
         eprint('{}'.format(op.basename(beta_path)))
         prefix = self.set_prefix(beta_path)
         out_bed = prefix + '.bed'
-        print(out_bed)
         if not delete_or_skip(out_bed, self.args.force):
             return
 
