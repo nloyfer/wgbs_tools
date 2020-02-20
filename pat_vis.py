@@ -25,6 +25,7 @@ class PatVis:
         self.gr = GenomicRegion(args)
         self.max_reps = args.max_reps
         self.strict = args.strict
+        self.min_len = args.min_len
         self.start, self.end = self.gr.sites
         self.file = file
         self.no_color = args.no_color
@@ -80,7 +81,7 @@ class PatVis:
         print(txt)
 
     def get_block(self):
-        df = ViewPat(self.file, None, self.gr, self.strict).perform_view(dump=False)
+        df = ViewPat(self.file, None, self.gr, self.strict, min_len=self.min_len).perform_view(dump=False)
         if not df.empty:
             return self.cyclic_print(df)
 
