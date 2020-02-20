@@ -25,9 +25,10 @@ PAT_COLS = ('chr', 'start', 'pat', 'count')
 
 class ViewPat:
     def __init__(self, pat_path, opath, gr, strict=False, sub_sample=None,
-                 bed_wrapper=None):
+                 bed_wrapper=None, min_len=None):
         self.pat_path = pat_path
         self.opath = opath
+        self.min_len = min_len
         self.gr = gr
         self.strict = strict
         self.sub_sample = sub_sample
@@ -56,6 +57,9 @@ class ViewPat:
                     df.loc[idx, 'start'] = rstart = start
                 if rstart + len(pat) > end:
                     df.loc[idx, 'pat'] = pat[:end - df.loc[idx, 'start']]
+        if self.min_len > 1:
+            df = df[df['pat'].str.len() >= self.min_len]
+        return df
 
     def sample_reads(self, df):
         if self.sub_sample:  # sub-sample reads
@@ -73,7 +77,7 @@ class ViewPat:
             start, _ = self.gr.sites
             df = df[df['start'] + df['pat'].str.len() > start]
 
-        self.trim_reads(df)
+        df = self.trim_reads(df)
         self.sample_reads(df)
         df.reset_index(drop=True, inplace=True)
         if dump:
@@ -144,12 +148,12 @@ def get_pat_cols(pat_path):
 
 
 def view_pat_mult_proc(input_file, strict, sub_sample, grs, i, step):
-    # eprint('proc {}-{}'.format(i, min(len(grs), i + step) - 1), flush=True)
     res = []
     for i in range(i, min(len(grs), i + step)):
         gr = GenomicRegion(region=grs[i])
         cmd = ViewPat(input_file, sys.stdout, gr, strict, sub_sample).compose_awk_cmd()
         x = subprocess.check_output(cmd, shell=True)
+        # print('x', cmd, x)
         res.append(x)
     return res
 
@@ -285,6 +289,8 @@ def parse_args():
     parser.add_argument('--multiprocess', type=int, default=16,
                         help='pat: If bed file is specified, use multiple processors to read multiple.\n'
                              'regions in parallel. Default number of processors: 16.')
+    parser.add_argument('--min_len', type=int, default=1,
+                        help='Pat: Display only reads covering at least MIN_LEN CpG sites [1]')
     args = parser.parse_args()
     return args
 
@@ -318,7 +324,7 @@ def main():
             if bed_wrapper:
                 view_pat_bed_multiprocess(args, bed_wrapper)
             else:
-                vp = ViewPat(input_file, args.out_path, gr, args.strict, args.sub_sample, bed_wrapper)
+                vp = ViewPat(input_file, args.out_path, gr, args.strict, args.sub_sample, bed_wrapper, args.min_len)
                 vp.view_pat(args.awk_engine)
         elif input_file.endswith('.unq.gz'):
             grs = bed_wrapper.iter_grs() if bed_wrapper else [gr]
