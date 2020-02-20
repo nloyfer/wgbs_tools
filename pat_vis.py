@@ -5,10 +5,9 @@ from utils_wgbs import MAX_PAT_LEN, validate_files_list, splitextgz, IllegalArgu
 from genomic_region import GenomicRegion
 from view import ViewPat
 import os.path as op
-import subprocess
+import sys
 
 MAX_LINES_PER_BLOCK = 1000   # maximal height of the output (in lines)
-# MAX_FLATTEN = 10             # reads with count > MAX_FLATTEN will be printed only MAX_FLATTEN times.
 
 
 str2int = {'C': 2, 'T': 3, '.': 4, 'D': 5}
@@ -23,7 +22,7 @@ num2color_dict = {
 class PatVis:
     def __init__(self, args, file):
         self.gr = GenomicRegion(args)
-        self.max_reps = args.max_reps
+        self.max_reps = args.max_reps if args.max_reps > 0 else sys.maxsize
         self.strict = args.strict
         self.min_len = args.min_len
         self.start, self.end = self.gr.sites

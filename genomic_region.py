@@ -1,6 +1,6 @@
 import re
 import subprocess
-from utils_wgbs import IllegalArgumentError, GenomeRefPaths, eprint, StringIO, hg19_anno_path
+from utils_wgbs import IllegalArgumentError, GenomeRefPaths, eprint
 import sys
 import numpy as np
 import pandas as pd
@@ -36,20 +36,21 @@ class GenomicRegion:
         self.annotation = self.add_anno()
 
     def add_anno(self):
-        if self.args is None or self.genome_name != 'hg19' or self.is_whole():
-            return
         if self.args.no_anno:
             return
+        if self.args is None or self.is_whole():
+            return
+        anno_path = self.genome.annotations
+        if anno_path is None:
+            return
         try:
-            if not op.isfile(hg19_anno_path):
-                return
-            cmd = 'tabix {} {} | cut -f3- | uniq'.format(hg19_anno_path, self.region_str)
+
+            cmd = 'tabix {} {} | cut -f4- | uniq'.format(anno_path, self.region_str)
             res = subprocess.check_output(cmd, shell=True).decode().strip()
             return res
-        except:
+        except subprocess.CalledProcessError:
             eprint('Failed to retrieve annotation for reagion ', self.region_str)
             return
-        return annotation
 
     def parse_sites(self, sites_str):
         """ Parse input of the type -s / --sites (e.g 15-25) """
