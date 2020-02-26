@@ -71,11 +71,14 @@ def main():
     processes = []
     with multiprocessing.Pool(multiprocessing.cpu_count()) as p:
         for beta in args.betas:
-            params = (beta, GenomicRegion(args).sites, bedw, True)
+            params = (beta, GenomicRegion(args).sites, bedw, False)
             processes.append(p.apply_async(beta_cov, params))
         p.close()
         p.join()
     covs = [pr.get() for pr in processes]
+
+    for cov, beta_path in zip(covs, args.betas):
+        print('{}\t{:.2f}'.format(pretty_name(beta_path), cov))
 
     if args.plot:
         plot_hist([pretty_name(b) for b in args.betas], covs)
