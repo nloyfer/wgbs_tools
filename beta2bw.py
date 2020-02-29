@@ -119,6 +119,8 @@ class BetaToBigWig:
         # dump beta values to bedGraph
         eprint('Dumping beta vals...')
         self.ref_dict['beta'] = np.round(beta2vec(barr, na=-1), 3)
+        if self.args.remove_nan:
+            self.ref_dict = self.ref_dict[self.ref_dict['beta'] != -1]
         sort_and_dump_df(self.ref_dict, out_bed_graph)
         del self.ref_dict['beta']
 
@@ -135,13 +137,16 @@ def parse_args():
     parser.add_argument('beta_paths', nargs='+')
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing files if existed')
     parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('--remove_nan', action='store_true', help='If set, missing CpG sites are removed from the output.'
+                                                                  ' Default is to keep them with "-1" value.')
     parser.add_argument('-b', '--bedGraph', action='store_true', help='Keep (gzipped) bedGraphs as well as bigwigs')
     parser.add_argument('--dump_cov', action='store_true',
                         help='Generate coverage bigiwig in addition to beta values bigwig')
     parser.add_argument('-c', '--min_cov', type=int, default=1,
                         help='Minimal coverage to consider when computing beta values.'
-                             ' Default is 1 (include all observations)')
-    parser.add_argument('--outdir', '-o', default='.')
+                             ' Default is 1 (include all observations). '
+                             ' Sites with less than MIN_COV coverage are considered as missing.')
+    parser.add_argument('--outdir', '-o', default='.', help='Output directory. [.]')
     add_GR_args(parser)
     args = parser.parse_args()
     return args
