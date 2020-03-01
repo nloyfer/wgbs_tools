@@ -11,7 +11,7 @@ import numpy as np
 import os
 
 
-def pat2beta(pat_path, out_dir, args):
+def pat2beta(pat_path, out_dir, args, force=True):
     validate_single_file(pat_path)
 
     if pat_path.endswith('.pat.gz'):
@@ -22,7 +22,7 @@ def pat2beta(pat_path, out_dir, args):
         raise IllegalArgumentError('Invalid pat suffix: {}'.format(pat_path))
 
     out_beta = op.join(out_dir, splitextgz(op.basename(pat_path))[0] + '.beta')
-    if not delete_or_skip(out_beta, args.force):
+    if not delete_or_skip(out_beta, force):
         return
     nr_sites = GenomeRefPaths(args.genome).nr_sites
 
@@ -57,7 +57,7 @@ def mult_pat2beta(pat_path, out_beta, nr_sites, args):
 def chr_thread(chrom, pat, beta, nr_sites):
     cmd = 'tabix {} {} | '.format(pat, chrom)
     cmd += '{} {} {}'.format(PAT2BETA_TOOL, beta, nr_sites)
-    subprocess.check_call(cmd, shell=True)
+    subprocess.check_call(cmd, shell=True, stderr=subprocess.PIPE)
     return beta
 
 
@@ -77,7 +77,7 @@ def main():
     Generate a beta file from a pat file
     """
     args = parse_args()
-    pat2beta(args.pat_path, args.out_dir, args)
+    pat2beta(args.pat_path, args.out_dir, args, args.force)
 
 
 if __name__ == '__main__':
