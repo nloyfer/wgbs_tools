@@ -42,9 +42,7 @@ class Indxer:
         :return: 0 iff succeeded
         """
         cmd = 'tabix {} {}'.format(self.ftype.tabix_flags, self.in_file + '.gz')
-        r = subprocess.call(cmd, shell=True, stderr=subprocess.PIPE)
-        #if not r:
-        #    eprint('Success in indexing')
+        r = subprocess.check_call(cmd, shell=True, stderr=subprocess.PIPE)
         return r
 
     def bgzip(self):
