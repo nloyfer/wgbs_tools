@@ -105,11 +105,11 @@ class Mixer:
             beta = pat.replace('.pat.gz', '.beta')
             if not op.isfile(beta):
                 eprint('No beta file compatible to {} was found. Generate it...'.format(pat))
-                pat2beta(pat, op.dirname(pat), self.args.genome)
+                pat2beta(pat, op.dirname(pat), args=self.args)
             if self.bed:
                 cov = beta_cov_by_bed(beta, self.bed)
             else:
-                cov = beta_cov(beta, self.gr.sites)
+                cov = beta_cov(beta, self.gr.sites, print_res=True)
             covs.append(cov)
         self.add_stats_col('OrigCov', covs)
         return covs
@@ -137,7 +137,7 @@ def single_mix(i, m):
 
 def mult_mix(args):
     m = Mixer(args)
-    with Pool(multiprocessing.cpu_count() // 2) as p:
+    with Pool(args.threads) as p:
         for i in range(args.reps):
             p.apply_async(single_mix, (i, m))
         p.close()
@@ -184,7 +184,8 @@ def parse_args():
     out_or_pref = parser.add_mutually_exclusive_group()
     out_or_pref.add_argument('-p', '--prefix', help='Prefix of output file.')
     out_or_pref.add_argument('-o', '--out_dir', help='Output directory [.]', default='.')
-    #parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
+    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
+                        help='Number of threads to use (default: multiprocessing.cpu_count)')
 
     args = parser.parse_args()
     return args
