@@ -105,7 +105,7 @@ class Mixer:
             beta = pat.replace('.pat.gz', '.beta')
             if not op.isfile(beta):
                 eprint('No beta file compatible to {} was found. Generate it...'.format(pat))
-                pat2beta(pat, op.dirname(pat), args=self.args)
+                pat2beta(pat, op.dirname(pat), args=self.args, force=True)
             if self.bed:
                 cov = beta_cov_by_bed(beta, self.bed)
             else:
