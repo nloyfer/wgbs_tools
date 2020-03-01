@@ -64,8 +64,8 @@ def proc_chr(input_path, out_path, region, genome, paired_end, debug):
         # change reads order, s.t paired reads will appear in adjacent lines
         cmd += "{} | ".format(match_maker_tool)
     cmd += "{} {} {} > {}".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes, out_path)
-    print(cmd)
-    subprocess.call(cmd, shell=True)
+    #print(cmd)
+    subprocess.check_call(cmd, shell=True)
 
     return pat_unq(out_path)
 
@@ -114,10 +114,10 @@ class Bam2Pat:
             p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             output, error = p.communicate()
             if p.returncode or not output:
-                print("Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output, error))
+                print(cmd)
+                print("Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
                 return []
             chroms = list(sorted(output.decode()[:-1].split('\n'), key=chromosome_order))
-
             # remove random chromosomes
             vchroms = [c for c in chroms if 'random' not in c]
             return vchroms
@@ -149,7 +149,7 @@ class Bam2Pat:
         list(map(os.remove, [x for l in res for x in l]))
 
         # generate beta file and bgzip the pat, unq files:
-        beta_path = pat2beta(pat_path, self.out_dir, self.args.genome)
+        beta_path = pat2beta(pat_path, self.out_dir, args=self.args)
         print('bgzipping and indexing:')
         for f in (pat_path, unq_path):
             print('{}...'.format(f))
