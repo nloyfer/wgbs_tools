@@ -12,7 +12,8 @@ from index_wgbs import Indxer
 
 
 class MergePats:
-    def __init__(self, pats, out_nogzip, labels):
+    def __init__(self, pats, out_nogzip, labels, args):
+        self.args = args
         self.pats = pats
         self.out_nogzip = out_nogzip
         self.labels = labels
@@ -44,7 +45,7 @@ class MergePats:
 
         if not op.isfile(self.out_nogzip + '.gz'):
             raise IllegalArgumentError('Error: failed to create file {}.gz'.format(self.out_nogzip))
-        Indxer(self.out_nogzip + '.gz', force=True).run()
+        Indxer(self.out_nogzip + '.gz', args=self.args).run()
 
 
 def merge_betas(betas, opath):
@@ -100,12 +101,11 @@ def main():
         return
 
     files_type = splitextgz(input_files[0])[1][1:]
-    labels = None if not args.labels else args.labels
 
     if files_type in ('beta', 'bin'):
         merge_betas(input_files, out_path)
     elif files_type == 'pat.gz':
-        MergePats(input_files, args.prefix + '.pat', labels).merge_pats()
+        MergePats(input_files, args.prefix + '.pat', args.labels, args).merge_pats()
     elif files_type == 'unq.gz':
         merge_unqs()
     else:
