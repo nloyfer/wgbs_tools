@@ -26,6 +26,9 @@ def read_reference(ref):
     if not op.isfile(ref):
         raise IllegalArgumentError('No such file: {}'.format(ref))
     rf = pd.read_csv(ref, header=None, usecols=[0], names=['ilmn'])
+    # remove first row if it's not a cg entry:
+    if pd.isna(rf['ilmn'][0]) or not rf['ilmn'][0].startswith('cg'):
+        rf = rf.iloc[1:, :]
 
     # merge reference file with map table
     mf = df.merge(rf, how='right', on='ilmn')
@@ -36,7 +39,10 @@ def read_reference(ref):
     if not missing_sites.empty:
         msg = 'WARNING: Skipping some unrecognized Illumina IDs \n'
         msg += '(not found in the map table {})\n'.format(ilmn2cpg_dict)
-        msg += 'The missing sites: {}'.format(','.join(list(missing_sites['ilmn'])))
+        if not missing_sites['ilmn'].empty:
+            print(missing_sites['ilmn'])
+            print(list(missing_sites['ilmn']))
+            msg += 'The missing sites: {}'.format(','.join(map(str, missing_sites['ilmn'])))
         eprint(msg)
     mf = mf[~mf['cpg'].isna()]
 
