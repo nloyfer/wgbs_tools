@@ -4,6 +4,7 @@ import os
 import os.path as op
 import argparse
 import subprocess
+import multiprocessing
 from multiprocessing import Pool
 from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args
 from init_genome_ref_wgbs import chromosome_order
