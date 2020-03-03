@@ -5,7 +5,7 @@ import os.path as op
 import sys
 import subprocess
 from utils_wgbs import delete_or_skip, splitextgz, IllegalArgumentError, eprint
-
+import multiprocessing
 
 class PatUnq:
     def __init__(self, input_file):
@@ -28,8 +28,8 @@ class BedTsv:
 
 
 class Indxer:
-    def __init__(self, input_file, force):
-        self.force = force
+    def __init__(self, input_file, args):
+        self.args = args
         self.in_file = input_file
         self.suff = splitextgz(self.in_file)[1][1:]
         c = BedTsv if 'bed' in self.suff or 'tsv' in self.suff else PatUnq
@@ -56,7 +56,8 @@ class Indxer:
                 subprocess.check_call('sort {fl} {f} -o {f}'.format(fl=flags, f=f), shell=True)
 
         # bgzip the file:
-        subprocess.check_call('bgzip -@ 4 -f ' + f, shell=True)
+        cmd = 'bgzip -@ {} -f {}'.format(self.args.threads, f)
+        subprocess.check_call(cmd, shell=True)
 
     def validate_file(self):
         """
@@ -74,7 +75,7 @@ class Indxer:
     def run(self):
 
         # if index already exists delete it or skip it
-        if not delete_or_skip(self.in_file + self.ftype.ind_suff, self.force):
+        if not delete_or_skip(self.in_file + self.ftype.ind_suff, self.args.force):
             return
 
         if self.in_file.endswith('.gz'):
@@ -94,6 +95,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('input_files', nargs='+', help='One or more file with extensions .pat[.gz] or .unq[.gz]')
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing index file (csi) if existed')
+    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
+                        help='Number of threads to use (default: multiprocessing.cpu_count)')
     return parser.parse_args()
 
 
@@ -107,7 +110,7 @@ def main():
     """
     args = parse_args()
     for input_file in args.input_files:
-        Indxer(input_file, args.force).run()
+        Indxer(input_file, args).run()
     return 0
 
 
