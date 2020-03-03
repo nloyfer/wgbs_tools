@@ -55,9 +55,11 @@ class BetaToBigWig:
         """
 
         # Convert bedGraph to bigWig:
+        # TODO: check bedGraphToBigWig is in PATH
         subprocess.check_call(['bedGraphToBigWig', bed_graph, self.chrom_sizes, bigwig])
 
         # compress or delete the bedGraph:
+        # TODO: wrap gzip. Use pigz if pigz in PATH
         if self.args.bedGraph:
             subprocess.check_call(['gzip', '-f', bed_graph])
         else:
