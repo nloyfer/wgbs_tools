@@ -72,7 +72,7 @@ class Mixer:
             v += ' --sub_sample {}'.format(self.adj_rates[i])
             view_flags.append(v)
         print('prefix:', prefix_i)
-        m = MergePats(self.pats, prefix_i, self.labels)
+        m = MergePats(self.pats, prefix_i, self.labels, args=self.args)
         m.fast_merge_pats(view_flags=view_flags)
 
     def validate_labels(self, labels):
