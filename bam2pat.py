@@ -128,7 +128,7 @@ class Bam2Pat:
 
         name = op.join(self.out_dir, op.basename(self.bam_path)[:-4])
         processes = []
-        with Pool() as p:
+        with Pool(self.args.threads) as p:
             for c in self.set_regions():
                 out_path = name + '_' + c + '.output.tmp'
                 params = (self.bam_path, out_path, c, self.gr.genome, self.is_pair_end(), self.debug)
@@ -162,6 +162,8 @@ def parse_args():
     add_GR_args(parser)
     parser.add_argument('--out_dir', '-o', default='.')
     parser.add_argument('--debug', '-d', action='store_true')
+    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
+                        help='Number of threads to use (default: multiprocessing.cpu_count)')
     parser.add_argument('--test', action='store_true',
                         help='Perform a test for the pipeline. Ignore other parameters.')
     args = parser.parse_args()
