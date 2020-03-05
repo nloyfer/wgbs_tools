@@ -36,12 +36,12 @@ def apply_filter_wrapper(args, blocks_bins, finds, beta_path, df):
         out_name = op.join(args.out_dir, out_name)
 
         trim_to_uint8(reduced_data).tofile(out_name)
-        print('saved to file:', out_name)
+        print(out_name)
 
         if args.bedGraph:
             with np.errstate(divide='ignore', invalid='ignore'):
                 beta_vals = reduced_data[:, 0] / reduced_data[:, 1]
-                print(beta_vals.shape, df.shape)
+                eprint(beta_vals.shape, df.shape)
             # beta_vals[reduced_data[:, 1] == 0] = np.nan
             df['beta'] = beta_vals
             df.to_csv(out_name.replace('.bin', '.bedGraph'), sep='\t',
@@ -63,7 +63,7 @@ def main():
     validate_files_list(files, '.beta')
 
     if not op.isfile(args.blocks_file):
-        print('Invalid blocks file:', args.blocks_file)
+        eprint('Invalid blocks file:', args.blocks_file)
         return
 
     names = ['chr', 'sloc', 'eloc', 'ssite', 'esite']
@@ -74,7 +74,7 @@ def main():
         eprint('removed {} regions with no CpGs'.format(nr_removed))
 
     if args.debug:
-        print(df[df.ssite == df.esite])
+        eprint(df[df.ssite == df.esite])
 
     df = df[df.ssite < df.esite]
     blocks_bins, filtered_indices = get_bins(df)
