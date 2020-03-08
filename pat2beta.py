@@ -2,12 +2,13 @@
 
 import argparse
 from utils_wgbs import validate_single_file, PAT2BETA_TOOL, delete_or_skip, splitextgz, IllegalArgumentError, \
-    GenomeRefPaths, load_beta_data
+    GenomeRefPaths
 import subprocess
 import os.path as op
 from multiprocessing import Pool
 import multiprocessing
-import numpy as np
+from merge import merge_betas
+
 import os
 
 
@@ -46,11 +47,10 @@ def mult_pat2beta(pat_path, out_beta, nr_sites, args):
         p.close()
         p.join()
 
-    res = np.zeros((nr_sites, 2), dtype=np.uint8)
-    for bpath in [pr.get() for pr in processes]:
-        res += load_beta_data(bpath)
-        os.remove(bpath)
-    res.tofile(out_beta)
+    # todo: don't save all intermediate beta files. do everything in RAM (edit stdin2beta)
+    beta_files = [pr.get() for pr in processes]
+    merge_betas(beta_files, out_beta)
+    list(map(os.remove, beta_files))
     return out_beta
 
 
