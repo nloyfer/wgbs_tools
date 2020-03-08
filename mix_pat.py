@@ -161,7 +161,7 @@ def parse_args():
                              'Only supported if corresponding beta files are in the same '
                              'directory with the pat files. '
                              'Otherwise, they will be created.')
-    add_GR_args(parser)
+    add_GR_args(parser, bed_file=True)
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing files if existed')
 
     parser.add_argument('--reps', type=int, default=1, help='nr or repetitions [1]')
@@ -175,8 +175,6 @@ def parse_args():
                                                     'Default is the basenames of the pat files,'
                                                     'lowercased and trimmed by the first "-"')
 
-    parser.add_argument('-L', '--bed_file',
-                        help='Only output reads overlapping the input BED FILE. ')
     parser.add_argument('--strict', action='store_true', help='Truncate reads that start/end outside the given region. '
                                                               'Only relevant if "region", "sites" '
                                                               'or "bed_file" flags are given.')
@@ -186,7 +184,6 @@ def parse_args():
     out_or_pref.add_argument('-o', '--out_dir', help='Output directory [.]', default='.')
     parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
                         help='Number of threads to use (default: multiprocessing.cpu_count)')
-
     args = parser.parse_args()
     return args
 
@@ -199,11 +196,6 @@ def main():
     """
     args = parse_args()
     validate_files_list(args.pat_files, 'pat.gz', 2)
-
-    if args.bed_file and (args.region or args.sites):
-        eprint('-L, -s and -r are mutually exclusive')
-        return
-
     mult_mix(args)
     return
 

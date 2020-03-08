@@ -14,11 +14,7 @@ COORDS_COLS = ['chr', 'start', 'end']
 
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
-    add_GR_args(parser)
-
-    # todo: allow bed file input
-    parser.add_argument('-L', '--bed_path',
-                        help='convert all regions in a bed file')
+    add_GR_args(parser, bed_file=True)
     parser.add_argument('--out_path', '-o', help='Output path for bed file [stdout]')
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing files if existed')
@@ -115,15 +111,10 @@ def main():
     """
     args = parse_args()
 
-    if args.bed_path and (args.region or args.sites):
-        eprint('-L, -s and -r are mutually exclusive')
-        return
-
     if args.bed_path:
         convert_bed_file(args)
-        return
-
-    print(GenomicRegion(args))
+    else:
+        print(GenomicRegion(args))
 
 
 if __name__ == '__main__':
