@@ -28,8 +28,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('betas', nargs='+', help='one or more beta files')
     parser.add_argument('--plot', action='store_true', help='Plot histogram of coverages')
-    add_GR_args(parser)
-    parser.add_argument('-L', '--bed_file', help='Only output coverage overlapping the input BED FILE. ')
+    add_GR_args(parser, bed_file=True)
     args = parser.parse_args()
     return args
 

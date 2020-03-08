@@ -271,13 +271,11 @@ def view_beta(beta_path, gr, opath):
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('input_file')
-    add_GR_args(parser)
+    add_GR_args(parser, bed_file=True)
     parser.add_argument('-o', '--out_path', type=argparse.FileType('w'), default=sys.stdout,
                         help='Output path. [stdout]')
     parser.add_argument('--sub_sample', type=float, metavar='(0.0, 1.0)',
                         help='pat: subsample from reads. Only supported for pat')  # todo: support unq too
-    parser.add_argument('-L', '--bed_file',
-                        help='pat: Only output reads overlapping the input BED FILE')
     parser.add_argument('--strict', action='store_true',  # todo: add fractions to trimmed reads (optional flag)
                         help='pat: Truncate reads that start/end outside the given region. '
                              'Only relevant if "region", "sites" '
@@ -308,10 +306,6 @@ def main():
 
     if args.sub_sample is not None and not 1 > args.sub_sample > 0:
         eprint('sub-sampling rate must be within (0.0, 1.0)')
-        return
-
-    if args.bed_file and (args.region or args.sites):
-        eprint('-L, -s and -r are mutually exclusive')
         return
 
     bed_wrapper = BedFileWrap(args.bed_file) if args.bed_file else None
