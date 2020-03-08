@@ -88,7 +88,7 @@ class BedFileWrap:
             yield GenomicRegion(region='{}:{}-{}'.format(*r))
         # todo: check bed file has no overlaps?
 
-    def fast_iger_regions(self):
+    def fast_iter_regions(self):
         for _, r in self.df.iterrows():
             yield '{}:{}-{}'.format(*r)
 
