@@ -28,8 +28,9 @@ class BedTsv:
 
 
 class Indxer:
-    def __init__(self, input_file, args):
-        self.args = args
+    def __init__(self, input_file, force=True, threads=multiprocessing.cpu_count()):
+        self.force = force
+        self.threads = threads
         self.in_file = input_file
         self.suff = splitextgz(self.in_file)[1][1:]
         c = BedTsv if 'bed' in self.suff or 'tsv' in self.suff else PatUnq
@@ -56,7 +57,7 @@ class Indxer:
                 subprocess.check_call('sort {fl} {f} -o {f}'.format(fl=flags, f=f), shell=True)
 
         # bgzip the file:
-        cmd = 'bgzip -@ {} -f {}'.format(self.args.threads, f)
+        cmd = 'bgzip -@ {} -f {}'.format(self.threads, f)
         subprocess.check_call(cmd, shell=True)
 
     def validate_file(self):
@@ -110,7 +111,7 @@ def main():
     """
     args = parse_args()
     for input_file in args.input_files:
-        Indxer(input_file, args).run()
+        Indxer(input_file, args.force, args.threads).run()
     return 0
 
 
