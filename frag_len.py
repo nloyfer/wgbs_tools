@@ -80,10 +80,6 @@ def run_single_unq(unq, grs, args):
 
 
 def multi_FragLen(args):
-    if args.bed_file and (args.region or args.sites):
-        eprint('-L, -s and -r are mutually exclusive')
-        return
-
     if args.region or args.sites:
         grs = [GenomicRegion(args)]
     elif args.bed_file:
@@ -113,9 +109,7 @@ def parse_args():
                         help='Maximum fragment size. Longer fragments will be trimmed. [500]')
     parser.add_argument('--outdir', '-o', help='output directory for the histogram figure(s) [None]')
     parser.add_argument('--display', action='store_true', help='Display histogram plot(s) (plt.show)')
-    parser.add_argument('-L', '--bed_file',
-                        help='pat: Only output reads overlapping the input BED FILE')
-    add_GR_args(parser)
+    add_GR_args(parser, bed_file=True)
     return parser.parse_args()
 
 
