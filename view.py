@@ -162,7 +162,7 @@ def view_pat_bed_multiprocess(args, bed_wrapper):
     if not bed_wrapper:
         raise IllegalArgumentError('bed file is None')
 
-    regions_lst = list(bed_wrapper.fast_iger_regions())
+    regions_lst = list(bed_wrapper.fast_iter_regions())
     n = len(regions_lst)
     step = max(1, n // args.multiprocess)
 
