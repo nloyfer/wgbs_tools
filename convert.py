@@ -55,17 +55,14 @@ class AddCpGsToBed:
     def __init__(self, args):
         self.args = args
         self.out_path = args.out_path
-        self.debug = args.debug
         if not delete_or_skip(self.out_path, self.args.force):
             return
 
         # load bed file:
-        self.df = load_bed(args.bed_path, 100000 if self.debug else None)
-
-        self.genome = GenomeRefPaths(args.genome)
+        self.df = load_bed(args.bed_file, 100000 if args.debug else None)
 
         # load chromosomes sizes (in GpGs):
-        self.cf = self.genome.get_chrom_cpg_size_table()
+        self.cf = GenomeRefPaths(args.genome).get_chrom_cpg_size_table()
         self.cf['size'] = np.cumsum(self.cf['size'])
         self.proc_bed()
 
@@ -83,7 +80,7 @@ class AddCpGsToBed:
         r = pd.concat([pr.get() for pr in processes])
         if self.out_path is None:
             self.out_path = sys.stdout
-        # r = self.reorder_to_original(r)
+        r = self.reorder_to_original(r)
         r.to_csv(self.out_path, sep='\t', header=None, index=None, na_rep='NaN', mode='a')
 
     def reorder_to_original(self, res):
@@ -111,7 +108,7 @@ def main():
     """
     args = parse_args()
 
-    if args.bed_path:
+    if args.bed_file:
         convert_bed_file(args)
     else:
         print(GenomicRegion(args))
