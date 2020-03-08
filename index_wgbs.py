@@ -76,7 +76,7 @@ class Indxer:
     def run(self):
 
         # if index already exists delete it or skip it
-        if not delete_or_skip(self.in_file + self.ftype.ind_suff, self.args.force):
+        if not delete_or_skip(self.in_file + self.ftype.ind_suff, self.force):
             return
 
         if self.in_file.endswith('.gz'):
