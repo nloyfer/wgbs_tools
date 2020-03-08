@@ -133,11 +133,13 @@ def load_dict_section(region, genome_name='hg19'):
     return read_shell(cmd, names=['chr', 'start', 'idx'])
 
 
-def add_GR_args(parser, required=False):
+def add_GR_args(parser, required=False, bed_file=False):
     """ Add genomic regions arguments parsing (flags [-s] and [-r]) """
     region_or_sites = parser.add_mutually_exclusive_group(required=required)
     region_or_sites.add_argument('-s', "--sites", help='a CpG index range, of the form: "450000-450050"')
     region_or_sites.add_argument('-r', "--region", help='genomic region of the form "chr1:10,000-10,500"')
+    if bed_file:
+        region_or_sites.add_argument('-L', "--bed_file", help='Bed file. Columns <chr, start, end>')
     parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
     parser.add_argument('--no_anno', help='Do not print genomic annotations', action='store_true')
 
