@@ -193,7 +193,7 @@ def load_borders(borders_path, gr):
     if not (op.isfile(borders_path + '.csi') or op.isfile(borders_path + '.tbi')):
         eprint('No csi found for file {}. Attempting to index it...'.format(borders_path))
         from index_wgbs import Indxer
-        Indxer(borders_path, force=True).run()
+        Indxer(borders_path).run()
 
     cmd = 'tabix {} {}'.format(borders_path, gr.region_str)
     res = subprocess.check_output(cmd, shell=True).decode()
@@ -270,7 +270,7 @@ def validate_single_file(file, suff=None):
     if suff in ('.pat.gz', '.unq.gz') and not op.isfile(file + '.csi'):
         eprint('No csi found for file {}. Attempting to index it...'.format(file))
         from index_wgbs import Indxer
-        Indxer(file, force=True).run()
+        Indxer(file).run()
 
 
 def splitextgz(input_file):

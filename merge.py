@@ -45,7 +45,7 @@ class MergePats:
 
         if not op.isfile(self.out_nogzip + '.gz'):
             raise IllegalArgumentError('Error: failed to create file {}.gz'.format(self.out_nogzip))
-        Indxer(self.out_nogzip + '.gz', args=self.args).run()
+        Indxer(self.out_nogzip + '.gz', force=self.args.force).run()
 
 
 def merge_betas(betas, opath):
