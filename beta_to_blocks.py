@@ -9,11 +9,11 @@ from utils_wgbs import validate_files_list
 from multiprocessing import Pool
 from os.path import splitext, basename
 import sys
-from utils_wgbs import load_beta_data, trim_to_uint8, default_blocks_path, eprint
+from utils_wgbs import load_beta_data, trim_to_uint8, default_blocks_path, eprint, GenomeRefPaths
 
 
-def get_bins(df):
-    end = 28217449  # todo: read this from a reference file
+def get_bins(df, genome):
+    end = GenomeRefPaths(genome).count_nr_sites() + 1   # 28217449 for hg19
     arr = np.unique(np.concatenate([[1], df['ssite'], df['esite'], [end]]))
     arr.sort()
     isin = np.isin(arr, np.concatenate([df['ssite'], [df['esite'][df.shape[0] - 1]]]))
@@ -77,7 +77,7 @@ def main():
         eprint(df[df.ssite == df.esite])
 
     df = df[df.ssite < df.esite]
-    blocks_bins, filtered_indices = get_bins(df)
+    blocks_bins, filtered_indices = get_bins(df, args.genome)
 
     with Pool() as p:
         for beta_path in files:
@@ -98,6 +98,7 @@ def parse_args():
     parser.add_argument('-o', '--out_dir', help='output directory. Default is "."', default='.')
     parser.add_argument('--bedGraph', action='store_true', help='output a text file in addition to binary file')
     parser.add_argument('--debug', '-d', action='store_true')
+    parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
 
     return parser.parse_args()
 
