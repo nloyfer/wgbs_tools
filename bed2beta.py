@@ -83,7 +83,7 @@ def main():
     """
     Convert bed[.gz] file[s] to beta file[s].
     bed file should be of the format (tab-separated):
-    chr    start    end    meth    total
+    chr    start    end    #meth    #total
     """
     # todo: bed or bedGraph?
     args = parse_args()
