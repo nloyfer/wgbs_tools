@@ -125,6 +125,8 @@ class ViewPat:
                        ' if (s < %s) {s=%s;pat=substr(pat,%s-$2 + 1)}' \
                        ' if (s + length(pat) > %e) {pat=substr(pat, 0, %e-s)} ' \
                        ' print $1,s,pat,$4,$5,$6;}\' '.replace('%s', str(start)).replace('%e', str(end))
+            if self.min_len > 1:
+                cmd += ' | awk \'{(OFS="\t"); if (length($3) >= %m) {print $1,$2,$3,$4,$5,$6}}\' '.replace('%m', str(self.min_len))
         if self.sub_sample:  # sub-sample reads
             cmd += ' | {} {} '.format(pat_sampler, self.sub_sample)
         return cmd
@@ -147,11 +149,11 @@ def get_pat_cols(pat_path):
     return cols
 
 
-def view_pat_mult_proc(input_file, strict, sub_sample, grs, i, step):
+def view_pat_mult_proc(input_file, strict, sub_sample, min_len, grs, i, step):
     res = []
     for i in range(i, min(len(grs), i + step)):
         gr = GenomicRegion(region=grs[i])
-        cmd = ViewPat(input_file, sys.stdout, gr, strict, sub_sample).compose_awk_cmd()
+        cmd = ViewPat(input_file, sys.stdout, gr, strict, sub_sample, None, min_len).compose_awk_cmd()
         x = subprocess.check_output(cmd, shell=True)
         # print('x', cmd, x)
         res.append(x)
@@ -169,7 +171,7 @@ def view_pat_bed_multiprocess(args, bed_wrapper):
     processes = []
     with Pool() as p:
         for i in range(0, n, step):
-            params = (args.input_file, args.strict, args.sub_sample, regions_lst, i, step)
+            params = (args.input_file, args.strict, args.sub_sample, args.min_len, regions_lst, i, step)
             processes.append(p.apply_async(view_pat_mult_proc, params))
         p.close()
         p.join()
