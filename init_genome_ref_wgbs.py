@@ -19,10 +19,11 @@ class InitGenome:
         self.ref_path = args.genome_ref
         self.force = args.force
         self.name = args.name
-        self.out_dir = self.make_output_dir()
 
         # validate input files
         validate_single_file(self.ref_path, '.fa')
+
+        self.out_dir = self.make_output_dir()
 
         # abort if files exists and --force was not specified
         eprint('Setting up genome reference files in {}'.format(self.out_dir))
