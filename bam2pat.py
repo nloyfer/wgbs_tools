@@ -9,7 +9,7 @@ from multiprocessing import Pool
 from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args
 from init_genome_ref_wgbs import chromosome_order
 from pat2beta import pat2beta
-from pipeline_wgbs.test import run_test
+#from pipeline_wgbs.test import run_test
 from genomic_region import GenomicRegion
 
 
@@ -165,11 +165,14 @@ def parse_args():
     parser.add_argument('--debug', '-d', action='store_true')
     parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
                         help='Number of threads to use (default: multiprocessing.cpu_count)')
-    parser.add_argument('--test', action='store_true',
-                        help='Perform a test for the pipeline. Ignore other parameters.')
+    #parser.add_argument('--test', action='store_true',
+    #                    help='Perform a test for the pipeline. Ignore other parameters.')
     args = parser.parse_args()
     return args
 
+def test_bam2pat():
+    print('Testing...')
+    run_test.main()
 
 def main():
     """
@@ -177,10 +180,8 @@ def main():
     """
     args = parse_args()
 
-    if args.test:
-        print('Testing...')
-        run_test.main()
-        return
+    #if args.test:
+    #    return test_bam2pat()
 
     # else
     Bam2Pat(args).start_threads()
