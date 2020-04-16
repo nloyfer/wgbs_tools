@@ -37,10 +37,9 @@ class PatVis:
     def insert_borders(self, markers):
         ctable = self.fullres['table']
 
-        borders = load_borders(self.blocks_path, self.gr) + self.start - self.fullres['start']
+        borders = load_borders(self.blocks_path, self.gr)# + self.start - self.fullres['start']
         if not borders.size:
             return self.fullres['text'], markers
-
         # pad right columns with space, if there are missing sites before the last border/s
         missing_width = borders[-1] - ctable.shape[1]
         if missing_width > 0:
@@ -51,8 +50,18 @@ class PatVis:
         # insert the borders:
         table = np.insert(ctable, borders, '|', axis=1)
         txt = '\n'.join(''.join(line) for line in table)
-        markers += '+' * borders.size
-        return txt, markers
+        rmark = ''
+        j = 0
+        for i in range(ctable.shape[1] + 1):
+            if table[0][i] == '|':
+                rmark += '|'
+                continue
+            elif j < len(markers):
+                rmark += markers[j]
+            else:
+                rmark += ' '
+            j += 1
+        return txt, rmark
 
     def print_results(self):
 
@@ -81,6 +90,7 @@ class PatVis:
 
     def get_block(self):
         df = ViewPat(self.file, None, self.gr, self.strict, min_len=self.min_len).perform_view(dump=False)
+        #print(df)
         if not df.empty:
             return self.cyclic_print(df)
 
@@ -104,7 +114,7 @@ class PatVis:
                     raise IllegalArgumentError('Error: Input file must be sorted by CpG_ID!')
 
                 # find the first available row to insert current read:
-                if self.no_dense:
+                if self.no_dense: # no_dense: present each read in a new line
                     row += 1
                 else:
                     row = np.argmin(table[:, col])
@@ -119,6 +129,11 @@ class PatVis:
         width = np.max(np.argmin(table, axis=1))
         table = table[:nr_lines, :width]
         table[table == 0] = 1
+
+        # if reqested range starts before the actual data (i.e first read),
+        # concat empty columns at the beginning of the table
+        if first_to_show > self.start:
+            table = np.concatenate([np.ones((table.shape[0], first_to_show - self.start), dtype=np.uint8), table], axis=1)
 
         # Translate ints table to characters table
         table = table.astype(np.str)
