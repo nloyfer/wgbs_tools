@@ -4,6 +4,7 @@ import os
 import os.path as op
 import argparse
 import subprocess
+import re
 import multiprocessing
 from multiprocessing import Pool
 from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args
@@ -25,28 +26,50 @@ FLAGS_FILTER = 1796  # filter flags with these bits
 # todo: unsorted / sorted by name
 
 
-def pat_unq(out_path):
-    # sort
-    tmp_path = out_path + '.tmp'
+def subprocess_wrap(cmd, debug):
+    if debug:
+        print(cmd)
+        return
+    else:
+        os.system(cmd)
+        return
+        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output, error = p.communicate()
+        if p.returncode or not output:
+            print(cmd)
+            print("Failed with subprocess %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
+            raise IllegalArgumentError('Failed')
 
-    subprocess.call("sort " + out_path + " -k2,2n -k3,3 -o " + tmp_path, shell=True)
 
-    # break output file into pat and unq:
-    # pat file:
-    pat_path = out_path + PAT_SUFF
-    cmd = 'awk \'{print $1,$2,$3}\' ' + tmp_path + ' | uniq -c | awk \'{OFS="\\t"; print $2,$3,$4,$1}\' > ' + pat_path
-    subprocess.call(cmd, shell=True)
+def pat_unq(out_path, debug):
+    try:
+        # sort
+        tmp_path = out_path + '.tmp'
 
-    # unq file:
-    unq_path = out_path + UNQ_SUFF
-    subprocess.call("sort {} -k4,4n -k3,3 -o {}".format(out_path, tmp_path), shell=True)
-    cmd = 'awk \'{print $1,$4,$5,$3}\' ' + tmp_path + ' | uniq -c | awk \'{OFS="\\t"; print $2,$3,$4,$5,$1}\' > ' +\
-          unq_path
-    subprocess.call(cmd, shell=True)
+        cmd = "sort " + out_path + " -k2,2n -k3,3 -o " + tmp_path
+        subprocess_wrap(cmd, debug)
 
-    os.remove(out_path)
-    os.remove(tmp_path)
-    return pat_path, unq_path
+        # break output file into pat and unq:
+        # pat file:
+        pat_path = out_path + PAT_SUFF
+        cmd = 'awk \'{print $1,$2,$3}\' ' + tmp_path + ' | uniq -c | awk \'{OFS="\\t"; print $2,$3,$4,$1}\' > ' + pat_path
+        subprocess_wrap(cmd, debug)
+
+        # unq file:
+        unq_path = out_path + UNQ_SUFF
+        cmd = "sort {} -k4,4n -k3,3 -o {}".format(out_path, tmp_path)
+        subprocess_wrap(cmd, debug)
+        cmd = 'awk \'{print $1,$4,$5,$3}\' ' + tmp_path + ' | uniq -c | awk \'{OFS="\\t"; print $2,$3,$4,$5,$1}\' > ' +\
+              unq_path
+        subprocess_wrap(cmd, debug)
+
+        if not debug:
+            os.remove(out_path)
+            os.remove(tmp_path)
+
+        return pat_path, unq_path
+    except IllegalArgumentError as e:
+        return None
 
 
 def proc_chr(input_path, out_path, region, genome, paired_end, debug):
@@ -66,9 +89,9 @@ def proc_chr(input_path, out_path, region, genome, paired_end, debug):
         cmd += "{} | ".format(match_maker_tool)
     cmd += "{} {} {} > {}".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes, out_path)
     #print(cmd)
-    subprocess.check_call(cmd, shell=True)
+    subprocess_wrap(cmd, debug)
 
-    return pat_unq(out_path)
+    return pat_unq(out_path, debug)
 
 
 class Bam2Pat:
@@ -117,10 +140,12 @@ class Bam2Pat:
             if p.returncode or not output:
                 print(cmd)
                 print("Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
+                print('falied to find chromosomes')
                 return []
             chroms = list(sorted(output.decode()[:-1].split('\n'), key=chromosome_order))
             # remove random chromosomes
-            vchroms = [c for c in chroms if 'random' not in c]
+            # vchroms = [c for c in chroms if 'random' not in c]
+            vchroms = [c for c in chroms if re.match(r'^chr([\d]+|[XYM])$', c)]
             return vchroms
 
     def start_threads(self):
@@ -139,6 +164,9 @@ class Bam2Pat:
             p.close()
             p.join()
         res = [pr.get() for pr in processes]    # [(pat_path, unq_path) for each chromosome]
+        if None in res:
+            print('threads failed')
+            return
 
         # Concatenate chromosome files
         pat_path = name + PAT_SUFF
