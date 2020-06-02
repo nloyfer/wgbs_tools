@@ -10,6 +10,7 @@ import sys
 import os
 import pandas as pd
 from multiprocessing import Pool
+import multiprocessing
 
 UNQ_COLS = ['chr', 'start', 'len', 'pat', 'count']
 INF_UNQ_COLS = ['chr', 'idx', 'start', 'len', 'pat', 'count']
@@ -143,7 +144,11 @@ class ViewPat:
 
 def get_pat_cols(pat_path):
     cols = list(PAT_COLS)
-    peek = pd.read_csv(pat_path, sep='\t', nrows=1)
+    peek = pd.read_csv(pat_path, sep='\t', nrows=1, header=None)
+    # validate fields:
+    chrom, site, pat, count = peek.values[0][:4]
+    if not (str(site).isdigit() and str(count).isdigit() and set(pat) <= set('.CT')):
+        eprint('WARNING: Invalid first line in pat file:', peek.values)
     while len(peek.columns) > len(cols):
         cols += ['tag{}'.format(len(cols) - len(PAT_COLS) + 1)]
     return cols
@@ -151,13 +156,19 @@ def get_pat_cols(pat_path):
 
 def view_pat_mult_proc(input_file, strict, sub_sample, min_len, grs, i, step):
     res = []
+    cgrs = []
     for i in range(i, min(len(grs), i + step)):
-        gr = GenomicRegion(region=grs[i])
-        cmd = ViewPat(input_file, sys.stdout, gr, strict, sub_sample, None, min_len).compose_awk_cmd()
-        x = subprocess.check_output(cmd, shell=True)
+        try:
+            gr = GenomicRegion(region=grs[i])
+            cmd = ViewPat(input_file, sys.stdout, gr, strict, sub_sample, None, min_len).compose_awk_cmd()
+            x = subprocess.check_output(cmd, shell=True)
+        except IllegalArgumentError as e:
+            gr = grs[i] + ' - No CpGs'
+            x = ''
         # print('x', cmd, x)
         res.append(x)
-    return res
+        cgrs.append(gr)
+    return res, cgrs
 
 
 def view_pat_bed_multiprocess(args, bed_wrapper):
@@ -166,7 +177,7 @@ def view_pat_bed_multiprocess(args, bed_wrapper):
 
     regions_lst = list(bed_wrapper.fast_iter_regions())
     n = len(regions_lst)
-    step = max(1, n // args.multiprocess)
+    step = max(1, n // args.threads)
 
     processes = []
     with Pool() as p:
@@ -177,9 +188,12 @@ def view_pat_bed_multiprocess(args, bed_wrapper):
         p.join()
     # res = [sec.decode() for pr in processes for sec in pr.get()]
     for pr in processes:
-        for sec in pr.get():
-            args.out_path.write(sec.decode())
-    return
+        for reads, regions in zip(*pr.get()):
+            if args.print_region:
+                args.out_path.write(str(regions) + '\n')
+            if not reads: # if the current region has no CpGs
+                continue
+            args.out_path.write(reads.decode())
 
 
 #################
@@ -286,11 +300,14 @@ def parse_args():
     parser.add_argument('--awk_engine', action='store_true',
                         help='pat: use awk engine instead of python.\n'
                              'Its saves RAM when dealing with large regions.')
-    parser.add_argument('--multiprocess', type=int, default=16,
-                        help='pat: If bed file is specified, use multiple processors to read multiple.\n'
-                             'regions in parallel. Default number of processors: 16.')
+    # parser.add_argument('--multiprocess', '-@', type=int, default=16,
+                        # help='pat: If bed file is specified, use multiple processors to read multiple.\n'
+                             # 'regions in parallel. Default number of processors: 16.')
+    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
+                        help='Number of threads to use (default: multiprocessing.cpu_count)')
     parser.add_argument('--min_len', type=int, default=1,
                         help='Pat: Display only reads covering at least MIN_LEN CpG sites [1]')
+    parser.add_argument('--print_region', action='store_true', help='pat: Prints region before reads')
     args = parser.parse_args()
     return args
 
