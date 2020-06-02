@@ -4,7 +4,7 @@ import argparse
 from utils_wgbs import splitextgz, add_GR_args, default_blocks_path
 from beta_vis import main as beta_vis_main
 from pat_vis import main as pat_vis_main
-
+# from pat_vis2 import main as pat_vis_main_d
 
 def parse_args():  # todo: seperate args parsing for beta and pat
     parser = argparse.ArgumentParser(description=main.__doc__)
@@ -16,6 +16,7 @@ def parse_args():  # todo: seperate args parsing for beta and pat
                                                     'blocks path, default blocks are used.',
                         nargs='?', const=default_blocks_path, default=False)
     parser.add_argument("--no_color", action='store_true', help='Print without colors.')
+    #parser.add_argument('--debug', action='store_true', help='debug')
     parser.add_argument('--strict', action='store_true', help='Truncate reads that start/end outside the given region. '
                                                               'Only relevant for pat files.')
     parser.add_argument('--max_reps', '-m', type=int, default=10,
@@ -51,6 +52,9 @@ def main():
     if file_type in ('.beta', '.bin'):
         beta_vis_main(args)
     elif file_type == '.pat.gz':
+        # if args.tmp:
+            # pat_vis_main_d(args)
+            # return
         pat_vis_main(args)
     else:
         print('Unsupported file type:', file_type)
