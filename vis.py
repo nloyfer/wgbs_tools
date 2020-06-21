@@ -19,6 +19,8 @@ def parse_args():  # todo: seperate args parsing for beta and pat
     #parser.add_argument('--debug', action='store_true', help='debug')
     parser.add_argument('--strict', action='store_true', help='Truncate reads that start/end outside the given region. '
                                                               'Only relevant for pat files.')
+    parser.add_argument('--strip', action='store_true',
+                        help='pat: Remove trailing dots (from beginning/end of reads).')
     parser.add_argument('--max_reps', '-m', type=int, default=10,
                         help='Pat vis: Display a read at most "max_reps" times, '
                              'if it is repeating itself. [10]')
