@@ -63,7 +63,7 @@ def chr_thread(chrom, pat, beta, nr_sites):
 
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
-    parser.add_argument('pat_path', help='A pat[.gz] file')
+    parser.add_argument('pat_paths', help='pat[.gz] files', nargs='+')
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing file if existed')
     parser.add_argument('-o', '--out_dir', help='Output directory for the beta file. [.]', default='.')
     parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
@@ -77,7 +77,8 @@ def main():
     Generate a beta file from a pat file
     """
     args = parse_args()
-    pat2beta(args.pat_path, args.out_dir, args, args.force)
+    for pat in args.pat_paths:
+        pat2beta(pat, args.out_dir, args, args.force)
 
 
 if __name__ == '__main__':
