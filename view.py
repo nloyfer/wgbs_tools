@@ -26,7 +26,7 @@ PAT_COLS = ('chr', 'start', 'pat', 'count')
 
 class ViewPat:
     def __init__(self, pat_path, opath, gr, strict=False, sub_sample=None,
-                 bed_wrapper=None, min_len=None):
+                 bed_wrapper=None, min_len=None, strip=False):
         self.pat_path = pat_path
         self.opath = opath
         self.min_len = min_len
@@ -34,6 +34,7 @@ class ViewPat:
         self.strict = strict
         self.sub_sample = sub_sample
         self.bed_wrapper = bed_wrapper
+        self.strip = strip
 
     def build_cmd(self, sites=None):
         """ Load a section from pat file using tabix """
@@ -68,6 +69,25 @@ class ViewPat:
             df.drop(df[df['count'] == 0].index, inplace=True)
             df.reset_index(inplace=True, drop=True)
 
+    def strip_reads(self, df):
+        # Remove trailing dots from the right
+        df['pat'] = df['pat'].str.rstrip('.')
+        # Drop all dots reads
+        df.drop(df[df.pat.str.len() == 0].index, inplace=True)
+
+        # Remove trailing dots from the left
+        def foo(row):
+            pat = row[2]
+            newpat = pat.lstrip('.')
+            row[1] = int(row[1]) + len(pat) - len(newpat)
+            row[2] = newpat
+            return row
+
+        cond = df['pat'].str.startswith('.')
+        df.loc[cond] = df[cond].apply(foo, axis=1)
+        df.sort_values(by=['start', 'pat'], inplace=True)
+        return df
+
     def perform_view(self, dump=True):
         df = read_shell(self.build_cmd(),
                         names=get_pat_cols(self.pat_path))  # todo use for loop for large sections (or full file)
@@ -79,44 +99,18 @@ class ViewPat:
             df = df[df['start'] + df['pat'].str.len() > start]
 
         df = self.trim_reads(df)
+        if self.strip:
+            df = self.strip_reads(df)
         self.sample_reads(df)
         df.reset_index(drop=True, inplace=True)
         if dump:
             df.to_csv(self.opath, sep='\t', index=None, header=None)
         return df
 
-    # def rmDupsFromdf2(self, df1, df2):
-    #     x = pd.concat([df1, df2])
-    #     d = ~x.duplicated(keep='first')
-    #     d = d[df1.shape[0]:]
-    #     # x = x[df1.shape[0]:]
-    #     return x.iloc[df1.shape[0]:, :][d]
-    #
-    # def perform_view_in_chunks(self):
-    #     if self.gr.sites is None:
-    #         self.gr.sites = (1, self.gr.genome.nr_sites + 1)
-    #     STEP = 10 ** 5
-    #     pre_df = pd.DataFrame(columns=PAT_COLS)
-    #     for i in range(self.gr.sites[0], self.gr.sites[1], STEP):
-    #         end = min(i + STEP, self.gr.sites[1])
-    #         df = self.get_chunk((i, end))
-    #         df = self.rmDupsFromdf2(pre_df, df)
-    #         if not df.empty:
-    #             df.to_csv(self.opath, sep='\t', index=None, header=None)
-    #         pre_df = df
-    #
-    # def get_chunk(self, sites):
-    #     df = read_shell(self.build_cmd(sites), names=PAT_COLS)
-    #     if df.empty:
-    #         return df
-    #     start, _ = sites
-    #     df = df[df['start'] + df['pat'].str.len() > start]
-    #     self.trim_reads(df)
-    #     self.sample_reads(df)
-    #     return df
-
     def compose_awk_cmd(self):
         cmd = self.build_cmd()
+        if self.strip:
+            eprint('WARNING: strip flag not supported with awk_engine. Ignoring it')
         if self.gr.chrom:
             start, end = self.gr.sites
             cmd += ' | awk \'{if ($2 + length($3) > %s) {print;}}\' ' % start
@@ -154,21 +148,27 @@ def get_pat_cols(pat_path):
     return cols
 
 
-def view_pat_mult_proc(input_file, strict, sub_sample, min_len, grs, i, step):
-    res = []
+def view_pat_mult_proc(input_file, strict, sub_sample, min_len, grs, i, step, awk, strip):
+    reads = []
     cgrs = []
     for i in range(i, min(len(grs), i + step)):
-        try:
-            gr = GenomicRegion(region=grs[i])
-            cmd = ViewPat(input_file, sys.stdout, gr, strict, sub_sample, None, min_len).compose_awk_cmd()
-            x = subprocess.check_output(cmd, shell=True)
-        except IllegalArgumentError as e:
-            gr = grs[i] + ' - No CpGs'
-            x = ''
-        # print('x', cmd, x)
-        res.append(x)
+        gr = GenomicRegion(region=grs[i])
+        if awk:
+            try:
+                cmd = ViewPat(input_file, sys.stdout, gr, strict, sub_sample, None, min_len, strip).compose_awk_cmd()
+                x = subprocess.check_output(cmd, shell=True)
+                if x:
+                    x = x.decode()
+            except IllegalArgumentError as e:
+                gr = grs[i] + ' - No CpGs'
+                x = ''
+            # print('x', cmd, x)
+        else:
+            df = ViewPat(input_file, sys.stdout, gr, strict, sub_sample, None, min_len, strip).perform_view(dump=False)
+            x = df.to_csv(sep='\t', index=None, header=None)
+        reads.append(x)
         cgrs.append(gr)
-    return res, cgrs
+    return reads, cgrs
 
 
 def view_pat_bed_multiprocess(args, bed_wrapper):
@@ -182,7 +182,7 @@ def view_pat_bed_multiprocess(args, bed_wrapper):
     processes = []
     with Pool() as p:
         for i in range(0, n, step):
-            params = (args.input_file, args.strict, args.sub_sample, args.min_len, regions_lst, i, step)
+            params = (args.input_file, args.strict, args.sub_sample, args.min_len, regions_lst, i, step, args.awk_engine, args.strip)
             processes.append(p.apply_async(view_pat_mult_proc, params))
         p.close()
         p.join()
@@ -193,7 +193,7 @@ def view_pat_bed_multiprocess(args, bed_wrapper):
                 args.out_path.write(str(regions) + '\n')
             if not reads: # if the current region has no CpGs
                 continue
-            args.out_path.write(reads.decode())
+            args.out_path.write(reads)
 
 
 #################
@@ -291,11 +291,14 @@ def parse_args():
     parser.add_argument('-o', '--out_path', type=argparse.FileType('w'), default=sys.stdout,
                         help='Output path. [stdout]')
     parser.add_argument('--sub_sample', type=float, metavar='(0.0, 1.0)',
-                        help='pat: subsample from reads. Only supported for pat')  # todo: support unq too
-    parser.add_argument('--strict', action='store_true',  # todo: add fractions to trimmed reads (optional flag)
+                        help='pat: subsample from reads. Only supported for pat')
+    parser.add_argument('--strict', action='store_true',
                         help='pat: Truncate reads that start/end outside the given region. '
                              'Only relevant if "region", "sites" '
                              'or "bed_file" flags are given.')
+    parser.add_argument('--strip', action='store_true',
+                        help='pat: Remove trailing dots (from beginning/end of reads).\n'
+                                   'Not supported with awk_engine')
     parser.add_argument('--inflate', action='store_true', help='unq: add CpG-Index column to the output')
     parser.add_argument('--awk_engine', action='store_true',
                         help='pat: use awk engine instead of python.\n'
@@ -337,7 +340,7 @@ def main():
             if bed_wrapper:
                 view_pat_bed_multiprocess(args, bed_wrapper)
             else:
-                vp = ViewPat(input_file, args.out_path, gr, args.strict, args.sub_sample, bed_wrapper, args.min_len)
+                vp = ViewPat(input_file, args.out_path, gr, args.strict, args.sub_sample, bed_wrapper, args.min_len, args.strip)
                 vp.view_pat(args.awk_engine)
         elif input_file.endswith('.unq.gz'):
             grs = bed_wrapper.iter_grs() if bed_wrapper else [gr]
