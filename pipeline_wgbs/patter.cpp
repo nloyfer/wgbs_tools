@@ -248,6 +248,7 @@ int compareSeqToRef(std::string &seq,
 
 void patter::merge_and_print(std::vector <std::string> l1, std::vector <std::string> l2) {
     /** Merge 2 complementary lines to a single output.
+     * each line has the following fields: [chr, startCpG, pat, start_bp, read_len_bp]
      * One or more of the lines may be empty */
 
     //  First line is empty
@@ -269,21 +270,24 @@ void patter::merge_and_print(std::vector <std::string> l1, std::vector <std::str
     int start1 = stoi(l1[1]), start2 = stoi(l2[1]);
     std::string pat1 = l1[2], pat2 = l2[2];
 
-    std::string merged_pat;
-    int last_site = std::max(start1 + pat1.length(), start2 + pat2.length());
+    std::string merged_pat;  // output pattern
+    int last_site = std::max(start1 + pat1.length(), start2 + pat2.length()); // locatin of last CpG from both reads
 
     if (last_site - start1 > MAX_PAT_LEN) // sanity check: make sure the two reads are not too far apart
         throw std::invalid_argument("invalid pairing. merged read is too long");
 
+    // init merged_pat with missing values
     for (int i = start1; i < last_site; i++)
         merged_pat += ".";
 
+    // set merged_pat head with pat1
     for (unsigned long i = 0; i < pat1.length(); i++)
         merged_pat[i] = pat1[i];
 
+    // set pat2 in the adjusted position
     for (unsigned long i = 0; i < pat2.length(); i++) {
         int adj_i = i + start2 - start1;
-        if (merged_pat[adj_i] == '.') {
+        if (merged_pat[adj_i] == '.') {   // this site was missing from read1
             merged_pat[adj_i] = pat2[i];
         } else if ((pat2[i] != '.') && (merged_pat[adj_i] != pat2[i])) {
             // read1 and read2 disagree. treat this case as a missing value for now
