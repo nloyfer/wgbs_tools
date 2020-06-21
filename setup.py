@@ -43,7 +43,7 @@ def main():
 
 
 def compile_all(args):
-    # compile C++ files
+    # compile C++ files 
 
     # stdin2beta (pat2beta)
     cmd = 'g++ -std=c++11 src/pat2beta/stdin2beta.cpp -o src/pat2beta/stdin2beta'
