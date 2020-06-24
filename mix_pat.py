@@ -102,9 +102,10 @@ class Mixer:
     def read_covs(self):
         covs = []
         for pat in self.pats:
-            beta = pat.replace('.pat.gz', '.beta')
+            suff = '.lbeta' if self.args.lbeta else '.beta'
+            beta = pat.replace('.pat.gz', suff)
             if not op.isfile(beta):
-                eprint('No beta file compatible to {} was found. Generate it...'.format(pat))
+                eprint('No {} file compatible to {} was found. Generate it...'.format(suff, pat))
                 pat2beta(pat, op.dirname(pat), args=self.args, force=True)
             if self.bed:
                 cov = beta_cov_by_bed(beta, self.bed)
@@ -182,6 +183,7 @@ def parse_args():
     out_or_pref = parser.add_mutually_exclusive_group()
     out_or_pref.add_argument('-p', '--prefix', help='Prefix of output file.')
     out_or_pref.add_argument('-o', '--out_dir', help='Output directory [.]', default='.')
+    parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
     parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
                         help='Number of threads to use (default: multiprocessing.cpu_count)')
     args = parser.parse_args()
