@@ -29,13 +29,13 @@ std::vector<std::string> line2tokens(std::string &line) {
 class Pat2Beta {
     int *meth, *cover;
     int nr_sites = NR_SITES;
-    std::string beta_path;
-    std::string pat_path;
+    int start = 1;
+    int end = 1;
     void dumpbin();
     int proc_line(std::vector<std::string> tokens);
 
 public:
-    Pat2Beta(std::string pat_path, int in_nr_sites);
+    Pat2Beta(int in_start, int in_end);
     ~Pat2Beta();
     void parse();
 };
@@ -46,53 +46,23 @@ Pat2Beta::~Pat2Beta() {
     delete[] cover;
 }
 
-Pat2Beta::Pat2Beta(std::string beta_output_path, int in_nr_sites) {
+Pat2Beta::Pat2Beta(int in_start, int in_end) {
 
-    if ((!boost::algorithm::ends_with(beta_output_path, ".beta"))) {
-        throw std::invalid_argument( "Ouput path must end with .beta\n" + beta_output_path );
-    }
-    beta_path = beta_output_path;
-    nr_sites = in_nr_sites;
+    start = in_start;
+    end = in_end;
+    nr_sites = end - start;
 
     meth = new int[nr_sites];
     cover = new int[nr_sites];
 }
 
 void Pat2Beta::dumpbin() {
-    /**
-     * Assuming meth and cover arrays are already filled,
-     * dump them in the binary beta file.
-     * avoid overflow.
-     */
-    std::ofstream bofs;
-    bofs.open(beta_path, std::ios::binary);
-    if (!(bofs.is_open())) {
-        std::cerr << "could not open binary output file " << beta_path << std::endl;
-        return;
-    }
-
-    if (!bofs.is_open()) {
-        return;
-    }
-    std::cerr << "dumping to binary file " << std::endl;
-    int j = 0;
     for ( int i = 0; i < nr_sites; i++ ) {
-        int meth_nr = meth[i];
-        int cov_nr = cover[i];
-
-        // squeeze results to range [0,255]:
-        if (cov_nr > 255) {
-            meth_nr = (int) round(((float) meth_nr / (float) cov_nr) * 255.0);
-            cov_nr = 255;
-        }
-
-        char bin_line[2];
-        bin_line[0] = (char) meth_nr;
-        bin_line[1] = (char) cov_nr;
-        bofs.write((const char *) bin_line, 2);
-        j++;
+        std::cout << meth[i] << " " << cover[i] << " "; 
+        //std::cout << i + start  << ": " << meth[i] << " " << cover[i] << std::endl;
     }
-    bofs.close();
+    //std::cerr << "nr_sites: " << nr_sites << std::endl;
+    std::cout << std::endl;
 }
 
 int Pat2Beta::proc_line(std::vector<std::string> tokens) {
@@ -103,30 +73,33 @@ int Pat2Beta::proc_line(std::vector<std::string> tokens) {
     if (tokens.size() < 4) {
         throw std::invalid_argument( "Invalid site in input file. too few columns" );
     }
-    else {
-        int site = std::stoi(tokens[1]);
-        std::string pattern = tokens[2];
-        int count = std::stoi(tokens[3]);
-        auto read_len = (int) pattern.length();
+    
+    int site = std::stoi(tokens[1]);
+    std::string pattern = tokens[2];
+    int count = std::stoi(tokens[3]);
+    auto read_len = (int) pattern.length();
 
-        if ( site + read_len - 1 > nr_sites ){
-            std::cerr << "Invalid site: " << site << " + " << read_len << std::endl;
-            throw std::invalid_argument( "Invalid site in input file" );
-        }
-        if ( site < 1 ){
-            std::cerr << "Invalid site: " << site << std::endl;
-            throw std::invalid_argument( "Invalid site in input file" );
-        }
-
-        for(int i = 0; i < read_len; i++ ) {
-            if ( (pattern[i] == 'T') | (pattern[i] == 'C') ) {
-                cover[site - 1 + i] += count;
-                meth[site - 1 + i] += count * (( pattern[i] == 'C' ) ? 1 : 0);
-            }
-        }
-
+    if (( site + read_len - 1 < start ) || (site >= end)){
+        // skip this read - ends too soon or starts too late
         return 0;
     }
+
+    for(int i = 0; i < read_len; i++ ) {
+        int cur_char = pattern[i];
+        int cur_ind = site - start  + i;
+        if ((cur_ind >= nr_sites) || (cur_ind < 0)) {
+            continue;
+        }
+        if (! ( (cur_char == 'T') || (cur_char == 'C') ) ) {
+            continue;
+        }
+        cover[cur_ind] += count;
+        if (cur_char == 'C') {
+            meth[cur_ind] += count; 
+        }
+    }
+
+    return 0;
 }
 
 void Pat2Beta::parse(){
@@ -164,17 +137,16 @@ void Pat2Beta::parse(){
 /** main - generate and dump a beta file from stdin pat */
 int main( int argc, char *argv[])
 {
-    int nr_sites = NR_SITES;
-    if (argc < 2){
-        std::cerr << "Usage: stdin2beta OUTPUT_BETA_PATH [NR_SITES]" << std::endl;
+    if (argc != 3){
+        std::cerr << "Usage: stdin2beta startCpG endCpG" << std::endl;
         return -1;
-    }
-    if (argc == 3) {
-        nr_sites = std::stoi(argv[2]);
     }
 
     try {
-        Pat2Beta *p = new Pat2Beta(std::string(argv[1]), nr_sites);
+        int start = std::stoi(argv[1]);
+        int end = std::stoi(argv[2]);
+
+        Pat2Beta *p = new Pat2Beta(start, end);
         p->parse();
         delete p;
     }
