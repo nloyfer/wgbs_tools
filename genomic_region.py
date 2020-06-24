@@ -61,7 +61,7 @@ class GenomicRegion:
         # Translate sites indexes to genomic loci:
         self.chrom, region_from = self.index2locus(s1)
         chrom2, region_to = self.index2locus(s2 - 1)  # non-inclusive
-        region_to += 1  # include the hole last site (C and G)
+        region_to += 1  # include the whole last site (C and G)
         if self.chrom != chrom2:
             eprint('ERROR: sites range cross chromosomes! ({}, {})'.format(s1, s2))
             raise IllegalArgumentError('Invalid sites input')
