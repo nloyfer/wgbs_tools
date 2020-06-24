@@ -2,13 +2,12 @@
 
 import argparse
 from utils_wgbs import validate_single_file, PAT2BETA_TOOL, delete_or_skip, splitextgz, IllegalArgumentError, \
-    GenomeRefPaths
+    GenomeRefPaths, trim_to_uint8
 import subprocess
 import os.path as op
 from multiprocessing import Pool
 import multiprocessing
-from merge import merge_betas
-
+import numpy as np
 import os
 
 
@@ -22,49 +21,55 @@ def pat2beta(pat_path, out_dir, args, force=True):
     else:
         raise IllegalArgumentError('Invalid pat suffix: {}'.format(pat_path))
 
-    out_beta = op.join(out_dir, splitextgz(op.basename(pat_path))[0] + '.beta')
+    suff = '.lbeta' if args.lbeta else '.beta'
+    out_beta = op.join(out_dir, splitextgz(op.basename(pat_path))[0] + suff)
     if not delete_or_skip(out_beta, force):
         return
     nr_sites = GenomeRefPaths(args.genome).nr_sites
 
     if args.threads > 1 and pat_path.endswith('.pat.gz') and op.isfile(pat_path + '.csi'):
-        return mult_pat2beta(pat_path, out_beta, nr_sites, args)
+        arr = mult_pat2beta(pat_path, nr_sites, args)
+    else:
+        cmd += ' {} | {} {} {}'.format(pat_path, PAT2BETA_TOOL, 1, nr_sites + 1)
+        x = subprocess.check_output(cmd, shell=True).decode()
+        arr = np.fromstring(x, dtype=int, sep=' ').reshape((-1, 2))
 
-    cmd += ' {} | {} {} {}'.format(pat_path, PAT2BETA_TOOL, out_beta, nr_sites)
-    subprocess.check_call(cmd, shell=True)
+    trim_to_uint8(arr, args.lbeta).tofile(out_beta)
     return out_beta
 
 
-def mult_pat2beta(pat_path, out_beta, nr_sites, args):
+def mult_pat2beta(pat_path, nr_sites, args):
     processes = []
-
     with Pool(args.threads) as p:
-        chroms = list(GenomeRefPaths(args.genome).get_chrom_cpg_size_table()['chr'])
-        for chrom in sorted(chroms):
-            beta = '{}.{}.beta'.format(op.splitext(out_beta)[0], chrom)
-            params = (chrom, pat_path, beta, nr_sites)
+        ct = GenomeRefPaths(args.genome).get_chrom_cpg_size_table()
+        x = np.cumsum([0] + list(ct['size'])) + 1
+        chroms = list(ct['chr'])
+        for i, chrom in enumerate(chroms):
+            start = x[i]
+            end = x[i + 1]
+            params = (pat_path, chrom, start, end)
             processes.append(p.apply_async(chr_thread, params))
         p.close()
         p.join()
 
-    # todo: don't save all intermediate beta files. do everything in RAM (edit stdin2beta)
     beta_files = [pr.get() for pr in processes]
-    merge_betas(beta_files, out_beta)
-    list(map(os.remove, beta_files))
-    return out_beta
+    res = np.concatenate(beta_files, axis = 0)
+    return res
 
 
-def chr_thread(chrom, pat, beta, nr_sites):
+def chr_thread(pat, chrom, start, end):
     cmd = 'tabix {} {} | '.format(pat, chrom)
-    cmd += '{} {} {}'.format(PAT2BETA_TOOL, beta, nr_sites)
-    subprocess.check_call(cmd, shell=True, stderr=subprocess.PIPE)
-    return beta
+    cmd += '{} {} {}'.format(PAT2BETA_TOOL, start, end)
+    x = subprocess.check_output(cmd, shell=True).decode()
+    x = np.fromstring(x, dtype=int, sep=' ').reshape((-1, 2))
+    return x
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('pat_paths', help='pat[.gz] files', nargs='+')
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing file if existed')
+    parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
     parser.add_argument('-o', '--out_dir', help='Output directory for the beta file. [.]', default='.')
     parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
     parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
