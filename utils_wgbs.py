@@ -151,12 +151,20 @@ def beta2vec(data, min_cov=1, na=np.nan):
     return vec
 
 
-def trim_to_uint8(data):
+def trim_to_uint8(data, lbeta = False):
     # Trim / normalize to range [0, 256)
-    big_indices = np.argwhere(data[:, 1] > 255).flatten()
-    data[:, 0][big_indices] = data[big_indices][:, 0] / data[big_indices][:, 1] * 255
-    data[:, 1][big_indices] = 255
-    return data.astype(np.uint8)
+    if lbeta:
+        nr_bits = 16
+        dtype = np.uint16
+    else:
+        nr_bits = 8
+        dtype = np.uint8
+
+    max_val = 2 ** nr_bits - 1
+    big_indices = np.argwhere(data[:, 1] > max_val).flatten()
+    data[:, 0][big_indices] = data[big_indices][:, 0] / data[big_indices][:, 1] * max_val
+    data[:, 1][big_indices] = max_val
+    return data.astype(dtype)
 
 
 def load_dists(start, nr_sites, genome):
@@ -173,16 +181,24 @@ def load_dists(start, nr_sites, genome):
 
 
 def load_beta_data(beta_path, sites=None):
-    if not (op.isfile(beta_path) and (beta_path.endswith('.beta') or beta_path.endswith('.bin'))):
+    suff = op.splitext(beta_path)[1]
+    if not (op.isfile(beta_path) and (suff in ('.beta', '.lbeta', '.bin'))):
         raise IllegalArgumentError("Invalid beta file:\n{}".format(beta_path))
 
+    if suff == '.lbeta':
+        sizet = 2
+        dtype = np.uint16
+    else:
+        sizet = 1
+        dtype = np.uint8
+
     if sites is None:
-        data = np.fromfile(beta_path, np.uint8).reshape((-1, 2))
+        data = np.fromfile(beta_path, dtype).reshape((-1, 2))
     else:
         start, end = sites
         with open(beta_path, 'rb') as f:
-            f.seek((start - 1) * 2)  # fix base-1 annotations
-            data = np.fromfile(f, dtype=np.uint8, count=((end - start) * 2)).reshape((-1, 2))
+            f.seek((start - 1) * 2 * sizet)  # fix base-1 annotations
+            data = np.fromfile(f, dtype=dtype, count=((end - start) * 2 * sizet)).reshape((-1, 2))
 
     assert data.size, 'Data table is empty!'
     return data
