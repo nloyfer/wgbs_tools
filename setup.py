@@ -79,23 +79,23 @@ def validate_file(file):
     validate_single_file(file)
 
 
-def config_file(args):
-    from config_wgbs import default_anno_file, default_blocks_path, ilmn2cpg_dict
+# def config_file(args):
+    # from config_wgbs import default_anno_file, default_blocks_path, ilmn2cpg_dict
 
-    validate_file(default_anno_file)
-    validate_index_file(default_anno_file)
+    # validate_file(default_anno_file)
+    # validate_index_file(default_anno_file)
 
-    validate_file(default_blocks_path)
-    validate_index_file(default_blocks_path)
+    # validate_file(default_blocks_path)
+    # validate_index_file(default_blocks_path)
 
-    validate_file(ilmn2cpg_dict)
-    return
+    # validate_file(ilmn2cpg_dict)
+    # return
 
 
 def main():
     args = parse_args()
     compile_all(args)
-    config_file(args)
+    # config_file(args)
 
 
 if __name__ == '__main__':
