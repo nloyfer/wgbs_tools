@@ -179,9 +179,9 @@ def load_seq_by_chrom(chrom, ref_path, fai_df, debug):
 
 
 def chromosome_order(c):
-    if not c.startswith('chr'):
-        raise IllegalArgumentError('Invalid chromosome' + c)
-    c = c[3:]
+    if c.startswith('chr'):
+        # raise IllegalArgumentError('Invalid chromosome' + c)
+        c = c[3:]
     if c.isdigit():
         return int(c)
     elif c == 'X':
