@@ -5,7 +5,7 @@ import sys
 import os.path as op
 import argparse
 import subprocess
-from utils_wgbs import DIR, eprint
+from utils_wgbs import DIR, eprint, validate_single_file, IllegalArgumentError
 
 
 def parse_args():
@@ -15,25 +15,49 @@ def parse_args():
 
 
 def compile_single(cmd, name, verbose):
+    """ Compile a single c++ module """
     eprint('Compiling {}...'.format(name))
+
+    # subprocess g++ command
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output, error = p.communicate()
+
+    # If failed:
     if p.returncode:
         eprint("Failed compilation.\nCommand: {}\nreturn code: {}\nstderr:\n{}\nstdout:\n{}".
                format(cmd, p.returncode, output.decode(), error.decode()))
         raise RuntimeError('Failed compiling {}'.format(name))
+
+    # If succeeded:
     elif verbose:
         eprint(cmd)
         eprint(output.decode())
     eprint('success')
 
 
-def main():
-    args = parse_args()
+def compile_all(args):
     curdir = os.getcwd()
     try:
         os.chdir(DIR)
-        compile_all(args)
+
+        # compile C++ files
+
+        # stdin2beta (pat2beta)
+        cmd = 'g++ -std=c++11 src/pat2beta/stdin2beta.cpp -o src/pat2beta/stdin2beta'
+        compile_single(cmd, 'stdin2beta', args.verbose)
+
+        # pat_sampler (pat view)
+        cmd = 'g++ -std=c++11 src/pat_sampler/sampler.cpp -o src/pat_sampler/pat_sampler'
+        compile_single(cmd, 'pat_sampler', args.verbose)
+
+        # patter (bam2pat)
+        cmd = 'g++ -std=c++11 pipeline_wgbs/patter.cpp -o pipeline_wgbs/patter'
+        compile_single(cmd, 'patter', args.verbose)
+
+        # match_maker (bam2pat)
+        cmd = 'g++ -std=c++11 pipeline_wgbs/match_maker.cpp -o pipeline_wgbs/match_maker'
+        compile_single(cmd, 'match_maker', args.verbose)
+
     except RuntimeError as e:
         eprint(e)
         os.chdir(curdir)
@@ -42,24 +66,36 @@ def main():
     os.chdir(curdir)
 
 
-def compile_all(args):
-    # compile C++ files
+def validate_index_file(file):
+    if not op.isfile(file + '.tbi'):
+        eprint('No tbi found for file {}. Attempting to index it...'.format(file))
+        from index_wgbs import Indxer
+        Indxer(file).run()
 
-    # stdin2beta (pat2beta)
-    cmd = 'g++ -std=c++11 src/pat2beta/stdin2beta.cpp -o src/pat2beta/stdin2beta'
-    compile_single(cmd, 'stdin2beta', args.verbose)
 
-    # pat_sampler (pat view)
-    cmd = 'g++ -std=c++11 src/pat_sampler/sampler.cpp -o src/pat_sampler/pat_sampler'
-    compile_single(cmd, 'pat_sampler', args.verbose)
+def validate_file(file):
+    if file is None:
+        return
+    validate_single_file(file)
 
-    # patter (bam2pat)
-    cmd = 'g++ -std=c++11 pipeline_wgbs/patter.cpp -o pipeline_wgbs/patter'
-    compile_single(cmd, 'patter', args.verbose)
 
-    # match_maker (bam2pat)
-    cmd = 'g++ -std=c++11 pipeline_wgbs/match_maker.cpp -o pipeline_wgbs/match_maker'
-    compile_single(cmd, 'match_maker', args.verbose)
+def config_file(args):
+    from config_wgbs import default_anno_file, default_blocks_path, ilmn2cpg_dict
+
+    validate_file(default_anno_file)
+    validate_index_file(default_anno_file)
+
+    validate_file(default_blocks_path)
+    validate_index_file(default_blocks_path)
+
+    validate_file(ilmn2cpg_dict)
+    return
+
+
+def main():
+    args = parse_args()
+    compile_all(args)
+    config_file(args)
 
 
 if __name__ == '__main__':
