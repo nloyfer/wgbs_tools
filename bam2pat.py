@@ -7,7 +7,7 @@ import subprocess
 import re
 import multiprocessing
 from multiprocessing import Pool
-from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args
+from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args, eprint
 from init_genome_ref_wgbs import chromosome_order
 from pat2beta import pat2beta
 #from pipeline_wgbs.test import run_test
