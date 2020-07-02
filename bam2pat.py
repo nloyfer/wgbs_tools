@@ -24,7 +24,7 @@ MAPQ = 10
 
 FLAGS_FILTER = 1796  # filter flags with these bits
 # todo: unsorted / sorted by name
-
+CHROMS = ['X', 'Y', 'M', 'MT'] + list(range(1, 23))
 
 def subprocess_wrap(cmd, debug):
     if debug:
@@ -134,7 +134,7 @@ class Bam2Pat:
         if self.gr.region_str:
             return [self.gr.region_str]
         else:
-            cmd = 'samtools idxstats {} | cut -f1 | grep chr'.format(self.bam_path)
+            cmd = 'samtools idxstats {} | cut -f1 '.format(self.bam_path)
             p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             output, error = p.communicate()
             if p.returncode or not output:
@@ -142,11 +142,18 @@ class Bam2Pat:
                 print("Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
                 print('falied to find chromosomes')
                 return []
-            chroms = list(sorted(output.decode()[:-1].split('\n'), key=chromosome_order))
-            # remove random chromosomes
-            # vchroms = [c for c in chroms if 'random' not in c]
-            vchroms = [c for c in chroms if re.match(r'^chr([\d]+|[XYM])$', c)]
-            return vchroms
+            nofilt_chroms = output.decode()[:-1].split('\n')
+            filt_chroms = [c for c in nofilt_chroms if 'chr' in c]
+            if not filt_chroms:
+                filt_chroms = [c for c in nofilt_chroms if c in CHROMS]
+            else:
+                filt_chroms = [c for c in filt_chroms if re.match(r'^chr([\d]+|[XYM])$', c)]
+            chroms = list(sorted(filt_chroms, key=chromosome_order))
+            if not chroms:
+                eprint('Failed retrieving valid chromosome names')
+                raise IllegalArgumentError('Failed')
+
+            return chroms
 
     def start_threads(self):
         """ Parse each chromosome file in a different process,
@@ -191,6 +198,7 @@ def parse_args():
     add_GR_args(parser)
     parser.add_argument('--out_dir', '-o', default='.')
     parser.add_argument('--debug', '-d', action='store_true')
+    parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
     parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
                         help='Number of threads to use (default: multiprocessing.cpu_count)')
     #parser.add_argument('--test', action='store_true',
