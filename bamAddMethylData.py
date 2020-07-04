@@ -9,8 +9,6 @@ import multiprocessing
 from multiprocessing import Pool
 from utils_wgbs import IllegalArgumentError, patter_tool, add_GR_args, eprint
 from init_genome_ref_wgbs import chromosome_order
-from pat2beta import pat2beta
-#from pipeline_wgbs.test import run_test
 from genomic_region import GenomicRegion
 
 
@@ -42,30 +40,27 @@ def subprocess_wrap(cmd, debug):
 
 def proc_chr(input_path, out_path, region, genome, debug):
     """ Convert a temp single chromosome file, extracted from a bam file,
-        into two output files: pat and unq."""
+        into a sam formatted (no header) output file."""
 
-    # Run patter tool on a single chromosome. out_path will have the following fields:
-    # chr   CpG   Pattern   begin_loc   length(bp)
+    # Run patter tool 'bam' mode on a single chromosome
+
+    ## TODO make it actually be a tmp file
 
     # use samtools to extract only the reads from 'chrom'
     flag = '-f 3'
     cmd = "samtools view {} {} -q {} -F 1796 {} | ".format(input_path, region, MAPQ, flag)
     if debug:
         cmd += ' head -200 | '
-    cmd += "{} {} {} > {}".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes, out_path)
+    cmd += "{} {} {} bam > {}".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes, out_path)
     #print(cmd)
     subprocess_wrap(cmd, debug)
 
     return out_path
 
 def proc_header(input_path, out_path, debug):
-    """ Convert a temp single chromosome file, extracted from a bam file,
-        into two output files: pat and unq."""
+    """ extracts header from bam file and saves it to tmp file."""
+    ## TODO make it actually be a tmp file
 
-    # Run patter tool on a single chromosome. out_path will have the following fields:
-    # chr   CpG   Pattern   begin_loc   length(bp)
-
-    # use samtools to extract only the reads from 'chrom'
     cmd = "samtools view -H {} > {} ".format(input_path, out_path)
     #print(cmd)
     subprocess_wrap(cmd, debug)
@@ -154,17 +149,11 @@ class BamMethylData:
 
         # Concatenate chromosome files
         final_path = name + BAM_SUFF
-        os.system('cat ' + header_path + ' '.join([p for p in res]) + ' | samtools view -b - > ' + final_path)  # bam
-
+        cmd = 'cat ' + header_path + ' ' + ' '.join([p for p in res]) + ' | samtools view -b - > ' + final_path
+        os.system(cmd)  # bam
+        res.append(header_path)
         # remove all small files
-        list(map(os.remove, [x for l in res for x in l]))
-
-        # # generate beta file and bgzip the pat, unq files:
-        # beta_path = pat2beta(pat_path, self.out_dir, args=self.args)
-        # print('bgzipping and indexing:')
-        # for f in (pat_path, unq_path):
-        #     print('{}...'.format(f))
-        #     subprocess.call('bgzip -f@ 14 {f} && tabix -fCb 2 -e 2 {f}.gz'.format(f=f), shell=True)
+        list(map(os.remove, [l for l in res]))
 
 
 def parse_args():
@@ -174,10 +163,8 @@ def parse_args():
     parser.add_argument('--out_dir', '-o', default='.')
     parser.add_argument('--debug', '-d', action='store_true')
     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
-    parser.add_argument('-@', '--threads', type=int, default=1,##multiprocessing.cpu_count(),
+    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
                         help='Number of threads to use (default: multiprocessing.cpu_count)')
-    #parser.add_argument('--test', action='store_true',
-    #                    help='Perform a test for the pipeline. Ignore other parameters.')
     args = parser.parse_args()
     return args
 
