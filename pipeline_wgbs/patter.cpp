@@ -3,6 +3,7 @@
 //
 
 #include "patter.h"
+#include <string_view>
 
 char METH = 'C';
 char UNMETH = 'T';
@@ -189,6 +190,60 @@ int patter::locus2CpGIndex(int locus) {
     return start_site;
 }
 
+struct NumMethylatedUnMethylated {
+    int countMethyl; int countUnmethyl;
+};
+
+
+
+NumMethylatedUnMethylated compareSeqToRef2(std::string &seq,
+                    std::string &ref,
+                    bool reversed) {
+    /** compare seq string to ref string. generate the methylation pattern, and return
+     * the CpG index of the first CpG site in the seq (or -1 if there is none) */
+
+    // ignore first/last 'margin' characters, since they are often biased
+    size_t margin = 3;
+
+    int countMethyl = 0, countUnmethyl = 0;
+    NumMethylatedUnMethylated curRes;
+
+    // find CpG indexes on reference sequence
+    std::vector<int> cpg_inds;
+    for (unsigned long j = 0; j < ref.length() - 1; j++) {
+        if ((ref[j] == 'C') && (ref[j + 1] == 'G')) {
+            cpg_inds.push_back(j);
+        }
+    }
+    if (cpg_inds.empty()) {
+        curRes.countUnmethyl = 0;
+        curRes.countMethyl = 0;
+        return curRes;
+    }
+
+    // generate the methylation pattern (e.g 'CC.TC'),
+    // by comparing the given sequence to reference at the CpG indexes
+    char REF_CHAR = reversed ? 'G' : 'C';
+    char UNMETH_SEQ_CHAR = reversed ? 'A' : 'T';
+    int shift = reversed ? 1 : 0;
+
+    for (unsigned long j: cpg_inds) {
+        j += shift;
+        char s = seq[j];
+        if ((j >= margin) && (j < seq.size() - margin)) {
+            if (s == UNMETH_SEQ_CHAR) {
+                countUnmethyl++;
+            } else if (s == REF_CHAR) {
+                countMethyl++;
+            }
+        }
+    }
+    curRes.countUnmethyl = countUnmethyl;
+    curRes.countMethyl = countMethyl;
+
+    return curRes;
+}
+
 
 int compareSeqToRef(std::string &seq,
                     std::string &ref,
@@ -298,6 +353,50 @@ void patter::merge_and_print(std::vector <std::string> l1, std::vector <std::str
     l1[1] = std::to_string(start1);
     l1[2] = merged_pat;
     vec2string(l1);
+}
+
+std::string patter::samLineToSamLineWithMethCounts(std::vector <std::string> tokens, std::string originalLine) {
+    if (tokens.empty()) {
+        return ""; //todo throw error
+    }
+    try {
+
+        if (tokens.size() < 11) {
+            throw std::invalid_argument("too few arguments in line");
+        }
+        unsigned long start_locus = stoul(tokens[3]);   // Fourth field from bam file
+        int samflag = stoi(tokens[1]);
+        std::string seq = tokens[9];
+        std::string bp_qual = tokens[10];
+        std::string CIGAR = tokens[5];
+
+        seq = clean_seq(seq, CIGAR);
+
+        unsigned long seq_len = seq.length();   // We may need the original length later.
+        std::string ref = genome_ref.substr(start_locus - 1, seq_len);
+
+        bool reversed;
+        if (paired_end) {
+            reversed = ((samflag == 83) || (samflag == 163));
+        } else {
+            reversed = ((samflag & 0x0010) == 16);
+        }
+        NumMethylatedUnMethylated curRow = compareSeqToRef2(seq, ref, reversed);
+
+
+        std::string resString = '\t' + TAGNAMETYPE + std::to_string(curRow.countMethyl) + ',' + std::to_string(curRow.countUnmethyl) + '\n';
+
+        return resString;
+    }
+    catch (std::exception &e) {
+        std::string msg = "[ " + chr + " ] " + "Exception while processing line "
+                          + std::to_string(line_i) + ". Line content: \n";
+        std::cerr << msg;
+        print_vec(tokens);
+        std::cerr << e.what() << std::endl;
+        readsStats.nr_invalid++;
+    }
+    return ""; //TODO throw error
 }
 
 
@@ -446,6 +545,60 @@ void patter::print_stats_msg() {
     std::cerr << msg;
 }
 
+void patter::handlyMethylCountSamLine(std::string line) {
+    std::vector <std::string> tokens1, tokens2;
+    if(line.at(0) == '@'){
+        std::cout << line + "\n";
+    } else {
+        if (genome_ref.empty()) {
+            paired_end = first_line(line);
+            load_genome_ref();
+        }
+        tokens2 = line2tokens(line);
+        std::string resString = samLineToSamLineWithMethCounts(tokens2, line);
+        std::cout << line + resString;
+    }
+}
+
+void patter::print_progress(){
+    if (line_i && !(line_i % 5000000))
+        std::cerr << "[ " + chr + " ]" << "patter, line " << line_i << std::endl;
+}
+
+/**
+ * Adds methylated and unmethylated cpg site count to sam input.
+ * Does not return anything but it's side effect is either
+ * sam formatted output with methylation data
+ * or an error.
+ *
+ * @param samFilePath the file path of the sam file input.
+ * Mostly used for debugging. Standard usage is to
+ * leave blank and pass input via stdin.
+ * @return void
+ */
+void patter::addMethylCountToSam(std::string samFilePath) {
+    std::ifstream samFile(samFilePath, std::ios::in);
+
+    if (!(samFile)){
+        for (std::string line_str; std::getline(std::cin, line_str); line_i++) {
+
+            print_progress();
+
+            handlyMethylCountSamLine(line_str);
+        }
+    } else {
+        if (samFile.is_open()) {
+            std::string line;
+            while (std::getline(samFile, line)) {
+                line_i++;
+                print_progress();
+                handlyMethylCountSamLine(line);
+            }
+            samFile.close();
+        }
+    }
+}
+
 void patter::action() {
     /** parse stdin for sam format lines (single- or pired-end).
      * Translate them to pat format, and output to stdout */
@@ -499,20 +652,21 @@ void patter::action() {
 
 int main(int argc, char **argv) {
     clock_t begin = clock();
-
     try {
-        if (argc == 3) {
+        if (argc == 4 && strcmp(argv[3], "bam") == 0) {
+            patter p(argv[1], argv[2]);
+            p.addMethylCountToSam("");
+        } else if (argc == 3){
             patter p(argv[1], argv[2]);
             p.action();
         } else
-            throw std::invalid_argument("Usage: patter GENOME_PATH CPG_CHROM_SIZE_PATH");
+            throw std::invalid_argument("Usage: patter GENOME_PATH CPG_CHROM_SIZE_PATH or patter GENOME_PATH CPG_CHROM_SIZE_PATH bam");
     }
     catch (std::exception &e) {
         std::cerr << "Failed! exception:" << std::endl;
         std::cerr << e.what() << std::endl;
         return 1;
     }
-
     clock_t end = clock();
     double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
     std::cerr << elapsed_secs << std::endl;
