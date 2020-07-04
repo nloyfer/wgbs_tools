@@ -32,6 +32,7 @@ public:
     std::unordered_map<int, int> dict;
     std::string genome_ref;
     reads_stats readsStats;
+    std::string TAGNAMETYPE = "YI:Z:";
     int line_i = 0;
     bool paired_end = false;
     bool first_line(std::string &line);
@@ -45,12 +46,16 @@ public:
 
 
     void print_stats_msg();
+    void print_progress();
     int locus2CpGIndex(int locus);
     std::string clean_seq(std::string seq, std::string CIGAR);
     std::vector<std::string> samLineToPatVec(std::vector<std::string> tokens);
+    void handlyMethylCountSamLine(std::string line);
+    std::string samLineToSamLineWithMethCounts(std::vector<std::string> tokens, std::string originalLine);
     void merge_and_print(std::vector<std::string> l1, std::vector<std::string> l2);
     void proc2lines(std::vector<std::string> tokens1, std::vector<std::string> tokens2);
     void action();
+    void addMethylCountToSam(std::string samFilePath);
 };
 
 std::vector<std::string> line2tokens(std::string &line);
