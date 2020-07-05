@@ -1,6 +1,5 @@
 #!/usr/bin/python3 -u
 
-
 import os
 import os.path as op
 import argparse
@@ -8,20 +7,17 @@ import subprocess
 import re
 import multiprocessing
 from multiprocessing import Pool
-from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args, eprint
+from utils_wgbs import IllegalArgumentError, patter_tool, add_GR_args, eprint
 from init_genome_ref_wgbs import chromosome_order
-from pat2beta import pat2beta
-#from pipeline_wgbs.test import run_test
 from genomic_region import GenomicRegion
 
 
-PAT_SUFF = '.pat'
-UNQ_SUFF = '.unq'
+BAM_SUFF = '_md.bam'
 
 # Minimal Mapping Quality to consider.
 # 10 means include only reads w.p. >= 0.9 to be mapped correctly.
 # And missing values (255)
-MAPQ = 10
+MAPQ = 0
 
 FLAGS_FILTER = 1796  # filter flags with these bits
 # todo: unsorted / sorted by name
@@ -42,60 +38,37 @@ def subprocess_wrap(cmd, debug):
             raise IllegalArgumentError('Failed')
 
 
-def pat_unq(out_path, debug):
-    try:
-        # sort
-        tmp_path = out_path + '.tmp'
-
-        cmd = "sort " + out_path + " -k2,2n -k3,3 -o " + tmp_path
-        subprocess_wrap(cmd, debug)
-
-        # break output file into pat and unq:
-        # pat file:
-        pat_path = out_path + PAT_SUFF
-        cmd = 'awk \'{print $1,$2,$3}\' ' + tmp_path + ' | uniq -c | awk \'{OFS="\\t"; print $2,$3,$4,$1}\' > ' + pat_path
-        subprocess_wrap(cmd, debug)
-
-        # unq file:
-        unq_path = out_path + UNQ_SUFF
-        cmd = "sort {} -k4,4n -k3,3 -o {}".format(out_path, tmp_path)
-        subprocess_wrap(cmd, debug)
-        cmd = 'awk \'{print $1,$4,$5,$3}\' ' + tmp_path + ' | uniq -c | awk \'{OFS="\\t"; print $2,$3,$4,$5,$1}\' > ' +\
-              unq_path
-        subprocess_wrap(cmd, debug)
-
-        if not debug:
-            os.remove(out_path)
-            os.remove(tmp_path)
-
-        return pat_path, unq_path
-    except IllegalArgumentError as e:
-        return None
-
-
-def proc_chr(input_path, out_path, region, genome, paired_end, debug):
+def proc_chr(input_path, out_path, region, genome, debug):
     """ Convert a temp single chromosome file, extracted from a bam file,
-        into two output files: pat and unq."""
+        into a sam formatted (no header) output file."""
 
-    # Run patter tool on a single chromosome. out_path will have the following fields:
-    # chr   CpG   Pattern   begin_loc   length(bp)
+    # Run patter tool 'bam' mode on a single chromosome
+
+    ## TODO make it actually be a tmp file
 
     # use samtools to extract only the reads from 'chrom'
-    flag = '-f 3' if paired_end else ''
+    flag = '-f 3'
     cmd = "samtools view {} {} -q {} -F 1796 {} | ".format(input_path, region, MAPQ, flag)
     if debug:
         cmd += ' head -200 | '
-    if paired_end:
-        # change reads order, s.t paired reads will appear in adjacent lines
-        cmd += "{} | ".format(match_maker_tool)
-    cmd += "{} {} {} > {}".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes, out_path)
+    cmd += "{} {} {} bam > {}".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes, out_path)
     #print(cmd)
     subprocess_wrap(cmd, debug)
 
-    return pat_unq(out_path, debug)
+    return out_path
+
+def proc_header(input_path, out_path, debug):
+    """ extracts header from bam file and saves it to tmp file."""
+    ## TODO make it actually be a tmp file
+
+    cmd = "samtools view -H {} > {} ".format(input_path, out_path)
+    #print(cmd)
+    subprocess_wrap(cmd, debug)
+
+    return out_path
 
 
-class Bam2Pat:
+class BamMethylData:
     def __init__(self, args):
         self.args = args
         self.out_dir = args.out_dir
@@ -127,10 +100,6 @@ class Bam2Pat:
         if not (op.isdir(self.out_dir)):
             raise IllegalArgumentError('Invalid output dir: {}'.format(self.out_dir))
 
-    def is_pair_end(self):
-        first_line = subprocess.check_output('samtools view {} | head -1'.format(self.bam_path), shell=True)
-        return int(first_line.decode().split('\t')[1]) & 1
-
     def set_regions(self):
         if self.gr.region_str:
             return [self.gr.region_str]
@@ -161,11 +130,13 @@ class Bam2Pat:
             and concatenate outputs to pat and unq files """
 
         name = op.join(self.out_dir, op.basename(self.bam_path)[:-4])
+        header_path = name + '.header'
+        proc_header(self.bam_path, header_path, self.debug)
         processes = []
         with Pool(self.args.threads) as p:
             for c in self.set_regions():
                 out_path = name + '_' + c + '.output.tmp'
-                params = (self.bam_path, out_path, c, self.gr.genome, self.is_pair_end(), self.debug)
+                params = (self.bam_path, out_path, c, self.gr.genome, self.debug)
                 processes.append(p.apply_async(proc_chr, params))
             if not processes:
                 raise IllegalArgumentError('Empty bam file')
@@ -177,20 +148,12 @@ class Bam2Pat:
             return
 
         # Concatenate chromosome files
-        pat_path = name + PAT_SUFF
-        unq_path = name + UNQ_SUFF
-        os.system('cat ' + ' '.join([p for p, u in res]) + ' > ' + pat_path)  # pat
-        os.system('cat ' + ' '.join([u for p, u in res]) + ' > ' + unq_path)  # unq
-
+        final_path = name + BAM_SUFF
+        cmd = 'cat ' + header_path + ' ' + ' '.join([p for p in res]) + ' | samtools view -b - > ' + final_path
+        os.system(cmd)  # bam
+        res.append(header_path)
         # remove all small files
-        list(map(os.remove, [x for l in res for x in l]))
-
-        # generate beta file and bgzip the pat, unq files:
-        beta_path = pat2beta(pat_path, self.out_dir, args=self.args)
-        print('bgzipping and indexing:')
-        for f in (pat_path, unq_path):
-            print('{}...'.format(f))
-            subprocess.call('bgzip -f@ 14 {f} && tabix -fCb 2 -e 2 {f}.gz'.format(f=f), shell=True)
+        list(map(os.remove, [l for l in res]))
 
 
 def parse_args():
@@ -202,14 +165,8 @@ def parse_args():
     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
     parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
                         help='Number of threads to use (default: multiprocessing.cpu_count)')
-    #parser.add_argument('--test', action='store_true',
-    #                    help='Perform a test for the pipeline. Ignore other parameters.')
     args = parser.parse_args()
     return args
-
-def test_bam2pat():
-    print('Testing...')
-    run_test.main()
 
 def main():
     """
@@ -221,7 +178,7 @@ def main():
     #    return test_bam2pat()
 
     # else
-    Bam2Pat(args).start_threads()
+    BamMethylData(args).start_threads()
 
 
 if __name__ == '__main__':
