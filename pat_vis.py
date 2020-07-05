@@ -7,7 +7,7 @@ from view import ViewPat
 import os.path as op
 import sys
 
-MAX_LINES_PER_BLOCK = 1000   # maximal height of the output (in lines)
+MAX_LINES_PER_BLOCK = 5000   # maximal height of the output (in lines)
 
 
 str2int = {'C': 2, 'T': 3, '.': 4, 'D': 5}
