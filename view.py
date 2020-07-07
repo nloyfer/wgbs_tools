@@ -8,6 +8,7 @@ import subprocess
 import numpy as np
 import sys
 import os
+import os.path as op
 import pandas as pd
 from multiprocessing import Pool
 import multiprocessing
