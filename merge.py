@@ -2,7 +2,7 @@
 
 import argparse
 from utils_wgbs import validate_files_list, splitextgz, delete_or_skip, trim_to_uint8, load_beta_data, \
-    collapse_pat_script, IllegalArgumentError, main_script
+    collapse_pat_script, IllegalArgumentError, main_script, eprint
 import subprocess
 import numpy as np
 import os.path as op
@@ -36,6 +36,12 @@ class MergePats:
     def fast_merge_pats(self, view_flags=None):
         """ Use piping and sort -m to merge pat files w/o intermediate files """
         cmd = 'sort -m -k2,2n -k3,3'
+        if self.args.temp_dir:
+            temp_dir = self.args.temp_dir
+            if not op.isdir(temp_dir):
+                eprint('Invalid temp dir: {}. Ignoring it'.format(temp_dir))
+            else:
+                cmd += ' -T {} '.format(temp_dir)
         for i in range(len(self.pats)):
             cmd += self.compose_view_cmd(i, view_flags)
         cmd += ' | {} - '.format(collapse_pat_script)
@@ -74,6 +80,7 @@ def parse_args():
     parser.add_argument('input_files', nargs='+')
     parser.add_argument('-p', '--prefix', help='Prefix of output file', required=True)
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing file if existed')
+    parser.add_argument('-T', '--temp_dir', help='passed to "sort -m". Useful for merging very large pat files')
     # parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--labels', nargs='+', help='labels for the mixed reads. '
                                                     'Default is None')
