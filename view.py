@@ -334,7 +334,9 @@ def main():
     gr = GenomicRegion(args)
 
     try:
-        if input_file.endswith('.beta') or input_file.endswith('.bin'):
+        if op.splitext(input_file)[1] in ('.beta', '.lbeta', '.bin'):
+            if bed_wrapper:
+                eprint('Warning: ingnoring -L flag')  #TODO implement?
             view_beta(input_file, gr, args.out_path)
         elif input_file.endswith('.pat.gz'):
             if bed_wrapper:
