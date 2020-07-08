@@ -31,10 +31,10 @@ def load_bed(bed_path, nrows):
     return df
 
 
-def chr_thread(df, chrom, cf):
+def chr_thread(df, chrom, cf, genome):
     # eprint(chrom)
 
-    rf = load_dict_section(chrom).sort_values('start')
+    rf = load_dict_section(chrom, genome).sort_values('start')
 
     # starts:
     s = pd.merge_asof(df.sort_values('start'), rf, by='chr', on='start', direction='forward')
@@ -72,7 +72,7 @@ class AddCpGsToBed:
         with Pool(self.args.threads) as p:
             chroms = [x for x in self.cf.chr if x in self.df.chr.unique()]
             for chrom in sorted(chroms):
-                params = (self.df[self.df.chr == chrom], chrom, self.cf)
+                params = (self.df[self.df.chr == chrom], chrom, self.cf, self.args.genome)
                 processes.append(p.apply_async(chr_thread, params))
             p.close()
             p.join()
