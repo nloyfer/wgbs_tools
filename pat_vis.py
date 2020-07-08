@@ -7,8 +7,6 @@ from view import ViewPat
 import os.path as op
 import sys
 
-MAX_LINES_PER_BLOCK = 1000   # maximal height of the output (in lines)
-
 
 str2int = {'C': 2, 'T': 3, '.': 4, 'D': 5}
 int2str = {2: 'C', 3: 'T', 4: '.', 5: 'D', 1: ' ', 0: ''}
@@ -97,7 +95,7 @@ class PatVis:
             return self.cyclic_print(df)
 
     def cyclic_print(self, df):
-        table = np.zeros((MAX_LINES_PER_BLOCK, self.max_width), dtype=np.int8)
+        table = np.zeros((df['count'].sum(), self.max_width), dtype=np.int8)
         first_to_show = df.loc[0, 'start']
         row = -1
 
