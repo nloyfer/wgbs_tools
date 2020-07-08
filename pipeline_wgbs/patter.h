@@ -34,8 +34,13 @@ public:
     reads_stats readsStats;
     std::string TAGNAMETYPE = "YI:Z:";
     int line_i = 0;
-    bool paired_end = false;
+    bool is_paired_end = false;
     bool first_line(std::string &line);
+
+    struct MethylData {
+        int countMethyl; int countUnmethyl;
+        int originalIndex;
+    };
 
 
     patter(std::string refpath, std::string cspath): ref_path(refpath), chrom_sz_path(cspath) {}
@@ -50,12 +55,21 @@ public:
     int locus2CpGIndex(int locus);
     std::string clean_seq(std::string seq, std::string CIGAR);
     std::vector<std::string> samLineToPatVec(std::vector<std::string> tokens);
+    std::vector<std::string> samLineToPatVec2(std::vector<std::string> tokens);
     void handlyMethylCountSamLine(std::string line);
     std::string samLineToSamLineWithMethCounts(std::vector<std::string> tokens, std::string originalLine);
+    MethylData samLineToMethCounts(std::vector <std::string> tokens, std::string originalLine);
+    void action_sam();
+    std::string samLineMethyldataMakeString(std::string originalLine, patter::MethylData md);
     void merge_and_print(std::vector<std::string> l1, std::vector<std::string> l2);
+    patter::MethylData merge_and_count_methyl_data(std::vector <std::string> l1, std::vector <std::string> l2);
     void proc2lines(std::vector<std::string> tokens1, std::vector<std::string> tokens2);
+    void procPairAddMethylData(std::vector<std::string> tokens1, std::vector<std::string> tokens2,
+                               std::string line1, std::string line2);
     void action();
     void addMethylCountToSam(std::string samFilePath);
+
+    void initialize_patter(std::string &line_str);
 };
 
 std::vector<std::string> line2tokens(std::string &line);

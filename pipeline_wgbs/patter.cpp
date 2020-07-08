@@ -190,15 +190,11 @@ int patter::locus2CpGIndex(int locus) {
     return start_site;
 }
 
-struct NumMethylatedUnMethylated {
-    int countMethyl; int countUnmethyl;
-};
 
 
-
-NumMethylatedUnMethylated compareSeqToRef2(std::string &seq,
-                    std::string &ref,
-                    bool reversed) {
+patter::MethylData compareSeqToRef2(std::string &seq,
+                                    std::string &ref,
+                                    bool reversed) {
     /** compare seq string to ref string. generate the methylation pattern, and return
      * the CpG index of the first CpG site in the seq (or -1 if there is none) */
 
@@ -206,7 +202,7 @@ NumMethylatedUnMethylated compareSeqToRef2(std::string &seq,
     size_t margin = 3;
 
     int countMethyl = 0, countUnmethyl = 0;
-    NumMethylatedUnMethylated curRes;
+    patter::MethylData curRes;
 
     // find CpG indexes on reference sequence
     std::vector<int> cpg_inds;
@@ -301,19 +297,10 @@ int compareSeqToRef(std::string &seq,
     return cpg_inds[0];
 }
 
-void patter::merge_and_print(std::vector <std::string> l1, std::vector <std::string> l2) {
+std::vector <std::string> merge(std::vector <std::string> l1, std::vector <std::string> l2) {
     /** Merge 2 complementary lines to a single output.
      * each line has the following fields: [chr, startCpG, pat, start_bp, read_len_bp]
      * One or more of the lines may be empty */
-
-    //  First line is empty
-    if (l1.empty()) {
-        return vec2string(l2);
-    }
-    // Second line is empty
-    if (l2.empty()) {
-        return vec2string(l1);
-    }
 
     // Swap lines s.t l1 starts before l2
     if (stoi(l1[1]) > stoi(l2[1])) {
@@ -326,7 +313,7 @@ void patter::merge_and_print(std::vector <std::string> l1, std::vector <std::str
     std::string pat1 = l1[2], pat2 = l2[2];
 
     std::string merged_pat;  // output pattern
-    int last_site = std::max(start1 + pat1.length(), start2 + pat2.length()); // locatin of last CpG from both reads
+    int last_site = std::max(start1 + pat1.length(), start2 + pat2.length()); // location of last CpG from both reads
 
     if (last_site - start1 > MAX_PAT_LEN) // sanity check: make sure the two reads are not too far apart
         throw std::invalid_argument("invalid pairing. merged read is too long");
@@ -352,12 +339,86 @@ void patter::merge_and_print(std::vector <std::string> l1, std::vector <std::str
     }
     l1[1] = std::to_string(start1);
     l1[2] = merged_pat;
+    return l1;
+}
+
+void patter::merge_and_print(std::vector <std::string> l1, std::vector <std::string> l2) {
+    /** Merge 2 complementary lines to a single output.
+     * each line has the following fields: [chr, startCpG, pat, start_bp, read_len_bp]
+     * One or more of the lines may be empty */
+
+    //  First line is empty
+    if (l1.empty()) {
+        return vec2string(l2);
+    }
+    // Second line is empty
+    if (l2.empty()) {
+        return vec2string(l1);
+    }
+    l1 = merge(l1, l2);
     vec2string(l1);
 }
 
+patter::MethylData meth_pattern_count(std::string meth_pattern) {
+    patter::MethylData res;
+    int countMethyl = 0;
+    int countUnmethyl = 0;
+    for (int i = 0; i < meth_pattern.length(); i++){
+        char cur_char = meth_pattern[i];
+        if(cur_char == METH){
+            countMethyl++;
+        } else if (cur_char == UNMETH){
+            countUnmethyl++;
+        }
+    }
+    res.countMethyl = countMethyl;
+    res.countUnmethyl = countUnmethyl;
+    return res;
+}
+
+patter::MethylData patter::merge_and_count_methyl_data(std::vector <std::string> l1, std::vector <std::string> l2) {
+    /** Merge 2 complementary lines to a single output.
+     * each line has the following fields: [chr, startCpG, pat, start_bp, read_len_bp]
+     * One or more of the lines may be empty */
+
+    //  First line is empty
+    if (l1.empty()) {
+        return meth_pattern_count(l2[2]);
+    }
+    // Second line is empty
+    if (l2.empty()) {
+        return meth_pattern_count(l1[2]);
+    }
+
+    l1 = merge(l1, l2);
+    //2 is the index of the meth_pattern
+    return meth_pattern_count(l1[2]);
+}
+
+std::string patter::samLineMethyldataMakeString(std::string originalLine, patter::MethylData md) {
+    return '\t' + TAGNAMETYPE + std::to_string(md.countMethyl) + ',' + std::to_string(md.countUnmethyl) + '\n';
+}
+
 std::string patter::samLineToSamLineWithMethCounts(std::vector <std::string> tokens, std::string originalLine) {
+    try {
+        patter::MethylData curRow = samLineToMethCounts(tokens, originalLine);
+        return samLineMethyldataMakeString(originalLine, curRow);
+    }
+    catch (std::exception &e) {
+        std::string msg = "[ " + chr + " ] " + "Exception while processing line "
+                          + std::to_string(line_i) + ". Line content: \n";
+        std::cerr << msg;
+        print_vec(tokens);
+        std::cerr << e.what() << std::endl;
+        readsStats.nr_invalid++;
+    }
+    return originalLine; //TODO flag for throw error or print original line
+}
+
+patter::MethylData patter::samLineToMethCounts(std::vector <std::string> tokens, std::string originalLine) {
+    patter::MethylData errorres;
     if (tokens.empty()) {
-        return ""; //todo throw error
+        return errorres; //todo throw error
     }
     try {
 
@@ -376,17 +437,14 @@ std::string patter::samLineToSamLineWithMethCounts(std::vector <std::string> tok
         std::string ref = genome_ref.substr(start_locus - 1, seq_len);
 
         bool reversed;
-        if (paired_end) {
+        if (is_paired_end) {
             reversed = ((samflag == 83) || (samflag == 163));
         } else {
             reversed = ((samflag & 0x0010) == 16);
         }
-        NumMethylatedUnMethylated curRow = compareSeqToRef2(seq, ref, reversed);
+        patter::MethylData curRow = compareSeqToRef2(seq, ref, reversed);
 
-
-        std::string resString = '\t' + TAGNAMETYPE + std::to_string(curRow.countMethyl) + ',' + std::to_string(curRow.countUnmethyl) + '\n';
-
-        return resString;
+        return curRow;
     }
     catch (std::exception &e) {
         std::string msg = "[ " + chr + " ] " + "Exception while processing line "
@@ -396,7 +454,7 @@ std::string patter::samLineToSamLineWithMethCounts(std::vector <std::string> tok
         std::cerr << e.what() << std::endl;
         readsStats.nr_invalid++;
     }
-    return ""; //TODO throw error
+    return errorres; //TODO throw error
 }
 
 
@@ -437,7 +495,7 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
         // build methylation pattern:
         std::string meth_pattern;
         bool reversed;
-        if (paired_end) {
+        if (is_paired_end) {
             reversed = ((samflag == 83) || (samflag == 163));
         } else {
             reversed = ((samflag & 0x0010) == 16);
@@ -510,6 +568,39 @@ void patter::proc2lines(std::vector <std::string> tokens1,
     }
 }
 
+void patter::procPairAddMethylData(std::vector <std::string> tokens1,
+                                   std::vector <std::string> tokens2, std::string line1, std::string line2) {
+
+    std::vector <std::string> l1, l2;
+
+    /** print result to stdout */
+    try {
+        // sanity check: two lines must have the same QNAME
+        if ((!(tokens2.empty())) && (!(tokens1.empty()))
+            && (tokens1[0] != tokens2[0])) {
+            readsStats.nr_invalid += 2;
+            throw std::invalid_argument("lines are not complements!");
+        }
+        l1 = samLineToPatVec(tokens1);
+        l2 = samLineToPatVec(tokens2);
+
+        patter::MethylData res = merge_and_count_methyl_data(l1, l2);
+        std::string toPrint1 = samLineMethyldataMakeString(line1, res);
+        std::string toPrint2 = samLineMethyldataMakeString(line2, res);
+        std::cout << line1 + toPrint1;
+        std::cout << line2 + toPrint2;
+    }
+    catch (std::exception &e) {
+        std::string msg = "[ " + chr + " ] Exception while merging. lines ";
+        msg += std::to_string(line_i) + ". Line content: \n";
+        std::cerr << msg;
+        print_vec(tokens1);
+        print_vec(tokens2);
+        std::cerr << e.what() << std::endl;
+        return;
+    }
+}
+
 
 bool patter::first_line(std::string &line) {
     // find out if the input is paired- or single-end
@@ -535,7 +626,7 @@ void patter::print_stats_msg() {
 
     std::string msg = "[ " + chr + " ] ";
     msg += "finished " + std::to_string(line_i) + " lines. ";
-    if (paired_end) {
+    if (is_paired_end) {
         msg += "(" + std::to_string(readsStats.nr_pairs) + " pairs). ";
     }
     msg += std::to_string(line_i - readsStats.nr_empty - readsStats.nr_invalid) + " good, ";
@@ -546,16 +637,16 @@ void patter::print_stats_msg() {
 }
 
 void patter::handlyMethylCountSamLine(std::string line) {
-    std::vector <std::string> tokens1, tokens2;
+    std::vector <std::string> tokens;
     if(line.at(0) == '@'){
         std::cout << line + "\n";
     } else {
         if (genome_ref.empty()) {
-            paired_end = first_line(line);
+            is_paired_end = first_line(line);
             load_genome_ref();
         }
-        tokens2 = line2tokens(line);
-        std::string resString = samLineToSamLineWithMethCounts(tokens2, line);
+        tokens = line2tokens(line);
+        std::string resString = samLineToSamLineWithMethCounts(tokens, line);
         std::cout << line + resString;
     }
 }
@@ -599,6 +690,56 @@ void patter::addMethylCountToSam(std::string samFilePath) {
     }
 }
 
+void patter::action_sam() {
+    /** parse stdin for sam format lines (single- or pired-end).
+     * Translate them to pat format, and output to stdout */
+
+    if (DEBUG)
+        std::cerr << "DEBUG mode ON" << std::endl;
+
+    bool first_in_pair = true;
+//    std::ios_base::sync_with_stdio(false);
+    std::vector <std::string> tokens1, tokens2;
+    std::string line1, line2;
+    for (std::string line_str; std::getline(std::cin, line_str); line_i++) {
+
+        print_progress();
+
+        // skip empty lines
+        if (line_str.empty())
+            continue;
+        initialize_patter(line_str);
+
+        // paired-end file, and current row is first out of a couple of rows
+        if (first_in_pair && is_paired_end) {
+            tokens1 = line2tokens(line_str);
+            line1 = line_str;
+            first_in_pair = false;
+            readsStats.nr_pairs++;
+            continue;
+        }
+
+        // otherwise (second row in couple, or not-paired-end), line is processed:
+        tokens2 = line2tokens(line_str);
+        line2 = line_str;
+        first_in_pair = true;   // next line will be first of couple.
+
+        // process couple of lines. write to stdout
+        // in case of single-end input file, tokens1 will be empty
+        procPairAddMethylData(tokens1, tokens2, line1, line2);
+
+    }
+    print_stats_msg();
+}
+
+void patter::initialize_patter(std::string &line_str) {
+    // first line based initializations
+    if (genome_ref.empty()) {
+        is_paired_end = first_line(line_str);
+        load_genome_ref();
+    }
+}
+
 void patter::action() {
     /** parse stdin for sam format lines (single- or pired-end).
      * Translate them to pat format, and output to stdout */
@@ -611,9 +752,7 @@ void patter::action() {
     std::vector <std::string> tokens1, tokens2;
     for (std::string line_str; std::getline(std::cin, line_str); line_i++) {
 
-        // print progress
-        if (line_i && !(line_i % 5000000))
-            std::cerr << "[ " + chr + " ]" << "patter, line " << line_i << std::endl;
+        print_progress();
 
         // DEBUG - break after a few lines
         if (DEBUG && (line_i > 10000))
@@ -623,14 +762,10 @@ void patter::action() {
         if (line_str.empty())
             continue;
 
-        // first line based initializations
-        if (genome_ref.empty()) {
-            paired_end = first_line(line_str);
-            load_genome_ref();
-        }
+        initialize_patter(line_str);
 
         // paired-end file, and current row is first out of a couple of rows
-        if (first_in_pair && paired_end) {
+        if (first_in_pair && is_paired_end) {
             tokens1 = line2tokens(line_str);
             first_in_pair = false;
             readsStats.nr_pairs++;
@@ -655,13 +790,13 @@ int main(int argc, char **argv) {
     try {
         if (argc == 4 && strcmp(argv[3], "bam") == 0) {
             patter p(argv[1], argv[2]);
-            p.addMethylCountToSam("");
+            p.action_sam();
         } else if (argc == 3){
             patter p(argv[1], argv[2]);
             p.action();
         } else
             throw std::invalid_argument("Usage: patter GENOME_PATH CPG_CHROM_SIZE_PATH or patter GENOME_PATH CPG_CHROM_SIZE_PATH bam");
-    }
+    }//                std::cerr  << "match maker, line_i " << line_i << std::endl;
     catch (std::exception &e) {
         std::cerr << "Failed! exception:" << std::endl;
         std::cerr << e.what() << std::endl;
