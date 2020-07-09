@@ -3,8 +3,8 @@
 import argparse
 import os.path as op
 import subprocess
-from utils_wgbs import delete_or_skip, load_beta_data, validate_files_list, load_dict, GenomeRefPaths, beta2vec, \
-    eprint, add_GR_args, IllegalArgumentError
+from utils_wgbs import delete_or_skip, load_beta_data2, validate_files_list, load_dict, GenomeRefPaths, beta2vec, \
+    eprint, add_GR_args, IllegalArgumentError, load_dict_section, BedFileWrap
 from genomic_region import GenomicRegion
 import os
 import numpy as np
@@ -13,14 +13,13 @@ BG_EXT = '.bedGraph'
 BW_EXT = '.bigwig'
 COV_BG_EXT = '_cov' + BG_EXT
 COV_BW_EXT = '_cov' + BW_EXT
-DEBUG_NR = 1000
 
 
 class BetaToBigWig:
     def __init__(self, args):
         self.args = args
         self.gr = GenomicRegion(args)
-        self.debug = args.debug
+        self.bed = BedFileWrap(self.args.bed_file, self.args.genome) if self.args.bed_file else None
         self.outdir = args.outdir
         if not op.isdir(self.outdir):
             raise IllegalArgumentError('Invalid output directory: ' + self.outdir)
@@ -34,17 +33,15 @@ class BetaToBigWig:
         :return: DataFrame with columns ['chr', 'start', 'end']
         """
         eprint('loading dict...')
-        skiprows = 0
-        nrows = None
-        if not self.gr.is_whole():
-            skiprows = self.gr.sites[0] - 1
-            nrows = self.gr.nr_sites
-        if self.debug:
-            skiprows = 0
-            nrows = DEBUG_NR
-        rf = load_dict(nrows=nrows, skiprows=skiprows, genome_name=self.args.genome)
+        if self.args.bed_file:
+            region = '-R ' + self.args.bed_file
+        else:
+            region = self.gr.region_str
+        rf = load_dict_section(region, genome_name=self.args.genome)
         rf['end'] = rf['start'] + 1
         rf['start'] = rf['start'] - 1
+        # rf['startCpG'] = rf['idx']
+        del rf['idx']
         return rf
 
     def bed_graph_to_bigwig(self, bed_graph, bigwig):
@@ -67,8 +64,7 @@ class BetaToBigWig:
 
     def load_beta(self, beta_path):
         """ Load beta to a numpy array """
-        sites = (1, DEBUG_NR + 1) if self.debug else self.gr.sites
-        barr = load_beta_data(beta_path, sites=sites)
+        barr = load_beta_data2(beta_path, gr = self.gr.sites, bed = self.bed)
         assert (barr.shape[0] == self.ref_dict.shape[0])
         return barr
 
@@ -84,7 +80,11 @@ class BetaToBigWig:
         # paste dict with beta, then dump
         self.ref_dict['meth'] = barr[:, 0]
         self.ref_dict['total'] = barr[:, 1]
-        self.ref_dict[self.ref_dict['total'] > 0].to_csv(out_bed, sep='\t', header=None, index=None)
+        if self.args.remove_nan:
+            res = self.ref_dict[self.ref_dict['total'] > 0]
+        else:
+            res = self.ref_dict
+        res.to_csv(out_bed, sep='\t', header=None, index=None)
         del self.ref_dict['meth'], self.ref_dict['total']
 
     def set_prefix(self, beta_path):
@@ -138,7 +138,6 @@ def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('beta_paths', nargs='+')
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing files if existed')
-    parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('--remove_nan', action='store_true', help='If set, missing CpG sites are removed from the output.'
                                                                   ' Default is to keep them with "-1" value.')
     parser.add_argument('-b', '--bedGraph', action='store_true', help='Keep (gzipped) bedGraphs as well as bigwigs')
@@ -149,7 +148,7 @@ def parse_args():
                              ' Default is 1 (include all observations). '
                              ' Sites with less than MIN_COV coverage are considered as missing.')
     parser.add_argument('--outdir', '-o', default='.', help='Output directory. [.]')
-    add_GR_args(parser)
+    add_GR_args(parser, bed_file = True)
     args = parser.parse_args()
     return args
 
