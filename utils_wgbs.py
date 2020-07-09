@@ -41,7 +41,7 @@ class GenomeRefPaths:
         self.chrom_sizes = self.join('chrome.size')
         self.revdict_path = self.join('CpG.rev.bin')
         self.genome_path = self.join('genome.fa')
-        self.annotations = self.join('annotations.bed.gz')
+        self.annotations = self.join('annotations.bed.gz', validate=False)
         if not op.isfile(self.annotations):
             self.annotations = None
 
@@ -53,9 +53,9 @@ class GenomeRefPaths:
         else:
             return int(self.get_chrom_cpg_size_table()['size'].sum())
 
-    def join(self, file):
-        path = op.join(self.refdir, file)
-        if not op.isfile(path):
+    def join(self, fpath, validate=True):
+        path = op.join(self.refdir, fpath)
+        if validate and not op.isfile(path):
             raise IllegalArgumentError('Invalid reference path: ' + path)
         return path
 
