@@ -14,6 +14,7 @@ SRC_DIR = DIR + 'src/'
 pat_sampler = SRC_DIR + 'pat_sampler/pat_sampler'
 PAT2BETA_TOOL = SRC_DIR + 'pat2beta/stdin2beta'
 collapse_pat_script = SRC_DIR + 'collapse_pat.pl'
+segment_tool = SRC_DIR + 'segment_betas/segmentor'
 
 match_maker_tool = DIR + 'pipeline_wgbs/match_maker'
 patter_tool = DIR + 'pipeline_wgbs/patter'
@@ -75,12 +76,13 @@ def eprint(*args, **kwargs):
 
 
 class BedFileWrap:
-    def __init__(self, bed_path):
-        self.bed = bed_path
+    def __init__(self, bed_path, genome=None):
+        self.bed_path = bed_path
         validate_single_file(bed_path)
-        self.df = pd.read_csv(self.bed, usecols=[0, 1, 2], sep='\t',
+        self.df = pd.read_csv(self.bed_path, usecols=[0, 1, 2], sep='\t',
                               # names=['chr', 'start', 'end'])
                               names=['chr', 'start', 'end'], header='infer', comment='#')
+        self.genome = genome
 
     def iter_grs(self):
         from genomic_region import GenomicRegion
@@ -124,11 +126,15 @@ def validate_prefix(prefix):
 
 def load_dict(nrows=None, skiprows=None, genome_name='hg19'):
     d_path = GenomeRefPaths(genome_name).dict_path
-    return pd.read_csv(d_path, header=None, names=['chr', 'start'], sep='\t', usecols=[0, 1], nrows=nrows,
-                       skiprows=skiprows)
+    res = pd.read_csv(d_path, header=None, names=['chr', 'start'], sep='\t', usecols=[0, 1],
+                      nrows=nrows, skiprows=skiprows)
+    res['idx'] = res.index + 1
+    return res
 
 
 def load_dict_section(region, genome_name='hg19'):
+    if region is None:
+        return load_dict(genome_name = genome_name)
     cmd = 'tabix {} {}'.format(GenomeRefPaths(genome_name).dict_path, region)
     return read_shell(cmd, names=['chr', 'start', 'idx'])
 
@@ -178,6 +184,20 @@ def load_dists(start, nr_sites, genome):
     dists[0] = 0
     dists[dists < 0] = 1e6
     return dists
+
+
+def load_beta_data2(beta_path, gr=None, bed=None):
+    if gr is not None and bed is not None:
+        eprint('Error: both gr and bed_path supplied')
+        raise IllegalArgumentError('Invalid usage of load_beta_data2')
+    elif gr is not None and bed is None:
+        return load_beta_data(beta_path, gr)
+    elif gr is None and bed is not None:
+        inds = load_dict_section(' -R ' + bed.bed_path, bed.genome)['idx'].values - 1
+        return load_beta_data(beta_path)[inds, :]
+    else:
+        return load_beta_data(beta_path, None)
+
 
 
 def load_beta_data(beta_path, sites=None):
