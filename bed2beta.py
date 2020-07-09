@@ -5,7 +5,8 @@ import os.path as op
 import sys
 import pandas as pd
 import numpy as np
-from utils_wgbs import delete_or_skip, splitextgz, trim_to_uint8, validate_files_list, load_dict, eprint
+from utils_wgbs import delete_or_skip, splitextgz, trim_to_uint8, validate_files_list, load_dict, eprint, load_dict_section
+from genomic_region import GenomicRegion
 
 
 def load_bed(bed_path, nrows, add1=False):
@@ -26,7 +27,7 @@ def bed2betas(args):
 
     # merge with the reference CpG bed file,
     # so the #lines in file will include all 28217448 sites (with NaN as 0)
-    nrows = 10000 if args.debug else None
+    region = 'chr1:10469-876225' if args.debug else None
     try:
         rf = None       # Reference dictionary
         for bed in args.bed_paths:
@@ -38,7 +39,7 @@ def bed2betas(args):
 
             # Load dict (at most once) and bed
             if rf is None:
-                rf = load_dict(nrows=nrows, genome_name=args.genome)
+                rf = load_dict_section(region, args.genome)
             df = load_bed(bed, nrows, args.add_one)
 
             # todo: multiprocess it, split by chromosome
@@ -54,11 +55,16 @@ def bed2betas(args):
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('bed_paths', nargs='+')
-    parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing files if existed')
+    parser.add_argument('-f', '--force', action='store_true',
+                        help='Overwrite existing files if existed')
     parser.add_argument('-d', '--debug', action='store_true')
-    parser.add_argument('--add_one', action='store_true', help='Add 1 to start column, to match with CpG.bed.gz notation.') #todo: infer that from bed.
-    parser.add_argument('--outdir', '-o', default='.', help='Output directory. Default is current directory [.]')
-    parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
+    parser.add_argument('--add_one', action='store_true',
+                        help='Add 1 to start column, to match with CpG.bed.gz notation.')
+                        #todo: infer that from bed.
+    parser.add_argument('--outdir', '-o', default='.',
+                        help='Output directory. Default is current directory [.]')
+    parser.add_argument('--genome', help='Genome reference name. Default is hg19.',
+                        default='hg19')
     args = parser.parse_args()
     return args
 
