@@ -4,6 +4,7 @@ import os
 import os.path as op
 import argparse
 import subprocess
+import shlex
 import re
 import multiprocessing
 from multiprocessing import Pool
@@ -38,30 +39,43 @@ def subprocess_wrap(cmd, debug):
             raise IllegalArgumentError('Failed')
 
 
-def proc_chr(input_path, out_path, region, genome, debug):
+def proc_chr(input_path, out_path, region, genome, header_path, debug):
     """ Convert a temp single chromosome file, extracted from a bam file,
         into a sam formatted (no header) output file."""
 
     # Run patter tool 'bam' mode on a single chromosome
-
-    ## TODO make it actually be a tmp file
 
     # use samtools to extract only the reads from 'chrom'
     flag = '-f 3'
     cmd = "samtools view {} {} -q {} -F 1796 {} | ".format(input_path, region, MAPQ, flag)
     if debug:
         cmd += ' head -200 | '
-    cmd += "{} {} {} bam > {}".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes, out_path)
+    cmd += "{} {} {} bam | cat {} - | samtools view -b -h - > {}".format(patter_tool, genome.genome_path,
+                                                                            genome.chrom_cpg_sizes,
+                                                                            header_path, out_path)
     #print(cmd)
     subprocess_wrap(cmd, debug)
 
     return out_path
 
+def proc_chr_cmd(input_path, region, genome, debug):
+
+    # use samtools to extract only the reads from 'chrom'
+    flag = '-f 3'
+    cmd = "samtools view {} {} -q {} -F 1796 {} | ".format(input_path, region, MAPQ, flag)
+    if debug:
+        cmd += ' head -200 | '
+    cmd += "{} {} {} bam".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes)
+
+    return cmd
+
+def get_header_command(input_path):
+    return "samtools view -H {}".format(input_path)
+
 def proc_header(input_path, out_path, debug):
     """ extracts header from bam file and saves it to tmp file."""
-    ## TODO make it actually be a tmp file
 
-    cmd = "samtools view -H {} > {} ".format(input_path, out_path)
+    cmd = get_header_command(input_path) + " > {} ".format(out_path)
     #print(cmd)
     subprocess_wrap(cmd, debug)
 
@@ -125,6 +139,12 @@ class BamMethylData:
 
             return chroms
 
+    def intermediate_bam_file_view(self, name):
+        return '<(samtools view {})'.format(name)
+
+    def process_substitute(self, cmd):
+        return '<({})'.format(cmd)
+
     def start_threads(self):
         """ Parse each chromosome file in a different process,
             and concatenate outputs to pat and unq files """
@@ -135,25 +155,49 @@ class BamMethylData:
         processes = []
         with Pool(self.args.threads) as p:
             for c in self.set_regions():
-                out_path = name + '_' + c + '.output.tmp'
-                params = (self.bam_path, out_path, c, self.gr.genome, self.debug)
+                out_path = name + '_' + c + '.output.bam'
+                params = (self.bam_path, out_path, c, self.gr.genome, header_path, self.debug)
                 processes.append(p.apply_async(proc_chr, params))
             if not processes:
                 raise IllegalArgumentError('Empty bam file')
             p.close()
             p.join()
         res = [pr.get() for pr in processes]    # [(pat_path, unq_path) for each chromosome]
+        print('finished patter')
         if None in res:
             print('threads failed')
             return
 
         # Concatenate chromosome files
         final_path = name + BAM_SUFF
-        cmd = 'cat ' + header_path + ' ' + ' '.join([p for p in res]) + ' | samtools view -b - > ' + final_path
-        os.system(cmd)  # bam
+        # cmd = '/bin/bash -c "cat <({})'.format(get_header_command(self.bam_path)) + ' ' +\
+        #       ' '.join([self.intermediate_bam_file_view(p) for p in res]) + ' | samtools view -b - > ' + final_path + '"'
+        cmd = '/bin/bash -c "samtools cat -h <({})'.format(get_header_command(self.bam_path)) + ' ' + \
+              ' '.join(
+                  [p for p in res]) + ' > ' + final_path + '"'
+        print('starting cat of files')
+        process = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+        print("finished cat of files")
         res.append(header_path)
         # remove all small files
         list(map(os.remove, [l for l in res]))
+
+    def run_cmd(self):
+        """ Parse each chromosome file in a different process,
+            and concatenate outputs to pat and unq files """
+
+        name = op.join(self.out_dir, op.basename(self.bam_path)[:-4])
+        chr_cmds = []
+        for c in self.set_regions():
+            chr_cmds.append(proc_chr_cmd(self.bam_path, c, self.gr.genome, False))
+
+        # Concatenate the outputs of the cmds files
+        final_path = name + BAM_SUFF
+        res_cmds = [get_header_command(self.bam_path)] + chr_cmds
+        cmd = '/bin/bash -c "cat ' + ' '.join([self.process_substitute(p) for p in res_cmds]) + ' | samtools view -b - > ' + final_path + '"'
+        process = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+        _, _ = process.communicate()
 
 
 def parse_args():
