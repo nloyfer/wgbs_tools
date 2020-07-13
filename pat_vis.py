@@ -119,6 +119,10 @@ class PatVis:
                 else:
                     row = np.argmin(table[:, col])
 
+                # make sure the slots are free
+                assert(table[row, col:col + len(patt)].sum() == 0)
+                assert(row < table.shape[0])
+
                 # insert read and spaces:
                 for j, l in enumerate(patt):
                     table[row, col + j] = str2int[l]
@@ -126,6 +130,8 @@ class PatVis:
                 table[row, col + len(patt)] = 1
 
         nr_lines = int(np.argmin(table[:, 0]))
+        if nr_lines == 0:    # in case reads fill all of the rows in the table
+            nr_lines = table.shape[0]
         width = np.max(np.argmin(table, axis=1))
         table = table[:nr_lines, :width]
         table[table == 0] = 1
@@ -169,5 +175,4 @@ def main(args):
     for pat_file in args.input_files:
         print(splitextgz(op.basename(pat_file))[0])     # print file name
         PatVis(args, pat_file).print_results()
-
 
