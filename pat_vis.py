@@ -130,7 +130,7 @@ class PatVis:
                 table[row, col + len(patt)] = 1
 
         nr_lines = int(np.argmin(table[:, 0]))
-        if nr_lines == 0:    # in case reads fill all of the rows in the table
+        if np.sum(table[-1, :]) > 0:   # in case reads fill all of the rows in the table
             nr_lines = table.shape[0]
         width = np.max(np.argmin(table, axis=1))
         table = table[:nr_lines, :width]
