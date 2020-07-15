@@ -1,7 +1,7 @@
 #!/usr/bin/python3 -u
 
 import argparse
-from utils_wgbs import load_beta_data, MAX_PAT_LEN, MAX_READ_LEN, pat_sampler, validate_single_file, \
+from utils_wgbs import load_beta_data2, MAX_PAT_LEN, MAX_READ_LEN, pat_sampler, validate_single_file, \
     add_GR_args, IllegalArgumentError, BedFileWrap, load_dict_section, read_shell, eprint
 from genomic_region import GenomicRegion
 import subprocess
@@ -274,7 +274,7 @@ def view_beta(beta_path, gr, opath):
     :param gr: a GenomicRegion object
     :param opath: output path (or stdout)
     """
-    data = load_beta_data(beta_path, gr.sites)
+    data = load_beta_data2(beta_path, gr=gr.sites)
     np.savetxt(opath, data, fmt='%s', delimiter='\t')
 
 
