@@ -95,7 +95,7 @@ class PatVis:
             return self.cyclic_print(df)
 
     def cyclic_print(self, df):
-        table = np.zeros((df['count'].sum(), self.max_width), dtype=np.int8)
+        table = np.zeros((df['count'].sum() + 1, self.max_width), dtype=np.int8)
         first_to_show = df.loc[0, 'start']
         row = -1
 
@@ -130,8 +130,6 @@ class PatVis:
                 table[row, col + len(patt)] = 1
 
         nr_lines = int(np.argmin(table[:, 0]))
-        if np.sum(table[-1, :]) > 0:   # in case reads fill all of the rows in the table
-            nr_lines = table.shape[0]
         width = np.max(np.argmin(table, axis=1))
         table = table[:nr_lines, :width]
         table[table == 0] = 1
@@ -147,9 +145,7 @@ class PatVis:
             table = np.core.defchararray.replace(table, str(key), int2str[key])
 
         # Convert table to one long string
-        res = ''
-        for row in range(nr_lines):
-            res += ''.join(list(table[row, :])) + '\n'
+        res = '\n'.join([''.join(row) for row in table])
 
         fullres = {'start': first_to_show,
                    'chr': df.loc[0, 'chr'],
