@@ -17,7 +17,6 @@ import multiprocessing
 np.set_printoptions(linewidth=200, precision=2)
 
 CHUNK_MAX_SIZE = 60000
-segment_tool = '/cs/cbio/netanel/blocks/csegment/segmentor'
 
 
 def dump_table(df, path):
