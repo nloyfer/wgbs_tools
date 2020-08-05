@@ -34,7 +34,7 @@ def segment_process(betas, skip, nsites, pcount, max_block_size):
         cmd = '{} {} -s {} -n {} -m {} -ps {}'.format(segment_tool, beta_files, skip, nsites, max_block_size, pcount)
         brd_str = subprocess.check_output(cmd, shell=True).decode().split()
         # eprint('thread ({}, {}), time: {}'.format(skip, nsites, timedelta(seconds=time.time() - start_time)))
-        return np.array([int(b) for b in brd_str]) + skip + 1
+        return np.array(list(map(int, brd_str))) + skip + 1
 
     except Exception as e:
         eprint('Failed in s={}, n={}'.format(skip, nsites))

@@ -19,9 +19,18 @@
 #include <math.h>
 
 
+struct Params
+{
+    unsigned int start;
+    unsigned int nr_sites;
+    float pseudo_count;
+    unsigned int max_size;
+};
+
+
 class segmentor {
     std::vector<std::string> beta_paths;
-    std::vector<float> params;
+    Params params;
     uint start = 0;
     uint nr_sites = 0;
     float pseudo_count = 0;
@@ -33,7 +42,7 @@ class segmentor {
     void cost_memoization(std::vector<float*> &all_data);
     std::vector<int> traceback(const int *T);
 public:
-    segmentor(std::vector<float> &iparams, std::vector<std::string> &input_beta_paths):
+    segmentor(Params &iparams, std::vector<std::string> &input_beta_paths):
             beta_paths(input_beta_paths), params(iparams) {}
     void dp_wrapper();
     void dp(std::vector<float*> &all_data);
