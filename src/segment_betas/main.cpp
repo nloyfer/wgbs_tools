@@ -35,23 +35,25 @@ private:
     std::vector <std::string> tokens;
 };
 
-void parse_params(InputParser &input, std::vector<float> &params){
+Params parse_params(InputParser &input){
     /*
      * fill the params vector with:
      * [start, nr_sites, max_size, pseudo_count]
      * start and nr_sites are mandatory arguments
      * max_size anad pseudo_count have default values.
      */
-    float max_size = 1000;
-    float pseudo_count = 1;
-    float start = 0, nr_sites = 0;
+    Params pams;
+    pams.start = 0;
+    pams.nr_sites = 0;
+    pams.max_size = 1000;
+    pams.pseudo_count = 1;
 
     // parse start, nr_sites, max_size and pseudo_count
 
     // start site
     std::string start_str = input.getCmdOption("-s");
     if (!start_str.empty()) {
-        start = std::stoi(start_str);
+        pams.start = std::stoul(start_str);
     } else {
         throw "start sites (-s) must be provided\n";
     }
@@ -59,7 +61,7 @@ void parse_params(InputParser &input, std::vector<float> &params){
     // number of sites
     std::string nr_sites_str = input.getCmdOption("-n");
     if (!nr_sites_str.empty()) {
-        nr_sites = std::stoi(nr_sites_str);
+        pams.nr_sites = std::stoul(nr_sites_str);
     } else {
         throw "number of sites (-n) must be provided\n";
     }
@@ -67,25 +69,21 @@ void parse_params(InputParser &input, std::vector<float> &params){
     // max_size
     std::string max_sz_str = input.getCmdOption("-m");
     if (!max_sz_str.empty()) {
-        max_size = std::stoi(max_sz_str);
+        pams.max_size = std::stoul(max_sz_str);
     }
 
     // pseudo count
     std::string psud_str = input.getCmdOption("-ps");
     if (!psud_str.empty()) {
-        pseudo_count = std::stoi(psud_str);
+        pams.pseudo_count = std::stof(psud_str);
     }
 
-    params.emplace_back(start);
-    params.emplace_back(nr_sites);
-    params.emplace_back(max_size);
-    params.emplace_back(pseudo_count);
+    return pams;
 }
 
 int main(int argc, char *argv[]) {
 
 
-    std::vector<float> params;
 
     InputParser input(argc, argv);
     if (argc < 6){
@@ -94,7 +92,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    parse_params(input, params);
+    struct Params pams = parse_params(input);
 
     // parse beta files paths
     std::vector<std::string> beta_paths;
@@ -110,7 +108,8 @@ int main(int argc, char *argv[]) {
 //        std::cerr << b << "\n";
 //    }
 
-    segmentor segmentor1(params, beta_paths);
+    segmentor segmentor1(pams, beta_paths);
     segmentor1.dp_wrapper();
     return 0;
 }
+
