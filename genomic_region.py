@@ -8,27 +8,29 @@ import os.path as op
 
 
 class GenomicRegion:
-    def __init__(self, args=None, region=None, name='hg19'):
-        self.genome_name = name
+    def __init__(self, args=None, region=None, sites=None, genome_name='hg19'):
+        self.genome_name = genome_name
         self.chrom = None
-        self.sites = None
-        self.region_str = None
+        self.sites = sites
+        self.region_str = region
         self.bp_tuple = None
         self.chrs_sz = None  # DataFrame of chromosomes sizes (in number of sites)
-        self.name = name
         self.args = args
 
         # todo: this could be prettier
         if args is not None:
-            self.name = args.genome
-            self.genome = GenomeRefPaths(self.name)
+            self.genome_name = args.genome
+            self.genome = GenomeRefPaths(self.genome_name)
             if args.sites:
                 self.parse_sites(args.sites)
             elif args.region:
                 self.parse_region(args.region)
         elif region is not None:
-            self.genome = GenomeRefPaths(self.name)
+            self.genome = GenomeRefPaths(self.genome_name)
             self.parse_region(region)
+        elif sites is not None:
+            self.genome = GenomeRefPaths(self.genome_name)
+            self.parse_sites(sites)
         else:
             raise IllegalArgumentError('Invalid GR init {}'.format(region))
 
@@ -151,10 +153,9 @@ class GenomicRegion:
         :return: chromosome, locus
         """
         index = int(index)
-
         # validate input
         if not self.genome.nr_sites + 1 >= index >= 1:
-            print('Invalid site index:', index)
+            eprint('Invalid site index:', index)
             raise IllegalArgumentError('Out of range site index:', index)
 
         # find locus:

@@ -14,6 +14,7 @@ SRC_DIR = DIR + 'src/'
 pat_sampler = SRC_DIR + 'pat_sampler/pat_sampler'
 PAT2BETA_TOOL = SRC_DIR + 'pat2beta/stdin2beta'
 collapse_pat_script = SRC_DIR + 'collapse_pat.pl'
+segment_tool = SRC_DIR + 'segment_betas/segmentor'
 
 match_maker_tool = DIR + 'pipeline_wgbs/match_maker'
 patter_tool = DIR + 'pipeline_wgbs/patter'
@@ -40,7 +41,7 @@ class GenomeRefPaths:
         self.chrom_sizes = self.join('chrome.size')
         self.revdict_path = self.join('CpG.rev.bin')
         self.genome_path = self.join('genome.fa')
-        self.annotations = self.join('annotations.bed.gz')
+        self.annotations = self.join('annotations.bed.gz', validate=False)
         if not op.isfile(self.annotations):
             self.annotations = None
 
@@ -52,9 +53,9 @@ class GenomeRefPaths:
         else:
             return int(self.get_chrom_cpg_size_table()['size'].sum())
 
-    def join(self, file):
-        path = op.join(self.refdir, file)
-        if not op.isfile(path):
+    def join(self, fpath, validate=True):
+        path = op.join(self.refdir, fpath)
+        if validate and not op.isfile(path):
             raise IllegalArgumentError('Invalid reference path: ' + path)
         return path
 
@@ -75,12 +76,13 @@ def eprint(*args, **kwargs):
 
 
 class BedFileWrap:
-    def __init__(self, bed_path):
-        self.bed = bed_path
+    def __init__(self, bed_path, genome=None):
+        self.bed_path = bed_path
         validate_single_file(bed_path)
-        self.df = pd.read_csv(self.bed, usecols=[0, 1, 2], sep='\t',
+        self.df = pd.read_csv(self.bed_path, usecols=[0, 1, 2], sep='\t',
                               # names=['chr', 'start', 'end'])
                               names=['chr', 'start', 'end'], header='infer', comment='#')
+        self.genome = genome
 
     def iter_grs(self):
         from genomic_region import GenomicRegion
@@ -124,11 +126,15 @@ def validate_prefix(prefix):
 
 def load_dict(nrows=None, skiprows=None, genome_name='hg19'):
     d_path = GenomeRefPaths(genome_name).dict_path
-    return pd.read_csv(d_path, header=None, names=['chr', 'start'], sep='\t', usecols=[0, 1], nrows=nrows,
-                       skiprows=skiprows)
+    res = pd.read_csv(d_path, header=None, names=['chr', 'start'], sep='\t', usecols=[0, 1],
+                      nrows=nrows, skiprows=skiprows)
+    res['idx'] = res.index + 1
+    return res
 
 
 def load_dict_section(region, genome_name='hg19'):
+    if region is None:
+        return load_dict(genome_name = genome_name)
     cmd = 'tabix {} {}'.format(GenomeRefPaths(genome_name).dict_path, region)
     return read_shell(cmd, names=['chr', 'start', 'idx'])
 
@@ -180,6 +186,20 @@ def load_dists(start, nr_sites, genome):
     return dists
 
 
+def load_beta_data2(beta_path, gr=None, bed=None):
+    if gr is not None and bed is not None:
+        eprint('Error: both gr and bed_path supplied')
+        raise IllegalArgumentError('Invalid usage of load_beta_data2')
+    elif gr is not None and bed is None:
+        return load_beta_data(beta_path, gr)
+    elif gr is None and bed is not None:
+        inds = load_dict_section(' -R ' + bed.bed_path, bed.genome)['idx'].values - 1
+        return load_beta_data(beta_path)[inds, :]
+    else:
+        return load_beta_data(beta_path, None)
+
+
+
 def load_beta_data(beta_path, sites=None):
     suff = op.splitext(beta_path)[1]
     if not (op.isfile(beta_path) and (suff in ('.beta', '.lbeta', '.bin'))):
@@ -198,7 +218,7 @@ def load_beta_data(beta_path, sites=None):
         start, end = sites
         with open(beta_path, 'rb') as f:
             f.seek((start - 1) * 2 * sizet)  # fix base-1 annotations
-            data = np.fromfile(f, dtype=dtype, count=((end - start) * 2 * sizet)).reshape((-1, 2))
+            data = np.fromfile(f, dtype=dtype, count=((end - start) * 2)).reshape((-1, 2))
 
     assert data.size, 'Data table is empty!'
     return data

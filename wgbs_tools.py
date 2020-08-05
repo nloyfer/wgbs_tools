@@ -25,6 +25,7 @@ from mix_pat import main as mix_pat_main
 from init_genome_ref_wgbs import main as init_genome_main
 from frag_len import main as frag_len_main
 from convert import main as convert_main
+from segment_betas import main as segment_beta_main
 
 """
 Dependencies:
@@ -54,7 +55,8 @@ callbacks = {
     'mix_pat': mix_pat_main,
     'init_genome': init_genome_main,
     'frag_len': frag_len_main,
-    'convert': convert_main
+    'convert': convert_main,
+    'segment': segment_beta_main
     # todo: unq2beta
 }
 

@@ -25,11 +25,11 @@ def pat2beta(pat_path, out_dir, args, force=True):
     out_beta = op.join(out_dir, splitextgz(op.basename(pat_path))[0] + suff)
     if not delete_or_skip(out_beta, force):
         return
-    nr_sites = GenomeRefPaths(args.genome).nr_sites
 
     if args.threads > 1 and pat_path.endswith('.pat.gz') and op.isfile(pat_path + '.csi'):
-        arr = mult_pat2beta(pat_path, nr_sites, args)
+        arr = mult_pat2beta(pat_path, args)
     else:
+        nr_sites = GenomeRefPaths(args.genome).nr_sites
         cmd += ' {} | {} {} {}'.format(pat_path, PAT2BETA_TOOL, 1, nr_sites + 1)
         x = subprocess.check_output(cmd, shell=True).decode()
         arr = np.fromstring(x, dtype=int, sep=' ').reshape((-1, 2))
@@ -38,7 +38,7 @@ def pat2beta(pat_path, out_dir, args, force=True):
     return out_beta
 
 
-def mult_pat2beta(pat_path, nr_sites, args):
+def mult_pat2beta(pat_path, args):
     processes = []
     with Pool(args.threads) as p:
         ct = GenomeRefPaths(args.genome).get_chrom_cpg_size_table()
