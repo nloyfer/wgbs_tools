@@ -137,7 +137,7 @@ void segmentor::dp(std::vector<float*> &all_data){
     }
     std::vector<int> borders = traceback(T);
    // print_mem(mem, nr_sites, max_size);
-//    print_MT(M, T, nr_sites);
+    //print_MT(M, T, nr_sites);
     print_borders(borders);
 
     delete [] mem; delete [] M; delete [] T;
@@ -147,6 +147,7 @@ void segmentor::dp(std::vector<float*> &all_data){
  *  Reading from files
  */
 void segmentor::read_beta_file(const char *beta_path, float *data){
+    // load beta files section to a temporary array cdata
     auto cdata = new char[nr_sites * 2];
     std::ifstream infile;
     infile.open(beta_path, std::ios::binary | std::ios::in);
@@ -154,12 +155,14 @@ void segmentor::read_beta_file(const char *beta_path, float *data){
     infile.read(cdata, nr_sites * 2);
     infile.close();
 
+    // cast values to float(uint8) and set data variable
     for (int i = 0; i < nr_sites * 2; i++) {
         data[i] = (float) (uint8_t) cdata[i];
     }
     delete [] cdata;
 
-    // validate data
+    // validate data: in a beta file, right column must be greater
+    // or equal the left column
     for (int i = 0; i < nr_sites; i++) {
         if (data[2 * i] > data[2 * i + 1]) {
             std::cerr << "invalid data, i = " << i << ". data: ";
@@ -172,12 +175,13 @@ void segmentor::read_beta_file(const char *beta_path, float *data){
 
 
 void segmentor::dp_wrapper(){
-    start = (uint) params[0];
-    nr_sites = (uint) params[1];
-    max_size = params[2];
-    pseudo_count = params[3];
+    start = (uint) params.start;
+    nr_sites = (uint) params.nr_sites;
+    max_size = params.max_size;
+    pseudo_count = params.pseudo_count;
 
     // Load beta files:
+    // all_data is vector of floats pointers of size (nr_betas * nr_sites * 2)
     std::vector<float*> all_data;
     for (const auto &beta_path: beta_paths) {
         auto data = new float[nr_sites * 2];
@@ -189,7 +193,7 @@ void segmentor::dp_wrapper(){
 
     // Delete data from memory
     for (auto dataset: all_data) {
-//        print_data(dataset, nr_sites);
+        //print_data(dataset, nr_sites);
         delete [] dataset;
     }
 }
