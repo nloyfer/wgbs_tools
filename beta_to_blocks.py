@@ -7,99 +7,44 @@ import os.path as op
 import pandas as pd
 from utils_wgbs import validate_files_list
 from multiprocessing import Pool
-from os.path import splitext, basename
 import sys
-from utils_wgbs import load_beta_data, trim_to_uint8, default_blocks_path, eprint, GenomeRefPaths, splitextgz, \
+from utils_wgbs import load_beta_data, trim_to_uint8, default_blocks_path, eprint, GenomeRefPaths, \
                         IllegalArgumentError
 
 
-def get_bins(df, genome):
-    end = GenomeRefPaths(genome).count_nr_sites() + 1   # 28217449 for hg19
-    arr = np.unique(np.concatenate([[1], df['startCpG'], df['endCpG'], [end]]))
-    arr.sort()
-    isin = np.isin(arr, np.concatenate([df['startCpG'], [df['endCpG'][df.shape[0] - 1]]]))
-    return arr - 1, isin
+######################################################
+#                                                    #
+#  Loading and Parsing Blocks file                   #
+#                                                    #
+######################################################
 
+def is_block_file_nice(df):
 
-def apply_filter_wrapper(args, blocks_bins, finds, beta_path, df):
-    try:
-        # load beta file:
-        data = load_beta_data(beta_path)
+    # startCpG and endCpG is monotonically increasing
+    if not pd.Index(df['startCpG']).is_monotonic:
+        eprint('startCpG is not monotonically increasing')
+        return False
+    if not pd.Index(df['endCpG']).is_monotonic:
+        eprint('endCpG is not monotonically increasing')
+        return False
 
-        # reduce to blocks:
-        blocks_bins[-1] -= 1
-        reduced_data = np.add.reduceat(data, blocks_bins)[finds][:-1]
+    # no duplicated blocks
+    if (df.shape[0] != df.drop_duplicates().shape[0]):
+        eprint('Some blocks are duplicated')
+        return False
 
-        # dump to file
-        suff = '.lbeta' if args.lbeta else '.bin'
-        out_name = splitext(splitext(basename(args.blocks_file))[0])[0]
-        out_name = splitext(basename(beta_path))[0] + suff
-        out_name = op.join(args.out_dir, out_name)
+    # no empty blocks
+    if not (df['endCpG'] - df['startCpG'] > 0).all():
+        eprint('Some blocks are empty (no CpGs)')
+        return False
 
-        trim_to_uint8(reduced_data, args.lbeta).tofile(out_name)
-        eprint(out_name)
+    # no overlaps between blocks
+    if not (df['startCpG'][1:].values - df['endCpG'][:df.shape[0] - 1].values  >= 0).all():
+        eprint('Some blocks overlap')
+        return False
 
-        if args.bedGraph:
-            with np.errstate(divide='ignore', invalid='ignore'):
-                beta_vals = reduced_data[:, 0] / reduced_data[:, 1]
-                eprint(beta_vals.shape, df.shape)
-            # beta_vals[reduced_data[:, 1] == 0] = np.nan
-            df['beta'] = beta_vals
-            df.to_csv(out_name.replace(suff, '.bedGraph'), sep='\t',
-                      index=None, header=None, na_rep=-1,
-                      float_format='%.2f')
+    return True
 
-    except Exception as e:
-        print('Failed with beta', beta_path)
-        print('Exception:', e)
-
-
-def blocks_cleanup(df, args):
-    # remove duplicated blocks
-    nr_orig = df.shape[0]
-    df.drop_duplicates(inplace=True)
-    nr_non_dup = df.shape[0]
-    if nr_orig != nr_non_dup:
-        eprint('removed {:,} duplicated blocks'.format(nr_orig - nr_non_dup))
-    
-    # remove blocks with no CpGs
-    nr_removed = df[df.startCpG == df.endCpG].shape[0]
-    if nr_removed:
-        eprint('removed {:,} regions with no CpGs'.format(nr_removed))
-
-    if args.debug:
-        eprint(df[df.startCpG == df.endCpG])
-
-    df = df[df.startCpG < df.endCpG]
-
-    if df.shape[0] != nr_orig:
-        fixed_blocks_path = splitextgz(args.blocks_file)[0] + '.clean.bed.gz'
-        eprint('Dumping cleaned blocks file to', fixed_blocks_path)
-        df.to_csv(fixed_blocks_path, header=None, index=None, sep='\t', compression='gzip')
-
-    return df
-
-def validate_block_file(df):
-    # file has >=5 columns
-    # no duplicated lines
-    # sorted by 4'th column (startCpG)
-    # no overlap between regions
-    return
-
-# def is_blocks_file_nice(df):
-    # nice = True
-    # # see if the blocks file is "nice"
-
-    # # startCpG and endCpG is monotonically increasing
-    # if !pd.Index(df['startCpG']).is_monotonic_increasing():
-        # eprint('startCpG is not monotonically increasing')
-        # return False
-    # if !pd.Index(df['endCpG']).is_monotonic_increasing():
-        # eprint('endCpG is not monotonically increasing')
-        # return False
-
-    # if not (np.diff(df['endCpG'] - df['startCpG']) > 0).all():
-        # eprint('Some blocks don\'t cover any CpGs')
 
 def load_blocks_file(blocks_path):
     if not op.isfile(blocks_path):
@@ -107,61 +52,79 @@ def load_blocks_file(blocks_path):
         raise IllegalArgumentError('No blocks file')
 
     names = ['chr', 'start', 'end', 'startCpG', 'endCpG']
-    df = pd.read_csv(blocks_path, sep='\t', usecols=[0, 1, 2, 3, 4], header=None, names=names)
+    df = pd.read_csv(blocks_path, sep='\t', usecols=range(5), header=None, names=names)
+
+    # blocks start before they end - invalid file
+    if not ((df['endCpG'] -  df['startCpG']) >= 0).all():
+        raise IllegalArgumentError('Invalid blocks file')
+
     return df
-    # starts = df['startCpG']
-    # ends = df['endCpG']
-
-    # # blocks file is valid
-    # if not (np.diff(df['endCpG'] - df['startCpG']) >= 0).all():
-        # eprint('Invalid blocks file: endCpG>=startCpG is required')
-        # raise IllegalArgumentError('Invalid blocks file')
 
 
+######################################################
+#                                                    #
+#    Perform the reduction                           #
+#                                                    #
+######################################################
 
-def slow_but_robust(df, args):
-    for beta_path in args.input_files:
+def fast_method(data, df):
+    block_bins = np.unique(np.concatenate([df['startCpG'], df['endCpG'], [1, data.shape[0] + 1]]))
+    block_bins.sort()
+    filtered_indices = np.isin(block_bins, np.concatenate([df['startCpG'], [df['endCpG'].iloc[-1]]]))
 
-        try:
-            res = np.zeros((df.shape[0], 2), dtype=int)
-
-            # load beta file:
-            data = load_beta_data(beta_path)
-
-            # reduce to blocks:
-            i = -1
-            for _, row in df.iterrows():
-                i += 1
-                startCpG = row[3]
-                endCpG = row[4]
-                line = np.sum(data[startCpG - 1:endCpG - 1, :], axis=0)
-                res[i, :] = line
-
-            # dump to file
-            suff = '.lbeta' if args.lbeta else '.bin'
-            out_name = splitext(splitext(basename(args.blocks_file))[0])[0]
-            out_name = splitext(basename(beta_path))[0] + suff
-            out_name = op.join(args.out_dir, out_name)
-
-            trim_to_uint8(res, args.lbeta).tofile(out_name)
-            eprint(out_name)
-
-            if args.bedGraph:
-                with np.errstate(divide='ignore', invalid='ignore'):
-                    beta_vals = res[:, 0] / res[:, 1]
-                    eprint(beta_vals.shape, df.shape)
-                # beta_vals[res[:, 1] == 0] = np.nan
-                df['beta'] = beta_vals
-                df.to_csv(out_name.replace(suff, '.bedGraph'), sep='\t',
-                          index=None, header=None, na_rep=-1,
-                          float_format='%.2f')
-
-        except Exception as e:
-            print('Failed with beta', beta_path)
-            print('Exception:', e)
+    # reduce to blocks:
+    block_bins[-1] -= 1
+    reduced_data = np.add.reduceat(data, block_bins - 1)[filtered_indices][:-1]
+    return reduced_data
 
 
-    return
+def slow_method(data, df):
+    reduced_data = np.zeros((df.shape[0], 2), dtype=int)
+    for i, row in df.iterrows():
+        startCpG = row[3]
+        endCpG = row[4]
+        reduced_data[i, :] = np.sum(data[startCpG - 1:endCpG - 1, :], axis=0)
+    return reduced_data
+
+
+
+def apply_filter_wrapper(args, beta_path, df, is_nice):
+    try:
+        # load beta file:
+        data = load_beta_data(beta_path)
+        if is_nice:
+            reduced_data = fast_method(data, df)
+        else:
+            reduced_data = slow_method(data, df)
+
+        dump(df, reduced_data, beta_path, args)
+
+    except Exception as e:
+        print('Failed with beta', beta_path)
+        print('Exception:', e)
+
+
+######################################################
+#                                                    #
+#    Dump results                                    #
+#                                                    #
+######################################################
+
+def dump(df, reduced_data, beta_path, args):
+
+    # dump to binary file
+    suff = '.lbeta' if args.lbeta else '.bin'
+    prefix = op.join(args.out_dir, op.splitext(op.basename(beta_path))[0])
+    trim_to_uint8(reduced_data, args.lbeta).tofile(prefix + suff)
+    eprint(prefix + suff)
+
+    # dump to bed
+    if args.bedGraph:
+        with np.errstate(divide='ignore', invalid='ignore'):
+            df['beta'] = reduced_data[:, 0] / reduced_data[:, 1]
+        df['coverage'] = reduced_data[:, 1]
+        df[['chr', 'start', 'end', 'beta', 'coverage']].to_csv(prefix + '.bedGraph', sep='\t',
+                  index=None, header=None, na_rep=-1, float_format='%.2f')
 
 def main():
     """
@@ -174,25 +137,13 @@ def main():
 
     # load blocks:
     df = load_blocks_file(args.blocks_file)
-
-    if args.slow:
-        slow_but_robust(df, args)
-        return
-
-    df = blocks_cleanup(df, args)
-
-    blocks_bins, filtered_indices = get_bins(df, args.genome)
-
+    is_nice = is_block_file_nice(df)
     with Pool() as p:
         for beta_path in files:
-            params = (args, blocks_bins,
-                      filtered_indices, beta_path, df[['chr', 'start', 'end']])
+            params = (args, beta_path, df, is_nice)
             p.apply_async(apply_filter_wrapper, params)
         p.close()
         p.join()
-
-    # for beta_path in files:
-    #     reduced_data = apply_filter_wrapper(beta_path, args.blocks, args.cov_thresh)
 
 
 def parse_args():
@@ -203,7 +154,6 @@ def parse_args():
     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of bin (uint8)')
     parser.add_argument('--bedGraph', action='store_true', help='output a text file in addition to binary file')
     parser.add_argument('--debug', '-d', action='store_true')
-    parser.add_argument('--slow', action='store_true', help='slower but more robust implementation. Use this flag when input blocks file contains overlapping blocks')
     parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
 
     return parser.parse_args()

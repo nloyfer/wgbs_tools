@@ -58,6 +58,11 @@ def compile_all(args):
         cmd = 'g++ -std=c++11 pipeline_wgbs/match_maker.cpp -o pipeline_wgbs/match_maker'
         compile_single(cmd, 'match_maker', args.verbose)
 
+        # segmentor (segment)
+        cmd = 'g++ -std=c++11 pipeline_wgbs/match_maker.cpp -o pipeline_wgbs/match_maker'
+        cmd = 'g++ -std=c++11 src/segment_betas/main.cpp src/segment_betas/segmentor.cpp -o src/segment_betas/segmentor '
+        compile_single(cmd, 'segmentor', args.verbose)
+
     except RuntimeError as e:
         eprint(e)
         os.chdir(curdir)
