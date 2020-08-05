@@ -20,6 +20,7 @@ from beta2bw import main as beta2bw_main
 from beta_to_450k import main as beta_to_450k_main
 from beta_to_blocks import main as beta_to_blocks_main
 from bam2pat import main as bam2pat_main
+from bamAddMethylData import main as bamAddMethylData_main
 from mix_pat import main as mix_pat_main
 from init_genome_ref_wgbs import main as init_genome_main
 from frag_len import main as frag_len_main
@@ -49,6 +50,7 @@ callbacks = {
     'beta_to_450k': beta_to_450k_main,
     'beta_to_blocks': beta_to_blocks_main,
     'bam2pat': bam2pat_main,
+    'addMD2Bam': bamAddMethylData_main,
     'mix_pat': mix_pat_main,
     'init_genome': init_genome_main,
     'frag_len': frag_len_main,
