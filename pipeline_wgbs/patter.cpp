@@ -381,11 +381,16 @@ patter::MethylData patter::merge_and_count_methyl_data(std::vector <std::string>
      * each line has the following fields: [chr, startCpG, pat, start_bp, read_len_bp]
      * One or more of the lines may be empty */
 
-    //  First line is empty
+
+    if (l1.empty() && l2.empty()){
+        patter::MethylData res;
+        res.countMethyl = 0;
+        res.countUnmethyl = 0;
+        return res;
+    }
     if (l1.empty()) {
         return meth_pattern_count(l2[2]);
     }
-    // Second line is empty
     if (l2.empty()) {
         return meth_pattern_count(l1[2]);
     }
@@ -690,46 +695,60 @@ void patter::addMethylCountToSam(std::string samFilePath) {
     }
 }
 
-void patter::action_sam() {
+std::string get_first_non_empty_line(std::istream& in){
+    std::string line;
+    while (line.empty()){
+        std::getline(in, line);
+    }
+    return line;
+}
+
+void patter::proc_sam_in_stream(std::istream& in) {
+    std::vector <std::string> tokens1, tokens2;
+    std::string line1, line2;
+    for (std::string line_str; std::getline(in, line_str); line_i++) {
+        if(line_str.at(0) == '@'){
+            std::cout << line_str + "\n";
+        } else {
+//            // skip empty lines
+//            if (line_str.empty())
+//                continue;
+            print_progress();
+            line1 = line_str;
+            std::getline(in, line2);//get_first_non_empty_line(in);
+            line_i++;
+
+            proc_pair_sam_lines(tokens1, tokens2, line1, line2);
+        }
+
+    }
+}
+
+void patter::action_sam(std::string samFilePath) {
     /** parse stdin for sam format lines (single- or pired-end).
      * Translate them to pat format, and output to stdout */
 
-    if (DEBUG)
-        std::cerr << "DEBUG mode ON" << std::endl;
+    std::ifstream samFile(samFilePath, std::ios::in);
 
-    bool first_in_pair = true;
-//    std::ios_base::sync_with_stdio(false);
-    std::vector <std::string> tokens1, tokens2;
-    std::string line1, line2;
-    for (std::string line_str; std::getline(std::cin, line_str); line_i++) {
-
-        print_progress();
-
-        // skip empty lines
-        if (line_str.empty())
-            continue;
-        initialize_patter(line_str);
-
-        // paired-end file, and current row is first out of a couple of rows
-        if (first_in_pair && is_paired_end) {
-            tokens1 = line2tokens(line_str);
-            line1 = line_str;
-            first_in_pair = false;
-            readsStats.nr_pairs++;
-            continue;
+    if (!(samFile)){
+        proc_sam_in_stream(std::cin);
+    } else {
+        if (samFile.is_open()) {
+            proc_sam_in_stream(samFile);
+            samFile.close();
         }
-
-        // otherwise (second row in couple, or not-paired-end), line is processed:
-        tokens2 = line2tokens(line_str);
-        line2 = line_str;
-        first_in_pair = true;   // next line will be first of couple.
-
-        // process couple of lines. write to stdout
-        // in case of single-end input file, tokens1 will be empty
-        procPairAddMethylData(tokens1, tokens2, line1, line2);
-
     }
     print_stats_msg();
+}
+
+void patter::proc_pair_sam_lines(std::vector<std::string> &tokens1, std::vector<std::string> &tokens2, std::string &line1,
+                            std::string &line2) {
+    tokens1 = line2tokens(line1);
+    tokens2 = line2tokens(line2);
+    print_progress();
+    readsStats.nr_pairs++;
+    initialize_patter(line1);
+    procPairAddMethylData(tokens1, tokens2, line1, line2);
 }
 
 void patter::initialize_patter(std::string &line_str) {
@@ -788,9 +807,15 @@ void patter::action() {
 int main(int argc, char **argv) {
     clock_t begin = clock();
     try {
+//        std::string genome_name = "/cs/cbio/jon/projects/PyCharmProjects/wgbs_tools/references/hg19/genome.fa";
+//        std::string chrom_size_path = "/cs/cbio/jon/projects/PyCharmProjects/wgbs_tools/references/hg19/CpG.chrome.size";
+//        std::string bam_path = "/cs/cbio/jon/projects/PyCharmProjects/wgbs_tools/trial.sam";
+//        patter p(genome_name, chrom_size_path);
+//        p.action_sam(bam_path);
         if (argc == 4 && strcmp(argv[3], "bam") == 0) {
+
             patter p(argv[1], argv[2]);
-            p.action_sam();
+            p.action_sam("");
         } else if (argc == 3){
             patter p(argv[1], argv[2]);
             p.action();
