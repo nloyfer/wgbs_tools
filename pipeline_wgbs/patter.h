@@ -59,9 +59,11 @@ public:
     void handlyMethylCountSamLine(std::string line);
     std::string samLineToSamLineWithMethCounts(std::vector<std::string> tokens, std::string originalLine);
     MethylData samLineToMethCounts(std::vector <std::string> tokens, std::string originalLine);
-    void action_sam();
+    void action_sam(std::string samFilePath);
+    void handle_action_sam_line(std::string line_str, bool first_in_pair);
     std::string samLineMethyldataMakeString(std::string originalLine, patter::MethylData md);
     void merge_and_print(std::vector<std::string> l1, std::vector<std::string> l2);
+    void proc_sam_in_stream(std::istream& in);
     patter::MethylData merge_and_count_methyl_data(std::vector <std::string> l1, std::vector <std::string> l2);
     void proc2lines(std::vector<std::string> tokens1, std::vector<std::string> tokens2);
     void procPairAddMethylData(std::vector<std::string> tokens1, std::vector<std::string> tokens2,
@@ -70,6 +72,9 @@ public:
     void addMethylCountToSam(std::string samFilePath);
 
     void initialize_patter(std::string &line_str);
+
+    void proc_pair_sam_lines(std::vector<std::string> &tokens1, std::vector<std::string> &tokens2, std::string &line1,
+                             std::string &line2);
 };
 
 std::vector<std::string> line2tokens(std::string &line);
