@@ -1,6 +1,6 @@
 #!/usr/bin/python3 -u
 
-import matplotlib
+# import matplotlib
 #matplotlib.use('Agg')
 import time
 from datetime import timedelta
