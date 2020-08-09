@@ -182,7 +182,7 @@ def load_dists(start, nr_sites, genome):
 
     dists = dists[1:] - dists[:-1]
     dists[0] = 0
-    dists[dists < 0] = 1e6
+    dists[dists < 0] = 1e6 # cross chromosome hack
     return dists
 
 
