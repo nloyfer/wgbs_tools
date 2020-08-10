@@ -7,12 +7,12 @@
  * prints
  */
 
-void print_mem(double *mem, int nr_sites, int max_size) {
+void print_mem(double *mem, int nr_sites, int max_cpg) {
     std::cerr << "\ncost" << std::endl;
 
     for (int i = 0; i < nr_sites; i++) {
-        for (int j = 0; j < max_size; j++) {
-            std::cerr << mem[i * max_size + j] << '\t';
+        for (int j = 0; j < max_cpg; j++) {
+            std::cerr << mem[i * max_cpg + j] << '\t';
         }
         std::cerr << std::endl;
     }
@@ -39,6 +39,29 @@ void print_borders(std::vector<int> borders){
     printf("\n");
 }
 
+
+void segmentor::load_dists(uint32_t *dists) {
+
+    if (params.max_bp ==0) {
+        return;
+    }
+    memset(dists, 0, nr_sites * sizeof(*dists));
+    auto cdata = new char[nr_sites * 4];
+    std::ifstream infile;
+    infile.open(params.revdict, std::ios::binary | std::ios::in);
+    infile.seekg(start * 4);
+    infile.read(cdata, nr_sites * 4);
+    infile.close();
+
+    // cast values to (uint32) and set dists variable
+    for (int i = 0; i < nr_sites * 4; i+=4) {
+        memcpy(&dists[i/4], cdata + i, 4);
+        //std::cerr << i / 4 << ", " << dists[i/4] << "\n";
+    }
+    delete [] cdata;
+}
+
+
 void segmentor::cost_memoization(std::vector<float*> &all_data){
     /**
      * Create a cost matrix of size (nr_sites * nr_sites)
@@ -52,15 +75,25 @@ void segmentor::cost_memoization(std::vector<float*> &all_data){
     auto nr_dsets = (int) all_data.size();
     auto *nmeth = new float[nr_dsets];
     auto *ntotal = new float[nr_dsets];
+    auto *dists = new uint32_t[nr_sites];
     double ll_sum, z;
     float p_mle_k, ll_k, ntotal_k, nmeth_k;
+    
+    load_dists(dists);
 
     for (int i = 0; i < nr_sites; i++) {
         memset(nmeth, 0, nr_dsets * sizeof(*nmeth));
         memset(ntotal, 0, nr_dsets * sizeof(*ntotal));
 
-        int window = std::min((int)nr_sites - i, max_size);
+        int window = std::min((int)nr_sites - i, max_cpg);
         for (int j = 0; j < window; j++) {
+
+
+            if (dists[i + j] - dists[i] > params.max_bp) {
+                mem[i * max_cpg + j] = -std::numeric_limits<float>::infinity();
+                continue;
+            }
+
             ll_sum = 0;
 
             for (int k = 0; k < nr_dsets; k++) {
@@ -87,7 +120,7 @@ void segmentor::cost_memoization(std::vector<float*> &all_data){
             }
 
             if (ll_sum) {
-                mem[i * max_size + j] = ll_sum;
+                mem[i * max_cpg + j] = ll_sum;
             }
         }
     }
@@ -108,7 +141,7 @@ std::vector<int> segmentor::traceback(const int *T) {
 void segmentor::dp(std::vector<float*> &all_data){
 
     // cost memoization:
-    mem = new double[nr_sites * max_size]();
+    mem = new double[nr_sites * max_cpg]();
     cost_memoization(all_data);
     /**
      * init M, T, all to zeros.
@@ -124,9 +157,9 @@ void segmentor::dp(std::vector<float*> &all_data){
     for (int i = 0; i < nr_sites; i++) {
         double best_score = -std::numeric_limits<float>::infinity();
         int best_ind = -1;
-        int start = std::max(0, i + 1 - max_size);
+        int start = std::max(0, i + 1 - max_cpg);
         for (int k = start; k < i + 1; k++) {
-            double tmp = M[k] + mem[k * max_size + i - k];
+            double tmp = M[k] + mem[k * max_cpg + i - k];
             if (tmp > best_score) {
                 best_score = tmp;
                 best_ind = k;
@@ -136,7 +169,7 @@ void segmentor::dp(std::vector<float*> &all_data){
         T[i+1] = best_ind;
     }
     std::vector<int> borders = traceback(T);
-   // print_mem(mem, nr_sites, max_size);
+   // print_mem(mem, nr_sites, max_cpg);
     //print_MT(M, T, nr_sites);
     print_borders(borders);
 
@@ -177,7 +210,7 @@ void segmentor::read_beta_file(const char *beta_path, float *data){
 void segmentor::dp_wrapper(){
     start = (uint) params.start;
     nr_sites = (uint) params.nr_sites;
-    max_size = params.max_size;
+    max_cpg = params.max_cpg;
     pseudo_count = params.pseudo_count;
 
     // Load beta files:
