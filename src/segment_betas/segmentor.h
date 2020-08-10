@@ -24,7 +24,9 @@ struct Params
     unsigned int start;
     unsigned int nr_sites;
     float pseudo_count;
-    unsigned int max_size;
+    unsigned int max_cpg;
+    unsigned int max_bp;
+    std::string revdict;
 };
 
 
@@ -34,12 +36,13 @@ class segmentor {
     uint start = 0;
     uint nr_sites = 0;
     float pseudo_count = 0;
-    int max_size = 0;
+    int max_cpg = 0;
     double *mem = nullptr;
 
 
     void read_beta_file(const char *beta_path, float *data);
     void cost_memoization(std::vector<float*> &all_data);
+    void load_dists(uint32_t *dists);
     std::vector<int> traceback(const int *T);
 public:
     segmentor(Params &iparams, std::vector<std::string> &input_beta_paths):

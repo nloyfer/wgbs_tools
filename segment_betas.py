@@ -5,7 +5,8 @@ import numpy as np
 import pandas as pd
 import sys
 from utils_wgbs import IllegalArgumentError, eprint, segment_tool, add_GR_args, GenomeRefPaths, \
-                       load_dict_section, validate_files_list , validate_single_file, segment_tool
+                       load_dict_section, validate_files_list , validate_single_file, \
+                       segment_tool, load_dists
 from genomic_region import GenomicRegion
 from multiprocessing import Pool
 import argparse
@@ -24,14 +25,16 @@ def dump_table(df, path):
     # eprint('dumped to file:', path)
 
 
-def segment_process(betas, skip, nsites, pcount, max_block_size):
+def segment_process(betas, skip, nsites, pcount, max_cpg, max_bp, dist_dict):
     assert nsites, 'trying to segment an empty interval'.format(skip, nsites)
     if nsites == 1:
         return np.array([skip, skip + 1])
     try:
         start_time = time.time()
         beta_files = ' '.join(betas)
-        cmd = '{} {} -s {} -n {} -m {} -ps {}'.format(segment_tool, beta_files, skip, nsites, max_block_size, pcount)
+        cmd = '{} {} '.format(segment_tool, beta_files)
+        cmd += '-s {} -n {} -max_cpg {} '.format(skip, nsites, max_cpg)
+        cmd += ' -ps {} -max_bp {} -rd {}'.format(pcount, max_bp, dist_dict)
         brd_str = subprocess.check_output(cmd, shell=True).decode().split()
         # eprint('thread ({}, {}), time: {}'.format(skip, nsites, timedelta(seconds=time.time() - start_time)))
         return np.array(list(map(int, brd_str))) + skip + 1
@@ -46,8 +49,11 @@ class SegmentByChunks:
         self.gr = GenomicRegion(args)
         self.chunk_size = args.chunk_size
         self.betas = betas
-        self.max_block_size = args.max_block_size
         self.pcount = args.pcount
+        self.revdict = self.gr.genome.revdict_path
+        self.max_bp = args.max_bp
+        self.max_cpg = min(args.max_cpg, args.max_bp // 2)
+        assert (self.max_cpg > 1)
         self.args = args
 
     def break_to_chunks(self):
@@ -91,7 +97,7 @@ class SegmentByChunks:
         skip_list, nsites_list = self.break_to_chunks()
         assert np.all(nsites_list > 0) and len(skip_list) == len(nsites_list) > 0
         p = Pool(self.args.threads)
-        params = [(self.betas, si, ni, self.pcount, self.max_block_size)
+        params = [(self.betas, si, ni, self.pcount, self.max_cpg, self.max_bp, self.revdict)
                   for si, ni in zip(skip_list, nsites_list)]
         arr = p.starmap(segment_process, params)
         p.close()
@@ -107,7 +113,7 @@ class SegmentByChunks:
         while len(dflist) > 1:
             p = Pool(self.args.threads)
             params = [(dflist[i - 1], dflist[i], self.betas, self.pcount,
-                       self.max_block_size, (j, i // 2)) for i in range(1, len(dflist), 2)]
+                       self.max_cpg, self.max_bp, self.revdict, (j, i // 2 )) for i in range(1, len(dflist), 2)]
             arr = p.starmap(stitch_2_dfs, params)
             p.close()
             p.join()
@@ -131,7 +137,7 @@ def np2pd(arr):
     return pd.DataFrame({'startCpG': arr[:-1], 'endCpG': arr[1:]})
 
 
-def stitch_2_dfs(b1, b2, betas, pcount, max_block_size, debind):
+def stitch_2_dfs(b1, b2, betas, pcount, max_cpg, max_bp, revdict, debind):
 
     patch1_size = 50
     path2_size = 50
@@ -141,7 +147,7 @@ def stitch_2_dfs(b1, b2, betas, pcount, max_block_size, debind):
         # calculate blocks for patch:
         skip = b1[-1] - patch1_size - 1
         nsites = patch1_size + path2_size
-        patch = segment_process(betas, skip, nsites, pcount, max_block_size)
+        patch = segment_process(betas, skip, nsites, pcount, max_cpg, max_bp, revdict)
 
         # find the overlaps
         if is_overlap(b1, patch) and is_overlap(patch, b2):
@@ -207,8 +213,10 @@ def parse_args():
                         help='Chunk size. Default {} sites'.format(CHUNK_MAX_SIZE))
     parser.add_argument('-p', '--pcount', type=float, default=15,
                         help='Pseudo counts of C\'s and T\'s in each block. Default 15')
-    parser.add_argument('-m', '--max_block_size', type=int, default=1000,
+    parser.add_argument('--max_cpg', type=int, default=1000,
                         help='Maximal allowed blocks size (in #sites). Default is 1000')
+    parser.add_argument('--max_bp', type=int, default=2000,
+                        help='Maximal allowed blocks size (in bp). Default is 2000')
     parser.add_argument('-o', '--out_path', default=sys.stdout,
                         help='output path [stdout]')
     parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
