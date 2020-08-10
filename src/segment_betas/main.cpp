@@ -37,18 +37,17 @@ private:
 
 Params parse_params(InputParser &input){
     /*
-     * fill the params vector with:
-     * [start, nr_sites, max_size, pseudo_count]
+     * fill the params struct
      * start and nr_sites are mandatory arguments
-     * max_size anad pseudo_count have default values.
      */
     Params pams;
     pams.start = 0;
     pams.nr_sites = 0;
-    pams.max_size = 1000;
+    pams.max_cpg = 1000;
+    pams.max_bp = 0;
     pams.pseudo_count = 1;
 
-    // parse start, nr_sites, max_size and pseudo_count
+    // parse start, nr_sites, max_cpg and pseudo_count
 
     // start site
     std::string start_str = input.getCmdOption("-s");
@@ -66,10 +65,24 @@ Params parse_params(InputParser &input){
         throw "number of sites (-n) must be provided\n";
     }
 
-    // max_size
-    std::string max_sz_str = input.getCmdOption("-m");
-    if (!max_sz_str.empty()) {
-        pams.max_size = std::stoul(max_sz_str);
+    // max_cpg
+    std::string max_cpg_str = input.getCmdOption("-max_cpg");
+    if (!max_cpg_str.empty()) {
+        pams.max_cpg = std::stoul(max_cpg_str);
+    }
+
+    // max_bp
+    std::string max_bp_str = input.getCmdOption("-max_bp");
+    if (!max_bp_str.empty()) {
+        pams.max_bp = std::stoul(max_bp_str);
+    }
+
+    // rev_dict
+    std::string revd_str = input.getCmdOption("-rd");
+    if (!revd_str.empty()) {
+        pams.revdict = revd_str;
+    } else if (!max_bp_str.empty()) {
+        throw "Please provide path to revdict\n";
     }
 
     // pseudo count
@@ -88,7 +101,7 @@ int main(int argc, char *argv[]) {
     InputParser input(argc, argv);
     if (argc < 6){
         std::cerr << "Usage: segment BETA_PATH [BETA_PATH...] -s START -n NR_SITES ";
-        std::cerr << " [-m MAX_SIZE] [-ps PSEUDO_COUNT]" << std::endl;
+        std::cerr << " [-m max_cpg] [-ps PSEUDO_COUNT]" << std::endl;
         return -1;
     }
 
