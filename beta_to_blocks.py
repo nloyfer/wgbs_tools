@@ -6,6 +6,7 @@ import numpy as np
 import os.path as op
 import pandas as pd
 from utils_wgbs import validate_files_list
+import multiprocessing
 from multiprocessing import Pool
 import sys
 from utils_wgbs import load_beta_data, trim_to_uint8, default_blocks_path, eprint, GenomeRefPaths, \
@@ -88,7 +89,7 @@ def slow_method(data, df):
 
 
 
-def apply_filter_wrapper(args, beta_path, df, is_nice):
+def collapse_process(beta_path, df, is_nice, lbeta, out_dir, bedGraph):
     try:
         # load beta file:
         data = load_beta_data(beta_path)
@@ -97,7 +98,7 @@ def apply_filter_wrapper(args, beta_path, df, is_nice):
         else:
             reduced_data = slow_method(data, df)
 
-        dump(df, reduced_data, beta_path, args)
+        dump(df, reduced_data, beta_path, lbeta, out_dir, bedGraph)
 
     except Exception as e:
         print('Failed with beta', beta_path)
@@ -110,16 +111,16 @@ def apply_filter_wrapper(args, beta_path, df, is_nice):
 #                                                    #
 ######################################################
 
-def dump(df, reduced_data, beta_path, args):
+def dump(df, reduced_data, beta_path, lbeta, out_dir, bedGraph):
 
     # dump to binary file
-    suff = '.lbeta' if args.lbeta else '.bin'
-    prefix = op.join(args.out_dir, op.splitext(op.basename(beta_path))[0])
-    trim_to_uint8(reduced_data, args.lbeta).tofile(prefix + suff)
+    suff = '.lbeta' if lbeta else '.bin'
+    prefix = op.join(out_dir, op.splitext(op.basename(beta_path))[0])
+    trim_to_uint8(reduced_data, lbeta).tofile(prefix + suff)
     eprint(prefix + suff)
 
     # dump to bed
-    if args.bedGraph:
+    if bedGraph:
         with np.errstate(divide='ignore', invalid='ignore'):
             df['beta'] = reduced_data[:, 0] / reduced_data[:, 1]
         df['coverage'] = reduced_data[:, 1]
@@ -136,15 +137,15 @@ def main():
     validate_files_list(files, '.beta')
 
     # load blocks:
+    # eprint('load blocks...')
     df = load_blocks_file(args.blocks_file)
     is_nice = is_block_file_nice(df)
-    with Pool() as p:
-        for beta_path in files:
-            params = (args, beta_path, df, is_nice)
-            p.apply_async(apply_filter_wrapper, params)
-        p.close()
-        p.join()
-
+    p = Pool(args.threads)
+    params = [(b, df, is_nice, args.lbeta, args.out_dir, args.bedGraph)
+              for b in files]
+    arr = p.starmap(collapse_process, params)
+    p.close()
+    p.join()
 
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
@@ -155,6 +156,8 @@ def parse_args():
     parser.add_argument('--bedGraph', action='store_true', help='output a text file in addition to binary file')
     parser.add_argument('--debug', '-d', action='store_true')
     parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
+    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
+                        help='Number of threads to use (default: multiprocessing.cpu_count)')
 
     return parser.parse_args()
 
