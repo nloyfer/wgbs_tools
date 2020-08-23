@@ -80,8 +80,12 @@ class BedFileWrap:
         self.bed_path = bed_path
         validate_single_file(bed_path)
         self.df = pd.read_csv(self.bed_path, usecols=[0, 1, 2], sep='\t',
-                              # names=['chr', 'start', 'end'])
-                              names=['chr', 'start', 'end'], header='infer', comment='#')
+                              names=['chr', 'start', 'end'], header=None, comment='#')
+
+        # drop header line, if exists:
+        if self.df.iloc[0, 0] == 'chr':
+            self.df.drop(self.df.index[0], inplace=True)
+            self.df.reset_index(inplace=True, drop=True)
         self.genome = genome
 
     def iter_grs(self):
