@@ -204,7 +204,7 @@ def parse_args():
     parser.add_argument('-F', '--exclude_flags',  type=int,
             help='flags to exclude from bam file (samtools view parameter) ' \
             '[{}]'.format(FLAGS_FILTER), default=FLAGS_FILTER)
-    parser.add_argument('-Q', '--mapq',  type=int,
+    parser.add_argument('-q', '--mapq',  type=int,
             help='Minimal mapping quality (samtools view parameter) [{}]'.format(MAPQ),
             default=MAPQ)
     parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
