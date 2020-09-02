@@ -4,6 +4,7 @@
 #matplotlib.use('Agg')
 import time
 from datetime import timedelta
+from collections import OrderedDict
 from unittest.mock import patch
 import sys
 from utils_wgbs import IllegalArgumentError, eprint
@@ -37,45 +38,51 @@ numpy
 pandas
 """
 
-callbacks = {
-    'vis': vis_main,
-    'view': view_main,
-    'merge': merge_main,
-    'index': index_main,
-    'pat2beta': pat2beta_main,
-    'compare_betas': compare_beta_main,
-    'beta_cov': beta_cov_main,
-    'bed2beta': bed2beta_main,
-    'beta2bed': beta2bed_main,
-    'beta2bw': beta2bw_main,
-    'beta_to_450k': beta_to_450k_main,
-    'beta_to_blocks': beta_to_blocks_main,
-    'bam2pat': bam2pat_main,
-    'addMD2Bam': bamAddMethylData_main,
-    'mix_pat': mix_pat_main,
-    'init_genome': init_genome_main,
-    'frag_len': frag_len_main,
-    'convert': convert_main,
-    'segment': segment_beta_main
+callbacks = [
+    # view data
+    ('vis', vis_main),
+    ('view', view_main),
+    ('convert', convert_main),
+
+    # convert beta to other formats
+    ('beta_to_blocks', beta_to_blocks_main),
+    ('beta2bed', beta2bed_main),
+    ('beta2bw', beta2bw_main),
+    ('beta_cov', beta_cov_main),
+    ('beta_to_450k', beta_to_450k_main),
+
+    # generate pats and betas
+    ('init_genome', init_genome_main),
+    ('bam2pat', bam2pat_main),
+    ('index', index_main),
+    ('pat2beta', pat2beta_main),
+    ('bed2beta', bed2beta_main),
+    ('mix_pat', mix_pat_main),
+    ('merge', merge_main),
+
+    ('segment', segment_beta_main),
+
+    # less important
+    ('compare_betas', compare_beta_main),
+    ('addMD2Bam', bamAddMethylData_main),
+    ('frag_len', frag_len_main),
     # todo: unq2beta
-}
+]
+callbacks = OrderedDict(callbacks)
 
 
 # todo:
 # tests
 # reference setup
-# merge unq
-# view -s unq (subsample unq)
-# Default output directories: change from '.' to input src dir?
 # Add reports to log file / stderr. e.g: % success, # sites covered, # reads extracted etc.
-# translate region <-> sites - print nicely, with commas optional
-# change pat to unq, and forget about olt pat format. show it with view?
+# translate region <-> sites - optional parsable format  
+# change unq to lpat? 
 # Change wgbs_tools.py to new name, update the print_help method.
 
 
 def print_help(short=False):
     msg = 'Usage: wgbs_tools.py COMMAND [OPTIONS]\n\nOptional commands:\n'
-    for key in sorted(callbacks.keys()):
+    for key in callbacks.keys():
         docs = callbacks[key].__doc__
         msg += '\n- ' + key
         if docs and not short:
