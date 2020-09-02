@@ -11,7 +11,6 @@ from multiprocessing import Pool
 from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args, eprint
 from init_genome_ref_wgbs import chromosome_order
 from pat2beta import pat2beta
-#from pipeline_wgbs.test import run_test
 from genomic_region import GenomicRegion
 
 
@@ -22,8 +21,8 @@ UNQ_SUFF = '.unq'
 # 10 means include only reads w.p. >= 0.9 to be mapped correctly.
 # And missing values (255)
 MAPQ = 10
-
 FLAGS_FILTER = 1796  # filter flags with these bits
+
 # todo: unsorted / sorted by name
 CHROMS = ['X', 'Y', 'M', 'MT'] + list(range(1, 23))
 
@@ -37,8 +36,8 @@ def subprocess_wrap(cmd, debug):
         p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, error = p.communicate()
         if p.returncode or not output:
-            print(cmd)
-            print("Failed with subprocess %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
+            eprint(cmd)
+            eprint("Failed with subprocess %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
             raise IllegalArgumentError('Failed')
 
 
@@ -73,7 +72,7 @@ def pat_unq(out_path, debug):
         return None
 
 
-def proc_chr(input_path, out_path, region, genome, paired_end, debug):
+def proc_chr(input_path, out_path, region, genome, paired_end, ex_flags, mapq, debug):
     """ Convert a temp single chromosome file, extracted from a bam file,
         into two output files: pat and unq."""
 
@@ -82,7 +81,7 @@ def proc_chr(input_path, out_path, region, genome, paired_end, debug):
 
     # use samtools to extract only the reads from 'chrom'
     flag = '-f 3' if paired_end else ''
-    cmd = "samtools view {} {} -q {} -F 1796 {} | ".format(input_path, region, MAPQ, flag)
+    cmd = "samtools view {} {} -q {} -F {} {} | ".format(input_path, region, mapq, ex_flags, flag)
     if debug:
         cmd += ' head -200 | '
     if paired_end:
@@ -107,7 +106,7 @@ class Bam2Pat:
     def validate_input(self):
 
         # validate bam path:
-        print('bam:', self.bam_path)
+        eprint('bam:', self.bam_path)
         if not (op.isfile(self.bam_path) and self.bam_path.endswith('.bam')):
             raise IllegalArgumentError('Invalid bam: {}'.format(self.bam_path))
 
@@ -118,7 +117,7 @@ class Bam2Pat:
 
         # check if bam is indexed:
         if not (op.isfile(self.bam_path + '.bai')):
-            print('bai file was not found! Generating...')
+            eprint('bai file was not found! Generating...')
             r = subprocess.call(['samtools', 'index', self.bam_path])
             if r:
                 raise IllegalArgumentError('Failed indexing bam: {}'.format(self.bam_path))
@@ -139,9 +138,9 @@ class Bam2Pat:
             p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             output, error = p.communicate()
             if p.returncode or not output:
-                print(cmd)
-                print("Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
-                print('falied to find chromosomes')
+                eprint(cmd)
+                eprint("Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
+                eprint('falied to find chromosomes')
                 return []
             nofilt_chroms = output.decode()[:-1].split('\n')
             filt_chroms = [c for c in nofilt_chroms if 'chr' in c]
@@ -165,7 +164,9 @@ class Bam2Pat:
         with Pool(self.args.threads) as p:
             for c in self.set_regions():
                 out_path = name + '_' + c + '.output.tmp'
-                params = (self.bam_path, out_path, c, self.gr.genome, self.is_pair_end(), self.debug)
+                params = (self.bam_path, out_path, c, self.gr.genome,
+                        self.is_pair_end(), self.args.exclude_flags,
+                        self.args.mapq, self.debug)
                 processes.append(p.apply_async(proc_chr, params))
             if not processes:
                 raise IllegalArgumentError('Empty bam file')
@@ -173,7 +174,7 @@ class Bam2Pat:
             p.join()
         res = [pr.get() for pr in processes]    # [(pat_path, unq_path) for each chromosome]
         if None in res:
-            print('threads failed')
+            eprint('threads failed')
             return
 
         # Concatenate chromosome files
@@ -187,9 +188,9 @@ class Bam2Pat:
 
         # generate beta file and bgzip the pat, unq files:
         beta_path = pat2beta(pat_path, self.out_dir, args=self.args)
-        print('bgzipping and indexing:')
+        eprint('bgzipping and indexing:')
         for f in (pat_path, unq_path):
-            print('{}...'.format(f))
+            eprint('{}...'.format(f))
             subprocess.call('bgzip -f@ 14 {f} && tabix -fCb 2 -e 2 {f}.gz'.format(f=f), shell=True)
 
 
@@ -200,27 +201,22 @@ def parse_args():
     parser.add_argument('--out_dir', '-o', default='.')
     parser.add_argument('--debug', '-d', action='store_true')
     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
+    parser.add_argument('-F', '--exclude_flags',  type=int,
+            help='flags to exclude from bam file (samtools view parameter) ' \
+            '[{}]'.format(FLAGS_FILTER), default=FLAGS_FILTER)
+    parser.add_argument('-Q', '--mapq',  type=int,
+            help='Minimal mapping quality (samtools view parameter) [{}]'.format(MAPQ),
+            default=MAPQ)
     parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
                         help='Number of threads to use (default: multiprocessing.cpu_count)')
-    #parser.add_argument('--test', action='store_true',
-    #                    help='Perform a test for the pipeline. Ignore other parameters.')
     args = parser.parse_args()
     return args
-
-def test_bam2pat():
-    print('Testing...')
-    run_test.main()
 
 def main():
     """
     Run the WGBS pipeline to generate pat, unq, beta files out of an input bam file
     """
     args = parse_args()
-
-    #if args.test:
-    #    return test_bam2pat()
-
-    # else
     Bam2Pat(args).start_threads()
 
 
