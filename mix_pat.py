@@ -2,7 +2,7 @@
 
 import argparse
 from utils_wgbs import validate_files_list, IllegalArgumentError, splitextgz, add_GR_args, delete_or_skip, \
-    BedFileWrap, eprint, validate_dir
+    BedFileWrap, eprint, validate_dir, add_multi_thread_args
 from genomic_region import GenomicRegion
 from merge import MergePats
 from pat2beta import pat2beta
@@ -185,8 +185,7 @@ def parse_args():
     out_or_pref.add_argument('-o', '--out_dir', help='Output directory [.]', default='.')
     parser.add_argument('-T', '--temp_dir', help='passed to "sort -m". Useful for merging very large pat files')
     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
-    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
-                        help='Number of threads to use (default: multiprocessing.cpu_count)')
+    add_multi_thread_args(parser)
     args = parser.parse_args()
     return args
 

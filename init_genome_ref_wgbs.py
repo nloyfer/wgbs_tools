@@ -1,7 +1,7 @@
 #!/usr/bin/python3 -u
 
 import argparse
-from utils_wgbs import delete_or_skip, validate_single_file, eprint, IllegalArgumentError, DIR
+from utils_wgbs import delete_or_skip, validate_single_file, eprint, IllegalArgumentError, DIR, add_multi_thread_args
 import re
 import numpy as np
 import pandas as pd
@@ -209,8 +209,7 @@ def parse_args():
     parser.add_argument('--no_sort', action='store_true',
                         help='If set, keep the chromosome order of the reference genome.\n'
                              'Default behaviour is to sort 1,2,...,10,11,...,X,Y,M')
-    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
-                        help='Number of threads to use (default: multiprocessing.cpu_count)')
+    add_multi_thread_args(parser)
     # parser.add_argument('--keep_all', action='store_true', help='Overwrite existing files if existed')
     args = parser.parse_args()
     return args
