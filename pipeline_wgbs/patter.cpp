@@ -637,7 +637,7 @@ void patter::print_stats_msg() {
     msg += std::to_string(line_i - readsStats.nr_empty - readsStats.nr_invalid) + " good, ";
     msg += std::to_string(readsStats.nr_empty) + " empty, ";
     msg += std::to_string(readsStats.nr_invalid) + " invalid. ";
-    msg += "(sucess " + std::to_string(sucess) + "%)\n";
+    msg += "(success " + std::to_string(sucess) + "%)\n";
     std::cerr << msg;
 }
 
