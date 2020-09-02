@@ -6,7 +6,7 @@ import pandas as pd
 import sys
 from utils_wgbs import IllegalArgumentError, eprint, segment_tool, add_GR_args, GenomeRefPaths, \
                        load_dict_section, validate_files_list , validate_single_file, \
-                       segment_tool, load_dists
+                       segment_tool, load_dists, add_multi_thread_args
 from genomic_region import GenomicRegion
 from multiprocessing import Pool
 import argparse
@@ -219,8 +219,7 @@ def parse_args():
                         help='Maximal allowed blocks size (in bp). Default is 2000')
     parser.add_argument('-o', '--out_path', default=sys.stdout,
                         help='output path [stdout]')
-    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
-                        help='Number of threads to use (default: multiprocessing.cpu_count)')
+    add_multi_thread_args(parser)
     return parser.parse_args()
 
 
