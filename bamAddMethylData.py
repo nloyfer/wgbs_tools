@@ -10,6 +10,7 @@ import datetime
 import multiprocessing
 from multiprocessing import Pool
 from utils_wgbs import IllegalArgumentError, patter_tool, match_maker_tool, add_GR_args, eprint
+from bam2pat import parse_args, subprocess_wrap, CHROMS
 from init_genome_ref_wgbs import chromosome_order
 from genomic_region import GenomicRegion
 
@@ -21,26 +22,10 @@ BAM_SUFF = '_md.bam'
 # And missing values (255)
 MAPQ = 10
 
-FLAGS_FILTER = 1796  # filter flags with these bits
 # todo: unsorted / sorted by name
-CHROMS = ['X', 'Y', 'M', 'MT'] + list(range(1, 23))
-
-def subprocess_wrap(cmd, debug):
-    if debug:
-        print(cmd)
-        return
-    else:
-        os.system(cmd)
-        return
-        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output, error = p.communicate()
-        if p.returncode or not output:
-            print(cmd)
-            print("Failed with subprocess %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
-            raise IllegalArgumentError('Failed')
 
 
-def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end, debug):
+def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end, ex_flags, mapq, debug):
     """ Convert a temp single chromosome file, extracted from a bam file,
         into a sam formatted (no header) output file."""
 
@@ -52,7 +37,7 @@ def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end,
 
     # use samtools to extract only the reads from 'chrom'
     flag = '-f 3'
-    cmd = "samtools view {} {} -q {} -F 1796 {} | ".format(input_path, region, MAPQ, flag)
+    cmd = "samtools view {} {} -q {} -F {} {} | ".format(input_path, region, mapq, ex_flags, flag)
     if debug:
         cmd += ' head -200 | '
     if paired_end:
@@ -161,7 +146,9 @@ class BamMethylData:
         with Pool(self.args.threads) as p:
             for c in self.set_regions():
                 out_path_name = name + '_' + c
-                params = (self.bam_path, out_path_name, c, self.gr.genome, header_path, self.is_pair_end(), self.debug)
+                params = (self.bam_path, out_path_name, c, self.gr.genome,
+                        header_path, self.is_pair_end(), self.args.exclude_flags,
+                        self.args.mapq, self.debug)
                 processes.append(p.apply_async(proc_chr, params))
             if not processes:
                 raise IllegalArgumentError('Empty bam file')
@@ -204,28 +191,12 @@ class BamMethylData:
         list(map(os.remove, [l for l in res]))
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description=main.__doc__)
-    parser.add_argument('bam_path')
-    add_GR_args(parser)
-    parser.add_argument('--out_dir', '-o', default='.')
-    parser.add_argument('--debug', '-d', action='store_true')
-    parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
-    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
-                        help='Number of threads to use (default: multiprocessing.cpu_count)')
-    args = parser.parse_args()
-    return args
-
 def main():
     """
-    Run the WGBS pipeline to generate pat, unq, beta files out of an input bam file
+    Add to bam file an extra field, YI:Z:{nr_meth},{nr_unmeth},
+    to count Cytosine retention at CpG context.
     """
     args = parse_args()
-
-    #if args.test:
-    #    return test_bam2pat()
-
-    # else
     BamMethylData(args).start_threads()
 
 
