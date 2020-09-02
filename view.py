@@ -2,7 +2,7 @@
 
 import argparse
 from utils_wgbs import load_beta_data2, MAX_PAT_LEN, MAX_READ_LEN, pat_sampler, validate_single_file, \
-    add_GR_args, IllegalArgumentError, BedFileWrap, load_dict_section, read_shell, eprint
+    add_GR_args, IllegalArgumentError, BedFileWrap, load_dict_section, read_shell, eprint, add_multi_thread_args
 from genomic_region import GenomicRegion
 import subprocess
 import numpy as np
@@ -307,8 +307,7 @@ def parse_args():
     # parser.add_argument('--multiprocess', '-@', type=int, default=16,
                         # help='pat: If bed file is specified, use multiple processors to read multiple.\n'
                              # 'regions in parallel. Default number of processors: 16.')
-    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
-                        help='Number of threads to use (default: multiprocessing.cpu_count)')
+    add_multi_thread_args(parser)
     parser.add_argument('--min_len', type=int, default=1,
                         help='Pat: Display only reads covering at least MIN_LEN CpG sites [1]')
     parser.add_argument('--print_region', action='store_true', help='pat: Prints region before reads')

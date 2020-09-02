@@ -4,7 +4,7 @@ import argparse
 import os.path as op
 import sys
 import subprocess
-from utils_wgbs import delete_or_skip, splitextgz, IllegalArgumentError, eprint
+from utils_wgbs import delete_or_skip, splitextgz, IllegalArgumentError, eprint, add_multi_thread_args
 import multiprocessing
 
 class PatUnq:
@@ -96,8 +96,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('input_files', nargs='+', help='One or more file with extensions .pat[.gz] or .unq[.gz]')
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing index file (csi) if existed')
-    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
-                        help='Number of threads to use (default: multiprocessing.cpu_count)')
+    add_multi_thread_args(parser)
     return parser.parse_args()
 
 
