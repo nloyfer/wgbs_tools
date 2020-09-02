@@ -36,7 +36,7 @@ def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end,
     out_directory = os.path.dirname(out_path)
 
     # use samtools to extract only the reads from 'chrom'
-    flag = '-f 3'
+    flag = '-f 3' if paired_end else ''
     cmd = "samtools view {} {} -q {} -F {} {} | ".format(input_path, region, mapq, ex_flags, flag)
     if debug:
         cmd += ' head -200 | '
@@ -166,7 +166,7 @@ class BamMethylData:
         out_directory = os.path.dirname(final_path)
         # cmd = '/bin/bash -c "cat <({})'.format(get_header_command(self.bam_path)) + ' ' +\
         #       ' '.join([self.intermediate_bam_file_view(p) for p in res]) + ' | samtools view -b - > ' + final_path_unsorted + '"'
-        cmd ="samtools merge -h {} {} ".format(header_path, final_path) + ' '.join([p for p in res])
+        cmd ="samtools merge -f -h {} {} ".format(header_path, final_path) + ' '.join([p for p in res])
         # cmd = '/bin/bash -c "samtools cat -h <({})'.format(get_header_command(self.bam_path)) + ' ' + \
         #       ' '.join(
         #           [p for p in res]) + ' > ' + final_path + '"'
