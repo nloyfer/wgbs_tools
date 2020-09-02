@@ -1,12 +1,11 @@
 #!/usr/bin/python3 -u
 
 import argparse
-from utils_wgbs import add_GR_args, eprint, GenomeRefPaths, delete_or_skip, load_dict_section
+from utils_wgbs import add_GR_args, eprint, GenomeRefPaths, delete_or_skip, load_dict_section, add_multi_thread_args
 from genomic_region import GenomicRegion
 import pandas as pd
 import numpy as np
 from multiprocessing import Pool
-import multiprocessing
 import sys
 
 COORDS_COLS = ['chr', 'start', 'end']
@@ -18,8 +17,7 @@ def parse_args():
     parser.add_argument('--out_path', '-o', help='Output path for bed file [stdout]')
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing files if existed')
-    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
-                        help='Number of threads to use (default: multiprocessing.cpu_count)')
+    add_multi_thread_args(parser)
     args = parser.parse_args()
     return args
 
