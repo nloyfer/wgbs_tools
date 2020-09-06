@@ -73,7 +73,7 @@ public:
 
     void initialize_patter(std::string &line_str);
 
-    void proc_pair_sam_lines(std::vector<std::string> &tokens1, std::vector<std::string> &tokens2, std::string &line1,
+    void proc_pair_sam_lines(std::string &line1,
                              std::string &line2);
 };
 
