@@ -590,9 +590,11 @@ void patter::procPairAddMethylData(std::vector <std::string> tokens1,
         l2 = samLineToPatVec(tokens2);
 
         patter::MethylData res = merge_and_count_methyl_data(l1, l2);
-        std::string toPrint1 = samLineMethyldataMakeString(line1, res);
+        if (!tokens1.empty()) {
+            std::string toPrint1 = samLineMethyldataMakeString(line1, res);
+            std::cout << line1 + toPrint1;
+        }
         std::string toPrint2 = samLineMethyldataMakeString(line2, res);
-        std::cout << line1 + toPrint1;
         std::cout << line2 + toPrint2;
     }
     catch (std::exception &e) {
@@ -718,6 +720,9 @@ void patter::action_sam(std::string samFilePath) {
 void patter::proc_pair_sam_lines(std::string &line1, std::string &line2) {
     std::vector<std::string> tokens1 = line2tokens(line1);
     std::vector<std::string> tokens2 = line2tokens(line2);
+    if (tokens2[0] == "NB501025:572:HCNJWAFX2:4:21609:16436:9924"){
+        int x = 0;
+    }
     print_progress();
     readsStats.nr_pairs++;
     procPairAddMethylData(tokens1, tokens2, line1, line2);
@@ -781,7 +786,7 @@ int main(int argc, char **argv) {
     try {
 //        std::string genome_name = "/cs/cbio/netanel/tools/wgbs_tools/references/hg19/genome.fa";
 //        std::string chrom_size_path = "/cs/cbio/netanel/tools/wgbs_tools/references/hg19/CpG.chrome.size";
-//        std::string bam_path = "/cs/cbio/jon/projects/PyCharmProjects/wgbs_tools/pipeline_wgbs/check_sam.sam";
+//        std::string bam_path = "/cs/cbio/jon/projects/PyCharmProjects/wgbs_tools/pipeline_wgbs/check_check.sam";
 //        patter p(genome_name, chrom_size_path);
 //        p.action_sam(bam_path);
         if (argc == 4 && strcmp(argv[3], "bam") == 0) {
