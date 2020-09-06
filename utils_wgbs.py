@@ -5,6 +5,7 @@ import os.path as op
 import numpy as np
 import pandas as pd
 from io import StringIO
+import multiprocessing
 import sys
 
 HG19_NR_SITES = 28217448  # total number of CpG sites in hg19 (fixed)
@@ -152,6 +153,11 @@ def add_GR_args(parser, required=False, bed_file=False):
         region_or_sites.add_argument('-L', "--bed_file", help='Bed file. Columns <chr, start, end>')
     parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
     parser.add_argument('--no_anno', help='Do not print genomic annotations', action='store_true')
+
+
+def add_multi_thread_args(parser):
+    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
+                        help='Number of threads to use (default: multiprocessing.cpu_count)')
 
 
 def beta2vec(data, min_cov=1, na=np.nan):
