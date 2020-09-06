@@ -6,13 +6,11 @@ import os.path as op
 import argparse
 import subprocess
 import re
-import multiprocessing
 from multiprocessing import Pool
-from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args, eprint
+from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args, eprint, add_multi_thread_args
 from init_genome_ref_wgbs import chromosome_order
 from pat2beta import pat2beta
 from genomic_region import GenomicRegion
-
 
 PAT_SUFF = '.pat'
 UNQ_SUFF = '.unq'
@@ -25,6 +23,7 @@ FLAGS_FILTER = 1796  # filter flags with these bits
 
 # todo: unsorted / sorted by name
 CHROMS = ['X', 'Y', 'M', 'MT'] + list(range(1, 23))
+
 
 def subprocess_wrap(cmd, debug):
     if debug:
@@ -59,7 +58,7 @@ def pat_unq(out_path, debug):
         unq_path = out_path + UNQ_SUFF
         cmd = "sort {} -k4,4n -k3,3 -o {}".format(out_path, tmp_path)
         subprocess_wrap(cmd, debug)
-        cmd = 'awk \'{print $1,$4,$5,$3}\' ' + tmp_path + ' | uniq -c | awk \'{OFS="\\t"; print $2,$3,$4,$5,$1}\' > ' +\
+        cmd = 'awk \'{print $1,$4,$5,$3}\' ' + tmp_path + ' | uniq -c | awk \'{OFS="\\t"; print $2,$3,$4,$5,$1}\' > ' + \
               unq_path
         subprocess_wrap(cmd, debug)
 
@@ -88,7 +87,7 @@ def proc_chr(input_path, out_path, region, genome, paired_end, ex_flags, mapq, d
         # change reads order, s.t paired reads will appear in adjacent lines
         cmd += "{} | ".format(match_maker_tool)
     cmd += "{} {} {} > {}".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes, out_path)
-    #print(cmd)
+    # print(cmd)
     subprocess_wrap(cmd, debug)
 
     return pat_unq(out_path, debug)
@@ -165,14 +164,14 @@ class Bam2Pat:
             for c in self.set_regions():
                 out_path = name + '_' + c + '.output.tmp'
                 params = (self.bam_path, out_path, c, self.gr.genome,
-                        self.is_pair_end(), self.args.exclude_flags,
-                        self.args.mapq, self.debug)
+                          self.is_pair_end(), self.args.exclude_flags,
+                          self.args.mapq, self.debug)
                 processes.append(p.apply_async(proc_chr, params))
             if not processes:
                 raise IllegalArgumentError('Empty bam file')
             p.close()
             p.join()
-        res = [pr.get() for pr in processes]    # [(pat_path, unq_path) for each chromosome]
+        res = [pr.get() for pr in processes]  # [(pat_path, unq_path) for each chromosome]
         if None in res:
             eprint('threads failed')
             return
@@ -194,29 +193,39 @@ class Bam2Pat:
             subprocess.call('bgzip -f@ 14 {f} && tabix -fCb 2 -e 2 {f}.gz'.format(f=f), shell=True)
 
 
-def parse_args():
+def parse_bam2pat_args(parser):
+    parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
+
+
+def add_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('bam_path')
     add_GR_args(parser)
     parser.add_argument('--out_dir', '-o', default='.')
     parser.add_argument('--debug', '-d', action='store_true')
-    parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
-    parser.add_argument('-F', '--exclude_flags',  type=int,
-            help='flags to exclude from bam file (samtools view parameter) ' \
-            '[{}]'.format(FLAGS_FILTER), default=FLAGS_FILTER)
-    parser.add_argument('-q', '--mapq',  type=int,
-            help='Minimal mapping quality (samtools view parameter) [{}]'.format(MAPQ),
-            default=MAPQ)
-    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
-                        help='Number of threads to use (default: multiprocessing.cpu_count)')
+    parser.add_argument('-F', '--exclude_flags', type=int,
+                        help='flags to exclude from bam file (samtools view parameter) ' \
+                             '[{}]'.format(FLAGS_FILTER), default=FLAGS_FILTER)
+    parser.add_argument('-q', '--mapq', type=int,
+                        help='Minimal mapping quality (samtools view parameter) [{}]'.format(MAPQ),
+                        default=MAPQ)
+    add_multi_thread_args(parser)
+
+    return parser
+
+
+def parse_args(parser):
+    parse_bam2pat_args(parser)
     args = parser.parse_args()
     return args
+
 
 def main():
     """
     Run the WGBS pipeline to generate pat, unq, beta files out of an input bam file
     """
-    args = parse_args()
+    parser = add_args()
+    args = parse_args(parser)
     Bam2Pat(args).start_threads()
 
 
