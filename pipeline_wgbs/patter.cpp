@@ -661,40 +661,6 @@ void patter::print_progress(){
         std::cerr << "[ " + chr + " ]" << "patter, line " << line_i << std::endl;
 }
 
-/**
- * Adds methylated and unmethylated cpg site count to sam input.
- * Does not return anything but it's side effect is either
- * sam formatted output with methylation data
- * or an error.
- *
- * @param samFilePath the file path of the sam file input.
- * Mostly used for debugging. Standard usage is to
- * leave blank and pass input via stdin.
- * @return void
- */
-void patter::addMethylCountToSam(std::string samFilePath) {
-    std::ifstream samFile(samFilePath, std::ios::in);
-
-    if (!(samFile)){
-        for (std::string line_str; std::getline(std::cin, line_str); line_i++) {
-
-            print_progress();
-
-            handlyMethylCountSamLine(line_str);
-        }
-    } else {
-        if (samFile.is_open()) {
-            std::string line;
-            while (std::getline(samFile, line)) {
-                line_i++;
-                print_progress();
-                handlyMethylCountSamLine(line);
-            }
-            samFile.close();
-        }
-    }
-}
-
 std::string get_first_non_empty_line(std::istream& in){
     std::string line;
     while (line.empty()){
@@ -706,6 +672,7 @@ std::string get_first_non_empty_line(std::istream& in){
 void patter::proc_sam_in_stream(std::istream& in) {
     std::vector <std::string> tokens1, tokens2;
     std::string line1, line2;
+    bool first_in_pair = true;
     for (std::string line_str; std::getline(in, line_str); line_i++) {
         if(line_str.at(0) == '@'){
             std::cout << line_str + "\n";
@@ -713,12 +680,19 @@ void patter::proc_sam_in_stream(std::istream& in) {
 //            // skip empty lines
 //            if (line_str.empty())
 //                continue;
+            initialize_patter(line_str);
+            if (first_in_pair && is_paired_end) {
+                line1 = line_str;
+                first_in_pair = false;
+                readsStats.nr_pairs++;
+                continue;
+            }
             print_progress();
-            line1 = line_str;
-            std::getline(in, line2);//get_first_non_empty_line(in);
+            line2 = line_str;
+            first_in_pair = true;
             line_i++;
 
-            proc_pair_sam_lines(tokens1, tokens2, line1, line2);
+            proc_pair_sam_lines(line1, line2);
         }
 
     }
@@ -741,13 +715,11 @@ void patter::action_sam(std::string samFilePath) {
     print_stats_msg();
 }
 
-void patter::proc_pair_sam_lines(std::vector<std::string> &tokens1, std::vector<std::string> &tokens2, std::string &line1,
-                            std::string &line2) {
-    tokens1 = line2tokens(line1);
-    tokens2 = line2tokens(line2);
+void patter::proc_pair_sam_lines(std::string &line1, std::string &line2) {
+    std::vector<std::string> tokens1 = line2tokens(line1);
+    std::vector<std::string> tokens2 = line2tokens(line2);
     print_progress();
     readsStats.nr_pairs++;
-    initialize_patter(line1);
     procPairAddMethylData(tokens1, tokens2, line1, line2);
 }
 
@@ -807,9 +779,9 @@ void patter::action() {
 int main(int argc, char **argv) {
     clock_t begin = clock();
     try {
-//        std::string genome_name = "/cs/cbio/jon/projects/PyCharmProjects/wgbs_tools/references/hg19/genome.fa";
-//        std::string chrom_size_path = "/cs/cbio/jon/projects/PyCharmProjects/wgbs_tools/references/hg19/CpG.chrome.size";
-//        std::string bam_path = "/cs/cbio/jon/projects/PyCharmProjects/wgbs_tools/trial.sam";
+//        std::string genome_name = "/cs/cbio/netanel/tools/wgbs_tools/references/hg19/genome.fa";
+//        std::string chrom_size_path = "/cs/cbio/netanel/tools/wgbs_tools/references/hg19/CpG.chrome.size";
+//        std::string bam_path = "/cs/cbio/jon/projects/PyCharmProjects/wgbs_tools/pipeline_wgbs/check_sam.sam";
 //        patter p(genome_name, chrom_size_path);
 //        p.action_sam(bam_path);
         if (argc == 4 && strcmp(argv[3], "bam") == 0) {
