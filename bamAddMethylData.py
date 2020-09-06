@@ -10,7 +10,7 @@ import datetime
 import multiprocessing
 from multiprocessing import Pool
 from utils_wgbs import IllegalArgumentError, patter_tool, match_maker_tool, add_GR_args, eprint
-from bam2pat import parse_args, subprocess_wrap, CHROMS
+from bam2pat import add_args, subprocess_wrap, CHROMS
 from init_genome_ref_wgbs import chromosome_order
 from genomic_region import GenomicRegion
 
@@ -196,7 +196,8 @@ def main():
     Add to bam file an extra field, YI:Z:{nr_meth},{nr_unmeth},
     to count Cytosine retention at CpG context.
     """
-    args = parse_args()
+    parser = add_args()
+    args = parser.parse_args()
     BamMethylData(args).start_threads()
 
 
