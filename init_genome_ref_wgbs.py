@@ -27,8 +27,8 @@ class InitGenome:
 
         # abort if files exists and --force was not specified
         eprint('Setting up genome reference files in {}'.format(self.out_dir))
-        if not delete_or_skip(op.join(self.out_dir, 'CpG.bed.gz'), self.force):
-            return
+        # if not delete_or_skip(op.join(self.out_dir, 'CpG.bed.gz'), self.force):
+        #     return
 
         self.fai_df = self.load_fai()
 
@@ -95,8 +95,8 @@ class InitGenome:
         df.reset_index(drop=True, inplace=True)
         eprint('Composing CpG-Index dictionary...')
         df['site'] = df.index + 1
-        self.dump_df(df, 'CpG.bed')
-        self.bgzip_tabix_dict(op.join(self.out_dir, 'CpG.bed'))
+        self.dump_df(df, 'CpG.2.bed')
+        self.bgzip_tabix_dict(op.join(self.out_dir, 'CpG.2.bed'))
 
         # CpG.rev.bin - a reverse dictionary (mapping CpG index to locus
         np.array(df['loc'] + 1, dtype=np.uint32).tofile(op.join(self.out_dir, 'CpG.rev.bin'))
@@ -193,6 +193,10 @@ def chromosome_order(c):
     return 10003
 
 
+def lex_chromosome_order(c):
+    return c
+
+
 def is_valid_chrome(chrome):
     # A chromosome is valid if it has the form "chrX", where X is digit(s) or (X,Y,M)
     return bool(re.match(r'^chr([\d]+|[XYM])$', chrome))
@@ -200,10 +204,10 @@ def is_valid_chrome(chrome):
 
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
-    parser.add_argument('genome_ref', help='path to a genome *.fa file')
-    parser.add_argument('name', help='name of the genome (e.g. hg19, mm9...).\n'
+    parser.add_argument('--genome_ref', help='path to a genome *.fa file', default='/cs/cbio/netanel/tools/wgbs_tools/references/hg19/genome.fa')
+    parser.add_argument('--name', help='name of the genome (e.g. hg19, mm9...).\n'
                                      'A directory of this name will be created '
-                                     'in references/')
+                                     'in references/', default='hg19')
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing files if existed')
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('--no_sort', action='store_true',
