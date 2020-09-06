@@ -10,7 +10,7 @@ import multiprocessing
 from multiprocessing import Pool
 import sys
 from utils_wgbs import load_beta_data, trim_to_uint8, default_blocks_path, eprint, GenomeRefPaths, \
-                        IllegalArgumentError
+                        IllegalArgumentError, add_multi_thread_args
 
 
 ######################################################
@@ -156,8 +156,7 @@ def parse_args():
     parser.add_argument('--bedGraph', action='store_true', help='output a text file in addition to binary file')
     parser.add_argument('--debug', '-d', action='store_true')
     parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
-    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
-                        help='Number of threads to use (default: multiprocessing.cpu_count)')
+    add_multi_thread_args(parser)
 
     return parser.parse_args()
 
