@@ -178,8 +178,12 @@ void action() {
     singles.insert( singles.end(), data.begin(), data.end() );  // concatenate singles and data
 //    std::cerr << "singles:" << std::endl;
 //    print_vec(singles);
-    std::cerr << "nr of singles: " << singles.size() << std::endl;
-    std::cerr << "finished " << line_i << " lines." << std::endl;
+    std::cerr << "[match_maker] Number of unpaired reads: " << singles.size() << std::endl;
+    if (line_i > 0) {
+        std::cerr << "[match_maker] finished " << line_i << " lines." << std::endl;
+    } else {
+        std::cerr << "[match_maker] no pairs found " << std::endl;
+    }
 //    outfile.close();
 }
 
@@ -191,7 +195,7 @@ int main() {
 
     clock_t end = clock();
     double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-    std::cerr << elapsed_secs << std::endl;
+    //std::cerr << elapsed_secs << std::endl;
 
     return 0;
 }
