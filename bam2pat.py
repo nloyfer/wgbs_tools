@@ -78,6 +78,7 @@ def proc_chr(input_path, out_path, region, genome, paired_end, ex_flags, mapq, d
     # Run patter tool on a single chromosome. out_path will have the following fields:
     # chr   CpG   Pattern   begin_loc   length(bp)
 
+
     # use samtools to extract only the reads from 'chrom'
     flag = '-f 3' if paired_end else ''
     cmd = "samtools view {} {} -q {} -F {} {} | ".format(input_path, region, mapq, ex_flags, flag)
@@ -86,6 +87,13 @@ def proc_chr(input_path, out_path, region, genome, paired_end, ex_flags, mapq, d
     if paired_end:
         # change reads order, s.t paired reads will appear in adjacent lines
         cmd += "{} | ".format(match_maker_tool)
+
+    # first, if there are no reads in current region, return
+    validation_cmd = cmd + ' head -1'
+    if not subprocess.check_output(validation_cmd, shell=True, stderr=subprocess.PIPE).decode().strip():
+        eprint('Skipping region {}, no reads found'.format(region))
+        return '', ''
+
     cmd += "{} {} {} > {}".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes, out_path)
     # print(cmd)
     subprocess_wrap(cmd, debug)
@@ -111,6 +119,7 @@ class Bam2Pat:
 
         # check if bam is sorted by coordinate:
         peek_cmd = 'samtools view -H {} | head -1'.format(self.bam_path)
+        so = subprocess.PIPE
         if 'coordinate' not in subprocess.check_output(peek_cmd, shell=True).decode():
             raise IllegalArgumentError('bam file must be sorted by coordinate')
 
@@ -175,26 +184,35 @@ class Bam2Pat:
         if None in res:
             eprint('threads failed')
             return
+        if not ''.join(p for p, u in res):
+            eprint('No reads found in bam file. No pat file is generated')
+            return
 
         # Concatenate chromosome files
         pat_path = name + PAT_SUFF
         unq_path = name + UNQ_SUFF
         os.system('cat ' + ' '.join([p for p, u in res]) + ' > ' + pat_path)  # pat
-        os.system('cat ' + ' '.join([u for p, u in res]) + ' > ' + unq_path)  # unq
+        if self.args.unq:
+            os.system('cat ' + ' '.join([u for p, u in res]) + ' > ' + unq_path)  # unq
 
         # remove all small files
         list(map(os.remove, [x for l in res for x in l]))
 
         # generate beta file and bgzip the pat, unq files:
-        beta_path = pat2beta(pat_path, self.out_dir, args=self.args)
         eprint('bgzipping and indexing:')
         for f in (pat_path, unq_path):
-            eprint('{}...'.format(f))
+            if not op.isfile(f):
+                continue
             subprocess.call('bgzip -f@ 14 {f} && tabix -fCb 2 -e 2 {f}.gz'.format(f=f), shell=True)
+            eprint('generated {}.gz'.format(f))
+
+        beta_path = pat2beta(pat_path + '.gz', self.out_dir, args=self.args)
+        eprint('generated {}.beta'.format(name))
 
 
 def parse_bam2pat_args(parser):
     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
+    parser.add_argument('--unq', action='store_true', help='generage unq format as well')
 
 
 def add_args():

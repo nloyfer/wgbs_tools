@@ -123,7 +123,7 @@ void patter::load_genome_ref() {
     }
     // Was the reference sequence loaded? (not empty)
     if ((long) genome_ref.length() != fai_numbers[0]) {
-        std::cerr << chr << "'s length is " << genome_ref.length() << " != " << fai_numbers[0] << std::endl;
+        std::cerr << "[patter] " << chr << "'s length is " << genome_ref.length() << " != " << fai_numbers[0] << std::endl;
         throw std::invalid_argument(" Error: Reference genome's length is wrong. chromosome " + chr);
     }
 
@@ -410,11 +410,11 @@ std::string patter::samLineToSamLineWithMethCounts(std::vector <std::string> tok
         return samLineMethyldataMakeString(originalLine, curRow);
     }
     catch (std::exception &e) {
-        std::string msg = "[ " + chr + " ] " + "Exception while processing line "
+        std::string msg = "[patter] [ " + chr + " ] " + "Exception while processing line "
                           + std::to_string(line_i) + ". Line content: \n";
         std::cerr << msg;
         print_vec(tokens);
-        std::cerr << e.what() << std::endl;
+        std::cerr << "[patter] " << e.what() << std::endl;
         readsStats.nr_invalid++;
     }
     return originalLine; //TODO flag for throw error or print original line
@@ -454,9 +454,9 @@ patter::MethylData patter::samLineToMethCounts(std::vector <std::string> tokens,
     catch (std::exception &e) {
         std::string msg = "[ " + chr + " ] " + "Exception while processing line "
                           + std::to_string(line_i) + ". Line content: \n";
-        std::cerr << msg;
+        std::cerr << "[patter] " << msg;
         print_vec(tokens);
-        std::cerr << e.what() << std::endl;
+        std::cerr << "[patter] " << e.what() << std::endl;
         readsStats.nr_invalid++;
     }
     return errorres; //TODO throw error
@@ -534,9 +534,9 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
     catch (std::exception &e) {
         std::string msg = "[ " + chr + " ] " + "Exception while processing line "
                           + std::to_string(line_i) + ". Line content: \n";
-        std::cerr << msg;
+        std::cerr << "[patter] " << msg;
         print_vec(tokens);
-        std::cerr << e.what() << std::endl;
+        std::cerr << "[patter] " << e.what() << std::endl;
         readsStats.nr_invalid++;
     }
     res.clear();
@@ -565,10 +565,10 @@ void patter::proc2lines(std::vector <std::string> tokens1,
     catch (std::exception &e) {
         std::string msg = "[ " + chr + " ] Exception while merging. lines ";
         msg += std::to_string(line_i) + ". Line content: \n";
-        std::cerr << msg;
+        std::cerr << "[patter] " << msg;
         print_vec(tokens1);
         print_vec(tokens2);
-        std::cerr << e.what() << std::endl;
+        std::cerr <<  "[patter] " << e.what() << std::endl;
         return;
     }
 }
@@ -600,10 +600,10 @@ void patter::procPairAddMethylData(std::vector <std::string> tokens1,
     catch (std::exception &e) {
         std::string msg = "[ " + chr + " ] Exception while merging. lines ";
         msg += std::to_string(line_i) + ". Line content: \n";
-        std::cerr << msg;
+        std::cerr << "[patter] " << msg;
         print_vec(tokens1);
         print_vec(tokens2);
-        std::cerr << e.what() << std::endl;
+        std::cerr << "[patter] " << e.what() << std::endl;
         return;
     }
 }
@@ -619,7 +619,7 @@ bool patter::first_line(std::string &line) {
         return (flag & 1);     // file is paired end iff flag 0x1 is on
     }
     catch (std::exception &e) {
-        std::cerr << "[ " + chr + " ]" << "Invalid first line: \n" << line;
+        std::cerr << "[patter] " << "[ " + chr + " ]" << "Invalid first line: \n" << line;
         std::cerr << "\nexception: " << e.what() << std::endl;
         throw e;
     }
@@ -640,7 +640,7 @@ void patter::print_stats_msg() {
     msg += std::to_string(readsStats.nr_empty) + " empty, ";
     msg += std::to_string(readsStats.nr_invalid) + " invalid. ";
     msg += "(success " + std::to_string(sucess) + "%)\n";
-    std::cerr << msg;
+    std::cerr << "[patter] " << msg;
 }
 
 void patter::handlyMethylCountSamLine(std::string line) {
@@ -798,14 +798,14 @@ int main(int argc, char **argv) {
             p.action();
         } else
             throw std::invalid_argument("Usage: patter GENOME_PATH CPG_CHROM_SIZE_PATH or patter GENOME_PATH CPG_CHROM_SIZE_PATH bam");
-    }//                std::cerr  << "match maker, line_i " << line_i << std::endl;
+    }
     catch (std::exception &e) {
-        std::cerr << "Failed! exception:" << std::endl;
+        std::cerr << "[patter] Failed! exception:" << std::endl;
         std::cerr << e.what() << std::endl;
         return 1;
     }
     clock_t end = clock();
     double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-    std::cerr << elapsed_secs << std::endl;
+    //std::cerr << elapsed_secs << std::endl;
     return 0;
 }
