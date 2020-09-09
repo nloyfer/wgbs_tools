@@ -1,7 +1,9 @@
 #!/usr/bin/python3 -u
 
-# import matplotlib
-#matplotlib.use('Agg')
+import matplotlib
+import os
+if ('SSH_TTY' in os.environ):
+    matplotlib.use('Agg')
 import time
 from datetime import timedelta
 from collections import OrderedDict
