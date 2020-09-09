@@ -16,6 +16,7 @@ def parse_args():
     add_GR_args(parser, bed_file=True)
     parser.add_argument('--out_path', '-o', help='Output path for bed file [stdout]')
     parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('--drop_empty', action='store_true', help='Drop empty regions (without CpGs)')
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing files if existed')
     add_multi_thread_args(parser)
     args = parser.parse_args()
@@ -44,8 +45,15 @@ def chr_thread(df, chrom, cf, genome):
     e = e.sort_values(by=['chr', 'start'])
     e.loc[e['idx'].isna(), 'idx'] = cf[cf.chr == chrom]['size'].values[0]
 
-    s['idx2'] = e['idx'].astype(int)
+    # astype 'Int64' and not Int to avoid implicit casting to float in case there are NaNs
+    s['idx2'] = e['idx'].astype('Int64')
+    s['idx'] = s['idx'].astype('Int64')
     s = s[COORDS_COLS + ['idx', 'idx2'] + list(s.columns)[3:-2]]
+
+    # drop regions without CpGs (pd.merge left them with a fictive 0 range, e.g 25-25)
+    s.rename(columns={'idx': 'startCpG', 'idx2': 'endCpG'}, inplace=True)
+    s.dropna(inplace=True)
+    s = s[s['endCpG'] - s['startCpG'] > 0]
     return s
 
 
@@ -70,7 +78,8 @@ class AddCpGsToBed:
         with Pool(self.args.threads) as p:
             chroms = [x for x in self.cf.chr if x in self.df.chr.unique()]
             for chrom in sorted(chroms):
-                params = (self.df[self.df.chr == chrom], chrom, self.cf, self.args.genome)
+                params = (self.df[self.df.chr == chrom], chrom, self.cf,
+                         self.args.genome)
                 processes.append(p.apply_async(chr_thread, params))
             p.close()
             p.join()
@@ -79,6 +88,12 @@ class AddCpGsToBed:
         if self.out_path is None:
             self.out_path = sys.stdout
         r = self.reorder_to_original(r)
+
+        # drop regions w/o CpGs
+        if self.args.drop_empty:
+            r.dropna(inplace=True)
+
+        # dump
         r.to_csv(self.out_path, sep='\t', header=None, index=None, na_rep='NaN', mode='a')
 
     def reorder_to_original(self, res):
