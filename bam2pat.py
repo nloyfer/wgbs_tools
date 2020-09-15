@@ -40,7 +40,7 @@ def subprocess_wrap(cmd, debug):
             raise IllegalArgumentError('Failed')
 
 
-def pat_unq(out_path, debug):
+def pat_unq(out_path, debug, unq):
     try:
         # sort
         tmp_path = out_path + '.tmp'
@@ -56,22 +56,22 @@ def pat_unq(out_path, debug):
 
         # unq file:
         unq_path = out_path + UNQ_SUFF
-        cmd = "sort {} -k4,4n -k3,3 -o {}".format(out_path, tmp_path)
-        subprocess_wrap(cmd, debug)
-        cmd = 'awk \'{print $1,$4,$5,$3}\' ' + tmp_path + ' | uniq -c | awk \'{OFS="\\t"; print $2,$3,$4,$5,$1}\' > ' + \
-              unq_path
-        subprocess_wrap(cmd, debug)
+        if unq:
+            cmd = "sort {} -k4,4n -k3,3 -o {}".format(out_path, tmp_path)
+            subprocess_wrap(cmd, debug)
+            cmd = 'awk \'{print $1,$4,$5,$3}\' ' + tmp_path + ' | uniq -c | awk \'{OFS="\\t"; print $2,$3,$4,$5,$1}\' > ' + \
+                  unq_path
+            subprocess_wrap(cmd, debug)
 
-        if not debug:
-            os.remove(out_path)
-            os.remove(tmp_path)
+        os.remove(out_path)
+        os.remove(tmp_path)
 
         return pat_path, unq_path
     except IllegalArgumentError as e:
         return None
 
 
-def proc_chr(input_path, out_path, region, genome, paired_end, ex_flags, mapq, debug):
+def proc_chr(input_path, out_path, region, genome, paired_end, ex_flags, mapq, debug, unq):
     """ Convert a temp single chromosome file, extracted from a bam file,
         into two output files: pat and unq."""
 
@@ -98,7 +98,7 @@ def proc_chr(input_path, out_path, region, genome, paired_end, ex_flags, mapq, d
     # print(cmd)
     subprocess_wrap(cmd, debug)
 
-    return pat_unq(out_path, debug)
+    return pat_unq(out_path, debug, unq)
 
 
 class Bam2Pat:
@@ -174,7 +174,7 @@ class Bam2Pat:
                 out_path = name + '_' + c + '.output.tmp'
                 params = (self.bam_path, out_path, c, self.gr.genome,
                           self.is_pair_end(), self.args.exclude_flags,
-                          self.args.mapq, self.debug)
+                          self.args.mapq, self.debug, self.args.unq)
                 processes.append(p.apply_async(proc_chr, params))
             if not processes:
                 raise IllegalArgumentError('Empty bam file')
@@ -196,7 +196,10 @@ class Bam2Pat:
             os.system('cat ' + ' '.join([u for p, u in res]) + ' > ' + unq_path)  # unq
 
         # remove all small files
-        list(map(os.remove, [x for l in res for x in l]))
+        # list(map(os.remove, [x for l in res for x in l]))
+        list(map(os.remove, [x[0] for x in res ]))
+        if self.args.unq:
+            list(map(os.remove, [x[1] for x in res ]))
 
         # generate beta file and bgzip the pat, unq files:
         eprint('bgzipping and indexing:')
