@@ -10,7 +10,10 @@ from genomic_region import GenomicRegion
 
 
 def load_bed(bed_path, nrows, add1=False):
-    df = pd.read_csv(bed_path, sep='\t', skiprows=0, header=None,
+    # check if there is a header:
+    peek_df = pd.read_csv(bed_path, sep='\t', nrows=1, header=None)
+    header = None if str(peek_df.iloc[0, 1]).isdigit() else 0
+    df = pd.read_csv(bed_path, sep='\t', header=header,
                      names=['chr', 'start', 'meth', 'total'],
                      usecols=[0, 1, 3, 4], nrows=nrows)
     nr_lines = df.shape[0]
@@ -28,12 +31,13 @@ def bed2betas(args):
     # merge with the reference CpG bed file,
     # so the #lines in file will include all 28217448 sites (with NaN as 0)
     region = 'chr1:10469-876225' if args.debug else None
+    nrows = 10000 if args.debug else None
     try:
         rf = None       # Reference dictionary
         for bed in args.bed_paths:
             eprint('Converting {}...'.format(op.basename(bed)))
-            # Check if bed should be skipped:
-            outpath = op.join(args.outdir, splitextgz(op.basename(bed))[0]) + '.beta'
+            # Check if bed should be sk
+            outpath = op.join(args.outdir, splitextgz(op.basename(bed))[0] + '.beta')
             if not delete_or_skip(outpath, args.force):
                 continue
 
