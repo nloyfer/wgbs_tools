@@ -91,7 +91,7 @@ def proc_chr(input_path, out_path, region, genome, paired_end, ex_flags, mapq, d
     # first, if there are no reads in current region, return
     validation_cmd = cmd + ' head -1'
     if not subprocess.check_output(validation_cmd, shell=True, stderr=subprocess.PIPE).decode().strip():
-        eprint('Skipping region {}, no reads found'.format(region))
+        eprint('[bam2pat] Skipping region {}, no reads found'.format(region))
         return '', ''
 
     cmd += "{} {} {} > {}".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes, out_path)
@@ -147,8 +147,8 @@ class Bam2Pat:
             output, error = p.communicate()
             if p.returncode or not output:
                 eprint(cmd)
-                eprint("Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
-                eprint('falied to find chromosomes')
+                eprint("[bam2pat] Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
+                eprint('[bam2pat] falied to find chromosomes')
                 return []
             nofilt_chroms = output.decode()[:-1].split('\n')
             filt_chroms = [c for c in nofilt_chroms if 'chr' in c]
@@ -158,7 +158,7 @@ class Bam2Pat:
                 filt_chroms = [c for c in filt_chroms if re.match(r'^chr([\d]+|[XYM])$', c)]
             chroms = list(sorted(filt_chroms, key=chromosome_order))
             if not chroms:
-                eprint('Failed retrieving valid chromosome names')
+                eprint('[bam2pat] Failed retrieving valid chromosome names')
                 raise IllegalArgumentError('Failed')
 
             return chroms
@@ -182,7 +182,7 @@ class Bam2Pat:
             p.join()
         res = [pr.get() for pr in processes]  # [(pat_path, unq_path) for each chromosome]
         if None in res:
-            eprint('threads failed')
+            eprint('[bam2pat] threads failed')
             return
         if not ''.join(p for p, u in res):
             eprint('[bam2pat] No reads found in bam file. No pat file is generated')
