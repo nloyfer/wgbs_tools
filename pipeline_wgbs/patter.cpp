@@ -50,6 +50,16 @@ void vec2string(std::vector <std::string> &vec) {
 }
 
 
+std::string addCommas(int num) {
+    auto s = std::to_string(num);
+    int n = s.length() - 3;
+    while (n > 0) {
+        s.insert(n, ",");
+        n -= 3;
+    }
+    return s;
+}
+
 int patter::find_cpg_inds_offset() {
     /**
      * Find the CpG-Index offset of the current chromosome.
@@ -632,13 +642,13 @@ void patter::print_stats_msg() {
     int sucess = line_i ? int((1.0 - ((double) readsStats.nr_invalid / line_i)) * 100.0) : 0;
 
     std::string msg = "[ " + chr + " ] ";
-    msg += "finished " + std::to_string(line_i) + " lines. ";
+    msg += "finished " + addCommas(line_i) + " lines. ";
     if (is_paired_end) {
-        msg += "(" + std::to_string(readsStats.nr_pairs) + " pairs). ";
+        msg += "(" + addCommas(readsStats.nr_pairs) + " pairs). ";
     }
-    msg += std::to_string(line_i - readsStats.nr_empty - readsStats.nr_invalid) + " good, ";
-    msg += std::to_string(readsStats.nr_empty) + " empty, ";
-    msg += std::to_string(readsStats.nr_invalid) + " invalid. ";
+    msg += addCommas(line_i - readsStats.nr_empty - readsStats.nr_invalid) + " good, ";
+    msg += addCommas(readsStats.nr_empty) + " empty, ";
+    msg += addCommas(readsStats.nr_invalid) + " invalid. ";
     msg += "(success " + std::to_string(sucess) + "%)\n";
     std::cerr << "[patter] " << msg;
 }
@@ -659,12 +669,9 @@ void patter::handlyMethylCountSamLine(std::string line) {
 }
 
 void patter::print_progress(){
-    if (line_i && !(line_i % 5000000))
-        std::string l = std::to_string(line_i); 
-        if (line_i > 1000000) {
-            l = std::to_string(line_i / 1000000) + "M"
-        }
-        std::cerr << "[patter] [ " + chr + " ]" << " line " << l << std::endl;
+    if (line_i && !(line_i % 5000000)){
+        std::cerr << "[patter] [ " + chr + " ]" << " line " << addCommas(line_i) << std::endl;
+    }
 }
 
 std::string get_first_non_empty_line(std::istream& in){
