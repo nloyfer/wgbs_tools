@@ -104,6 +104,12 @@ def main():
 
     # construct output path
     out_path = args.prefix + splitextgz(args.input_files[0])[1]
+
+    if op.realpath(out_path) in [op.realpath(p) for p in args.input_files]:
+        eprint('[merge] Error output path is identical ' \
+                'to one of the input files {}'.format(out_path))
+        return
+
     if not delete_or_skip(out_path, args.force):
         return
 
