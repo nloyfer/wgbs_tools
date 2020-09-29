@@ -29,8 +29,7 @@ std::vector<std::string> line2tokens(const std::string &line) {
 void print_vec(std::vector<std::string> &vec){
     /** print a vector to stderr, tab separated */
     for (auto &j: vec)
-        std::cerr << j << "\n";
-    std::cerr << std::endl;
+        std::cerr << j << std::endl;
 }
 
 struct PairedEnd
@@ -108,32 +107,6 @@ std::vector<std::string> flush_data(std::vector<std::string> &data, std::ostream
     return singles;
 }
 
-//void push_line(std::string line, std::vector<std::string> &data) {
-//
-//    if (!(line.size())) {
-//        return;
-//    }
-//
-//    std::regex r("^[^\\s]+\\s+([\\d]+)\\s+chr(\\d+|[XYM])\\s+");
-//    std::smatch m;
-////    cerr << "in push line " << line << std::endl;
-//    if (std::regex_search(line, m, r)) {
-//        std::vector<std::string> vec;
-//        for (auto x:m) {
-//            vec.push_back(x);
-//        }
-//        std::string flag = vec[1];
-//        std::string chrom = vec[2];
-//        if ((flag == "83") || (flag == "163") || (flag == "147") || (flag == "99")) {
-//
-//            data.push_back(line);
-//        }
-//    }
-//    else {
-//        cerr << "invalid line: " << line << std::endl;
-//    }
-//}
-
 
 void filter_singles(std::vector<std::string> &data, std::vector<std::string> &singles, std::string last_line) {
     /* move from data to singles all lines that definitely don't have a mate in the input bam
@@ -153,6 +126,16 @@ void filter_singles(std::vector<std::string> &data, std::vector<std::string> &si
     data = optimistics;
 }
 
+std::string addCommas(int num) {
+    auto s = std::to_string(num);
+    int n = s.length() - 3;
+    while (n > 0) {
+        s.insert(n, ",");
+        n -= 3;
+    }
+    return s;
+}
+
 void action() {
     std::vector<std::string> data;      // a chunck of 2,000 input lines
     std::vector<std::string> singles;   // lines with no current match
@@ -160,17 +143,26 @@ void action() {
     std::ostream &outfile(std::cout);
 
     int line_i = 0;
+    std::string log_pref = "[match maker] ";
 //    std::ios_base::sync_with_stdio(false);  // improves reading speed by x70
     for (std::string line; std::getline(std::cin, line) && (line_i > -1); line_i++) {
+        if (line_i == 0) {
+             log_pref += "[ " + line2tokens(line)[2] + " ] ";
+        }
         data.push_back(line);
-        if (line_i && (line_i % 2000 == 0)) {
-            data = flush_data(data, outfile);
+        if (line_i && (line_i % 10000 == 0)) {
 
-            if (line_i % 300000 == 0) {
-//                std::cerr  << "match maker, line_i " << line_i << std::endl;
+            // flush data only if positions of first and last reads are far apart
+            // This is rarely an issue. But sometimes in extremely high mappability 
+            // regions (e.g. mm9 chr14:100734330), the data buffer could grow to 4M reads
+            if (stoi(line2tokens(line)[3]) - stoi(line2tokens(data[0])[3]) > 160) {
+                data = flush_data(data, outfile);
                 filter_singles(data, singles, line);
             }
 
+            //if (line_i % 1000000 == 0) {
+                //std::cerr  << log_pref << " line " << addCommas(line_i) << std::endl;
+            //}
         }
     }
     data = flush_data(data, outfile);
@@ -178,11 +170,11 @@ void action() {
     singles.insert( singles.end(), data.begin(), data.end() );  // concatenate singles and data
 //    std::cerr << "singles:" << std::endl;
 //    print_vec(singles);
-    std::cerr << "[match_maker] Number of unpaired reads: " << singles.size() << std::endl;
+    std::cerr << log_pref << "Number of unpaired reads: " << addCommas(singles.size()) << std::endl;
     if (line_i > 0) {
-        std::cerr << "[match_maker] finished " << line_i << " lines." << std::endl;
+        std::cerr << log_pref << "finished " << addCommas(line_i) << " lines." << std::endl;
     } else {
-        std::cerr << "[match_maker] no pairs found " << std::endl;
+        std::cerr << log_pref << "no pairs found " << std::endl;
     }
 //    outfile.close();
 }
