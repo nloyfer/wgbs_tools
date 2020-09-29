@@ -9,9 +9,12 @@ from utils_wgbs import validate_files_list
 import multiprocessing
 from multiprocessing import Pool
 import sys
-from utils_wgbs import load_beta_data, trim_to_uint8, default_blocks_path, eprint, GenomeRefPaths, \
+from utils_wgbs import load_beta_data, trim_to_uint8, default_blocks_path, GenomeRefPaths, \
                         IllegalArgumentError, add_multi_thread_args
 
+
+def b2b_log(*args, **kwargs):
+    print('[ wt beta_to_blocks ]', *args, file=sys.stderr, **kwargs)
 
 ######################################################
 #                                                    #
@@ -23,25 +26,25 @@ def is_block_file_nice(df):
 
     # startCpG and endCpG is monotonically increasing
     if not pd.Index(df['startCpG']).is_monotonic:
-        eprint('startCpG is not monotonically increasing')
+        b2b_log('startCpG is not monotonically increasing')
         return False
     if not pd.Index(df['endCpG']).is_monotonic:
-        eprint('endCpG is not monotonically increasing')
+        b2b_log('endCpG is not monotonically increasing')
         return False
 
     # no duplicated blocks
     if (df.shape[0] != df.drop_duplicates().shape[0]):
-        eprint('Some blocks are duplicated')
+        b2b_log('Some blocks are duplicated')
         return False
 
     # no empty blocks
     if not (df['endCpG'] - df['startCpG'] > 0).all():
-        eprint('Some blocks are empty (no CpGs)')
+        b2b_log('Some blocks are empty (no CpGs)')
         return False
 
     # no overlaps between blocks
     if not (df['startCpG'][1:].values - df['endCpG'][:df.shape[0] - 1].values  >= 0).all():
-        eprint('Some blocks overlap')
+        b2b_log('Some blocks overlap')
         return False
 
     return True
@@ -49,7 +52,7 @@ def is_block_file_nice(df):
 
 def load_blocks_file(blocks_path):
     if not op.isfile(blocks_path):
-        eprint('Invalid blocks file:', blocks_path)
+        b2b_log('Invalid blocks file:', blocks_path)
         raise IllegalArgumentError('No blocks file')
 
     names = ['chr', 'start', 'end', 'startCpG', 'endCpG']
@@ -117,7 +120,7 @@ def dump(df, reduced_data, beta_path, lbeta, out_dir, bedGraph):
     suff = '.lbeta' if lbeta else '.bin'
     prefix = op.join(out_dir, op.splitext(op.basename(beta_path))[0])
     trim_to_uint8(reduced_data, lbeta).tofile(prefix + suff)
-    eprint(prefix + suff)
+    b2b_log(prefix + suff)
 
     # dump to bed
     if bedGraph:
@@ -137,7 +140,7 @@ def main():
     validate_files_list(files, '.beta')
 
     # load blocks:
-    # eprint('load blocks...')
+    # b2b_log('load blocks...')
     df = load_blocks_file(args.blocks_file)
     is_nice = is_block_file_nice(df)
     p = Pool(args.threads)
