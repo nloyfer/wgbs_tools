@@ -113,7 +113,7 @@ class Bam2Pat:
     def validate_input(self):
 
         # validate bam path:
-        eprint('bam:', self.bam_path)
+        eprint('[bam2pat] bam:', self.bam_path)
         if not (op.isfile(self.bam_path) and self.bam_path.endswith('.bam')):
             raise IllegalArgumentError('Invalid bam: {}'.format(self.bam_path))
 
@@ -125,7 +125,7 @@ class Bam2Pat:
 
         # check if bam is indexed:
         if not (op.isfile(self.bam_path + '.bai')):
-            eprint('bai file was not found! Generating...')
+            eprint('[bam2pat] bai file was not found! Generating...')
             r = subprocess.call(['samtools', 'index', self.bam_path])
             if r:
                 raise IllegalArgumentError('Failed indexing bam: {}'.format(self.bam_path))
@@ -185,7 +185,7 @@ class Bam2Pat:
             eprint('threads failed')
             return
         if not ''.join(p for p, u in res):
-            eprint('No reads found in bam file. No pat file is generated')
+            eprint('[bam2pat] No reads found in bam file. No pat file is generated')
             return
 
         # Concatenate chromosome files
@@ -202,15 +202,15 @@ class Bam2Pat:
             list(map(os.remove, [x[1] for x in res ]))
 
         # generate beta file and bgzip the pat, unq files:
-        eprint('bgzipping and indexing:')
+        eprint('[bam2pat] bgzipping and indexing:')
         for f in (pat_path, unq_path):
             if not op.isfile(f):
                 continue
             subprocess.call('bgzip -f@ 14 {f} && tabix -fCb 2 -e 2 {f}.gz'.format(f=f), shell=True)
-            eprint('generated {}.gz'.format(f))
+            eprint('[bam2pat] generated {}.gz'.format(f))
 
         beta_path = pat2beta(pat_path + '.gz', self.out_dir, args=self.args)
-        eprint('generated {}.beta'.format(name))
+        eprint('[bam2pat] generated {}.beta'.format(name))
 
 
 def parse_bam2pat_args(parser):
