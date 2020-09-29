@@ -660,7 +660,11 @@ void patter::handlyMethylCountSamLine(std::string line) {
 
 void patter::print_progress(){
     if (line_i && !(line_i % 5000000))
-        std::cerr << "[ " + chr + " ]" << "patter, line " << line_i << std::endl;
+        std::string l = std::to_string(line_i); 
+        if (line_i > 1000000) {
+            l = std::to_string(line_i / 1000000) + "M"
+        }
+        std::cerr << "[patter] [ " + chr + " ]" << " line " << l << std::endl;
 }
 
 std::string get_first_non_empty_line(std::istream& in){
