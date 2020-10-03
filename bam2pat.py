@@ -71,7 +71,7 @@ def pat_unq(out_path, debug, unq):
         return None
 
 
-def proc_chr(input_path, out_path, region, genome, paired_end, ex_flags, mapq, debug, unq):
+def proc_chr(input_path, out_path, region, genome, paired_end, ex_flags, mapq, debug, unq, blueprint):
     """ Convert a temp single chromosome file, extracted from a bam file,
         into two output files: pat and unq."""
 
@@ -94,7 +94,10 @@ def proc_chr(input_path, out_path, region, genome, paired_end, ex_flags, mapq, d
         eprint('[bam2pat] Skipping region {}, no reads found'.format(region))
         return '', ''
 
-    cmd += "{} {} {} > {}".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes, out_path)
+    cmd += "{} {} {} ".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes)
+    if blueprint:
+        cmd += ' --blueprint '
+    cmd += ' > {}'.format(out_path)
     # print(cmd)
     subprocess_wrap(cmd, debug)
 
@@ -115,7 +118,7 @@ class Bam2Pat:
         # validate bam path:
         eprint('[bam2pat] bam:', self.bam_path)
         if not (op.isfile(self.bam_path) and self.bam_path.endswith('.bam')):
-            raise IllegalArgumentError('Invalid bam: {}'.format(self.bam_path))
+            raise IllegalArgumentError('[bam2pat] Invalid bam: {}'.format(self.bam_path))
 
         # check if bam is sorted by coordinate:
         peek_cmd = 'samtools view -H {} | head -1'.format(self.bam_path)
@@ -169,12 +172,14 @@ class Bam2Pat:
 
         name = op.join(self.out_dir, op.basename(self.bam_path)[:-4])
         processes = []
-        with Pool(self.args.threads) as p:
+        # nr_threads = max(1, self.args.threads // 2)
+        nr_threads = self.args.threads  # todo smarted default!
+        with Pool(nr_threads) as p:
             for c in self.set_regions():
                 out_path = name + '_' + c + '.output.tmp'
                 params = (self.bam_path, out_path, c, self.gr.genome,
                           self.is_pair_end(), self.args.exclude_flags,
-                          self.args.mapq, self.debug, self.args.unq)
+                          self.args.mapq, self.debug, self.args.unq, self.args.blueprint)
                 processes.append(p.apply_async(proc_chr, params))
             if not processes:
                 raise IllegalArgumentError('Empty bam file')
@@ -224,6 +229,8 @@ def add_args():
     add_GR_args(parser)
     parser.add_argument('--out_dir', '-o', default='.')
     parser.add_argument('--debug', '-d', action='store_true')
+    parser.add_argument('--blueprint', '-bp', action='store_true', 
+            help='filter bad BS conversion reads if <90% of CHs are converted')
     parser.add_argument('-F', '--exclude_flags', type=int,
                         help='flags to exclude from bam file (samtools view parameter) ' \
                              '[{}]'.format(FLAGS_FILTER), default=FLAGS_FILTER)

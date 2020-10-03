@@ -250,16 +250,60 @@ patter::MethylData compareSeqToRef2(std::string &seq,
     return curRes;
 }
 
+bool validate_seq_bp(std::string &seq, std::string &ref, bool reversed, int margin) {
+    /** if blueprint filter is set, check for bisulfit conversionrate.
+     * Return False if this rate is too low, or if there are not enough CH's 
+     */
+    int nr_conv = 0;
+    int nr_non_conv = 0;
+    if (! reversed) {
+        for (unsigned long j = 0; j < ref.length() - 1; j++) {
+            if ((j < margin) || (j >= seq.size() - margin)) {
+                continue;
+            }
+            if ((ref[j] == 'C') && (ref[j + 1] != 'G')) {
+                if (seq[j] == 'C') {
+                    nr_non_conv++;
+                } else if (seq[j] == 'T') {
+                    nr_conv++;
+                }
+            }
+        }
+    } else {
+        for (unsigned long j = 1; j < ref.length(); j++) {
+            if ((j < margin) || (j >= seq.size() - margin)) {
+                continue;
+            }
+            if ((ref[j] == 'G') && (ref[j + 1] != 'C')) {
+                if (seq[j] == 'G') {
+                    nr_non_conv++;
+                } else if (seq[j] == 'A') {
+                    nr_conv++;
+                }
+            }
+        }
+    }
+    int nr_ch = nr_conv + nr_non_conv;
+    if (nr_ch < 3) {
+        return false;
+    }
+    return (((float) nr_conv / (float) nr_ch) >= 0.9) ? true : false;
+}
 
 int compareSeqToRef(std::string &seq,
                     std::string &ref,
                     bool reversed,
-                    std::string &meth_pattern) {
+                    std::string &meth_pattern,
+                    bool blueprint) {
     /** compare seq string to ref string. generate the methylation pattern, and return
      * the CpG index of the first CpG site in the seq (or -1 if there is none) */
 
     // ignore first/last 'margin' characters, since they are often biased
     size_t margin = 3;
+
+    if (blueprint && !validate_seq_bp(seq, ref, reversed, margin)) {
+        return -2;
+    }
 
     // find CpG indexes on reference sequence
     std::vector<int> cpg_inds;
@@ -515,7 +559,12 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
         } else {
             reversed = ((samflag & 0x0010) == 16);
         }
-        int first_ind = compareSeqToRef(seq, ref, reversed, meth_pattern);
+        int first_ind = compareSeqToRef(seq, ref, reversed, meth_pattern, blueprint);
+
+        if (blueprint && first_ind == -2) {
+            readsStats.nr_bad_conv++;
+            return res;
+        }
 
         // in case read contains no CpG sites:
         if (meth_pattern.empty()) {
@@ -649,6 +698,9 @@ void patter::print_stats_msg() {
     msg += addCommas(line_i - readsStats.nr_empty - readsStats.nr_invalid) + " good, ";
     msg += addCommas(readsStats.nr_empty) + " empty, ";
     msg += addCommas(readsStats.nr_invalid) + " invalid. ";
+    if (blueprint) {
+        msg += addCommas(readsStats.nr_bad_conv) + " bad conversion. ";
+    }
     msg += "(success " + std::to_string(sucess) + "%)\n";
     std::cerr << "[patter] " << msg;
 }
@@ -792,6 +844,33 @@ void patter::action() {
 }
 
 
+/*
+ * Input Arguments Parsering class
+ */
+class InputParser{
+public:
+    InputParser (int &argc, char **argv){
+        for (int i=1; i < argc; ++i)
+            this->tokens.emplace_back(std::string(argv[i]));
+    }
+    const std::string& getCmdOption(const std::string &option) const{
+        std::vector<std::string>::const_iterator itr;
+        itr =  std::find(this->tokens.begin(), this->tokens.end(), option);
+        if (itr != this->tokens.end() && ++itr != this->tokens.end()){
+            return *itr;
+        }
+        static const std::string empty_string;
+        return empty_string;
+    }
+    bool cmdOptionExists(const std::string &option) const{
+        return std::find(this->tokens.begin(), this->tokens.end(), option)
+               != this->tokens.end();
+    }
+private:
+    std::vector <std::string> tokens;
+};
+
+
 int main(int argc, char **argv) {
     clock_t begin = clock();
     try {
@@ -800,15 +879,18 @@ int main(int argc, char **argv) {
 //        std::string bam_path = "/cs/cbio/jon/projects/PyCharmProjects/wgbs_tools/pipeline_wgbs/check_check.sam";
 //        patter p(genome_name, chrom_size_path);
 //        p.action_sam(bam_path);
-        if (argc == 4 && strcmp(argv[3], "bam") == 0) {
-
-            patter p(argv[1], argv[2]);
+        InputParser input(argc, argv);
+        if (argc < 3) {
+            throw std::invalid_argument("Usage: patter GENOME_PATH CPG_CHROM_SIZE_PATH [--bam] ");
+        } else if (argc == 4 && input.cmdOptionExists("--bam")) {
+            patter p(argv[1], argv[2], false);
             p.action_sam("");
-        } else if (argc == 3){
-            patter p(argv[1], argv[2]);
-            p.action();
-        } else
-            throw std::invalid_argument("Usage: patter GENOME_PATH CPG_CHROM_SIZE_PATH or patter GENOME_PATH CPG_CHROM_SIZE_PATH bam");
+        } 
+        bool blueprint = input.cmdOptionExists("--blueprint");
+        patter p(argv[1], argv[2], blueprint);
+        p.action();
+        //} else
+            //throw std::invalid_argument("Usage: patter GENOME_PATH CPG_CHROM_SIZE_PATH [--bam] ");
     }
     catch (std::exception &e) {
         std::cerr << "[patter] Failed! exception:" << std::endl;
