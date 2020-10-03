@@ -22,6 +22,7 @@ struct reads_stats {
     int nr_pairs = 0;
     int nr_empty = 0;
     int nr_invalid = 0;
+    int nr_bad_conv = 0;
 };
 
 class patter {
@@ -35,6 +36,7 @@ public:
     std::string TAGNAMETYPE = "YI:Z:";
     int line_i = 0;
     bool is_paired_end = false;
+    bool blueprint = false;
     bool first_line(std::string &line);
 
     struct MethylData {
@@ -43,7 +45,7 @@ public:
     };
 
 
-    patter(std::string refpath, std::string cspath): ref_path(refpath), chrom_sz_path(cspath) {}
+    patter(std::string refpath, std::string cspath, bool bp): ref_path(refpath), chrom_sz_path(cspath), blueprint(bp) {}
 
     void load_genome_ref();
     int find_cpg_inds_offset();
