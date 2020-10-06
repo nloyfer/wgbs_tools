@@ -149,11 +149,11 @@ def get_pat_cols(pat_path):
     return cols
 
 
-def view_pat_mult_proc(input_file, strict, sub_sample, min_len, grs, i, step, awk, strip):
+def view_pat_mult_proc(input_file, strict, sub_sample, min_len, grs, i, step, awk, strip, genome):
     reads = []
     cgrs = []
     for i in range(i, min(len(grs), i + step)):
-        gr = GenomicRegion(region=grs[i])
+        gr = GenomicRegion(region=grs[i], genome_name=genome)
         if awk:
             try:
                 cmd = ViewPat(input_file, sys.stdout, gr, strict, sub_sample, None, min_len, strip).compose_awk_cmd()
@@ -183,7 +183,8 @@ def view_pat_bed_multiprocess(args, bed_wrapper):
     processes = []
     with Pool() as p:
         for i in range(0, n, step):
-            params = (args.input_file, args.strict, args.sub_sample, args.min_len, regions_lst, i, step, args.awk_engine, args.strip)
+            params = (args.input_file, args.strict, args.sub_sample, args.min_len, regions_lst, i, step,
+                    args.awk_engine, args.strip, args.genome)
             processes.append(p.apply_async(view_pat_mult_proc, params))
         p.close()
         p.join()
