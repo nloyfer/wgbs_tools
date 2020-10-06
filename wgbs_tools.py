@@ -1,4 +1,5 @@
-#!/usr/bin/python3 -u
+#!/usr/bin/env python3 -u
+
 
 import matplotlib
 import os
