@@ -336,7 +336,8 @@ def main():
     try:
         if op.splitext(input_file)[1] in ('.beta', '.lbeta', '.bin'):
             if bed_wrapper:
-                eprint('Warning: ingnoring -L flag')  #TODO implement?
+                eprint('Error: -L flag is not supported for beta files')  #TODO implement?
+                exit(1)
             view_beta(input_file, gr, args.out_path)
         elif input_file.endswith('.pat.gz'):
             if bed_wrapper:
