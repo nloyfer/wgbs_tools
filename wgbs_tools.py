@@ -1,9 +1,10 @@
-#!/usr/bin/env python3 -u
+#!/usr/bin/python3 -u
+#!/usr/bin/env python3
 
 
 import matplotlib
 import os
-if ('SSH_TTY' in os.environ):
+if 'DISPLAY' not in os.environ.keys():
     matplotlib.use('Agg')
 import time
 from datetime import timedelta
@@ -36,7 +37,7 @@ Dependencies:
 samtools
 awk
 
-python3.5
+python3
 numpy
 pandas
 """
@@ -76,7 +77,6 @@ callbacks = OrderedDict(callbacks)
 
 # todo:
 # tests
-# reference setup
 # Add reports to log file / stderr. e.g: % success, # sites covered, # reads extracted etc.
 # translate region <-> sites - optional parsable format  
 # change unq to lpat? 
