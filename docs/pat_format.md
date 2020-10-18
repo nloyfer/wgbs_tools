@@ -27,7 +27,7 @@ The first read covers 4 CpG sites: CpG47 (methylated), CpG48 (methylated), CpG49
 There are 2 reads with this exact pattern, starting at the same site.
 
 
-**Note:** The pat file is sorted by CpG_index column (`sort -k3,3n`), which is different from the UCSC order (`sort -k1,1 -k2,2n`)
+**Note:** The pat file is sorted by CpG_index column (`sort -k2,2n -k3,3`), which is different from the UCSC order (`sort -k1,1 -k2,2n`)
 
 #### compressing and indexing
 The pat file is compressed using [bgzip](http://www.htslib.org/doc/bgzip.html) and indexed using [tabix](http://www.htslib.org/doc/tabix.html) (with a \*csi file). 
