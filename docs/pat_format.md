@@ -4,8 +4,8 @@ A gzipped tab separated text file with at least four columns: chromosome, CpG_in
 Each line in the file stands for a read (molecule). 
 
 * **chrom**: value is a string from _{chr1, chr2, …, chrX, chrY, chrM}_
-* **CpG_index**: integer in range [1,NR_SITES]. The index of the first site occurring on the current read.
-The pat file is sorted by this column. In [hg19](https://genome.ucsc.edu/cgi-bin/hgGateway?db=hg19 "hg19 in UCSC"), NR_SITES == 28,217,448.
+* **CpG_index**: integer in range `[1,NR_SITES]`. The index of the first site occurring on the current read.
+The pat file is sorted by this column. In [hg19](https://genome.ucsc.edu/cgi-bin/hgGateway?db=hg19 "hg19 in UCSC"), `NR_SITES == 28,217,448`.
 
 
 * **methylation pattern**: a string representing the methylation pattern of all consecutive CpG sites in the current read. 
