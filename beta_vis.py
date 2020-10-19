@@ -53,9 +53,11 @@ class BetaVis:
     def build_vals_line(self, data):
 
         # build a list of single character values.
-        data[data[:, 1] == 0] = np.nan
-        data = (data[:, 0] / data[:, 1] * 9)  # normalize to range [0, 10)
-        vals = [MISSING_VAL if np.isnan(x) else str(int(x)) for x in data]
+        with np.errstate(divide='ignore', invalid='ignore'):
+            vec = np.round((data[:, 0] / data[:, 1] * 10), 0).astype(int)  # normalize to range [0, 10)
+        vec[vec == 10] = 9
+        vec[data[:, 1] == 0] = -1
+        vals = [MISSING_VAL if x == -1 else str(int(x)) for x in vec]
 
         # insert distances:
         if self.distances is not None:
