@@ -14,6 +14,8 @@
 #include <regex>
 #include <unordered_map>
 #include <sstream>      // std::stringstream
+#include <iomanip>      // std::setprecision
+
 
 
 #define MAX_PAT_LEN 300
@@ -35,6 +37,7 @@ public:
     reads_stats readsStats;
     std::string TAGNAMETYPE = "YI:Z:";
     int line_i = 0;
+    clock_t tick = clock();
     bool is_paired_end = false;
     bool blueprint = false;
     bool first_line(std::string &line);
