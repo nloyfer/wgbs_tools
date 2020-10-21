@@ -150,7 +150,8 @@ void action() {
              log_pref += "[ " + line2tokens(line)[2] + " ] ";
         }
         data.push_back(line);
-        if (line_i && (line_i % 10000 == 0)) {
+        //if (line_i && (line_i % 10000 == 0)) {
+        if (line_i && (line_i % 2000 == 0)) {
 
             // flush data only if positions of first and last reads are far apart
             // This is rarely an issue. But sometimes in extremely high mappability 
