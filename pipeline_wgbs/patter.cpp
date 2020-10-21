@@ -722,7 +722,12 @@ void patter::handlyMethylCountSamLine(std::string line) {
 
 void patter::print_progress(){
     if (line_i && !(line_i % 5000000)){
-        std::cerr << "[patter] [ " + chr + " ]" << " line " << addCommas(line_i) << std::endl;
+    //if (line_i && !(line_i % 100000)){
+        clock_t tock = clock();
+        double elapsed_secs = double(tock - tick) / (CLOCKS_PER_SEC * 60);
+        tick = tock;
+        std::cerr << "[patter] [ " + chr + " ]" << " line " << addCommas(line_i) 
+            << " in " << std::setprecision(2) << elapsed_secs << " minutes." << std::endl;
     }
 }
 
