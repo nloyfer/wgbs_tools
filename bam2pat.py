@@ -40,12 +40,14 @@ def subprocess_wrap(cmd, debug):
             raise IllegalArgumentError('Failed')
 
 
-def pat_unq(out_path, debug, unq):
+def pat_unq(out_path, debug, unq, temp_dir):
     try:
         # sort
         tmp_path = out_path + '.tmp'
 
         cmd = "sort " + out_path + " -k2,2n -k3,3 -o " + tmp_path
+        if temp_dir:
+            cmd += ' -T {} '.format(temp_dir)
         subprocess_wrap(cmd, debug)
 
         # break output file into pat and unq:
@@ -58,6 +60,8 @@ def pat_unq(out_path, debug, unq):
         unq_path = out_path + UNQ_SUFF
         if unq:
             cmd = "sort {} -k4,4n -k3,3 -o {}".format(out_path, tmp_path)
+            if temp_dir:
+                cmd += ' -T {} '.format(temp_dir)
             subprocess_wrap(cmd, debug)
             cmd = 'awk \'{print $1,$4,$5,$3}\' ' + tmp_path + ' | uniq -c | awk \'{OFS="\\t"; print $2,$3,$4,$5,$1}\' > ' + \
                   unq_path
@@ -71,7 +75,7 @@ def pat_unq(out_path, debug, unq):
         return None
 
 
-def proc_chr(input_path, out_path, region, genome, paired_end, ex_flags, mapq, debug, unq, blueprint):
+def proc_chr(input_path, out_path, region, genome, paired_end, ex_flags, mapq, debug, unq, blueprint, temp_dir):
     """ Convert a temp single chromosome file, extracted from a bam file,
         into two output files: pat and unq."""
 
@@ -101,7 +105,7 @@ def proc_chr(input_path, out_path, region, genome, paired_end, ex_flags, mapq, d
     # print(cmd)
     subprocess_wrap(cmd, debug)
 
-    return pat_unq(out_path, debug, unq)
+    return pat_unq(out_path, debug, unq, temp_dir)
 
 
 class Bam2Pat:
@@ -179,7 +183,7 @@ class Bam2Pat:
                 out_path = name + '_' + c + '.output.tmp'
                 params = (self.bam_path, out_path, c, self.gr.genome,
                           self.is_pair_end(), self.args.exclude_flags,
-                          self.args.mapq, self.debug, self.args.unq, self.args.blueprint)
+                          self.args.mapq, self.debug, self.args.unq, self.args.blueprint, args.temp_dir)
                 processes.append(p.apply_async(proc_chr, params))
             if not processes:
                 raise IllegalArgumentError('Empty bam file')
@@ -229,14 +233,15 @@ def add_args():
     add_GR_args(parser)
     parser.add_argument('--out_dir', '-o', default='.')
     parser.add_argument('--debug', '-d', action='store_true')
-    parser.add_argument('--blueprint', '-bp', action='store_true', 
-            help='filter bad BS conversion reads if <90% of CHs are converted')
+    parser.add_argument('--blueprint', '-bp', action='store_true',
+            help='filter bad BS conversion reads if <90 percent of CHs are converted')
     parser.add_argument('-F', '--exclude_flags', type=int,
                         help='flags to exclude from bam file (samtools view parameter) ' \
                              '[{}]'.format(FLAGS_FILTER), default=FLAGS_FILTER)
     parser.add_argument('-q', '--mapq', type=int,
                         help='Minimal mapping quality (samtools view parameter) [{}]'.format(MAPQ),
                         default=MAPQ)
+    parser.add_argument('-T', '--temp_dir', help='passed to unix sort. Useful in case bam file is very large')
     add_multi_thread_args(parser)
 
     return parser
