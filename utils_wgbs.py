@@ -24,6 +24,7 @@ MAX_PAT_LEN = 150  # maximal read length in sites
 MAX_READ_LEN = 1000  # maximal read length in bp
 
 default_blocks_path = '/cs/cbio/netanel/blocks/outputs/blocks.s150.p15.bed.gz'  # todo: not generic
+default_blocks_path = '/cs/cbio/netanel/blocks/outputs/blocks.s216.bed.gz'  # todo: not generic
 
 main_script = DIR + 'wgbs_tools.py'
 
