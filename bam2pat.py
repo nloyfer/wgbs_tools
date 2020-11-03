@@ -183,7 +183,7 @@ class Bam2Pat:
                 out_path = name + '_' + c + '.output.tmp'
                 params = (self.bam_path, out_path, c, self.gr.genome,
                           self.is_pair_end(), self.args.exclude_flags,
-                          self.args.mapq, self.debug, self.args.unq, self.args.blueprint, args.temp_dir)
+                          self.args.mapq, self.debug, self.args.unq, self.args.blueprint, self.args.temp_dir)
                 processes.append(p.apply_async(proc_chr, params))
             if not processes:
                 raise IllegalArgumentError('Empty bam file')
