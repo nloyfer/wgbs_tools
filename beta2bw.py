@@ -2,6 +2,7 @@
 
 import argparse
 import os.path as op
+import sys
 import subprocess
 from utils_wgbs import delete_or_skip, load_beta_data2, validate_files_list, load_dict, GenomeRefPaths, beta2vec, \
     eprint, add_GR_args, IllegalArgumentError, load_dict_section, BedFileWrap
@@ -14,6 +15,8 @@ BW_EXT = '.bigwig'
 COV_BG_EXT = '_cov' + BG_EXT
 COV_BW_EXT = '_cov' + BW_EXT
 
+def b2bw_log(*args, **kwargs):
+    print('[ wt beta_to_bigwig ]', *args, file=sys.stderr, **kwargs)
 
 class BetaToBigWig:
     def __init__(self, args):
@@ -32,7 +35,7 @@ class BetaToBigWig:
         Load CpG.bed.gz file (table of all CpG loci)
         :return: DataFrame with columns ['chr', 'start', 'end']
         """
-        eprint('loading dict...')
+        b2bw_log('loading dict...')
         if self.args.bed_file:
             region = '-R ' + self.args.bed_file
         else:
@@ -69,7 +72,7 @@ class BetaToBigWig:
         return barr
 
     def run_beta_to_bed(self, beta_path):
-        eprint('{}'.format(op.basename(beta_path)))
+        b2bw_log('{}'.format(op.basename(beta_path)))
         prefix = self.set_prefix(beta_path)
         out_bed = prefix + '.bed'
         if not delete_or_skip(out_bed, self.args.force):
@@ -94,7 +97,7 @@ class BetaToBigWig:
         return prefix
 
     def run_beta_to_bw(self, beta_path):
-        eprint('{}'.format(op.basename(beta_path)))
+        b2bw_log('{}'.format(op.basename(beta_path)))
 
         prefix = self.set_prefix(beta_path)
         out_bigwig = prefix + BW_EXT
@@ -111,7 +114,7 @@ class BetaToBigWig:
 
         # dump coverage:
         if self.args.dump_cov:
-            eprint('Dumping cov...')
+            b2bw_log('Dumping cov...')
             self.ref_dict['cov'] = barr[:, 1]
             sort_and_dump_df(self.ref_dict[self.ref_dict['cov'] >= self.args.min_cov], cov_bed_graph)
             del self.ref_dict['cov']
@@ -119,7 +122,7 @@ class BetaToBigWig:
             self.bed_graph_to_bigwig(cov_bed_graph, cov_bigwig)
 
         # dump beta values to bedGraph
-        eprint('Dumping beta vals...')
+        b2bw_log('Dumping beta vals...')
         self.ref_dict['beta'] = np.round(beta2vec(barr, na=-1), 3)
         if self.args.remove_nan:
             self.ref_dict = self.ref_dict[self.ref_dict['beta'] != -1]
