@@ -7,7 +7,7 @@ import argparse
 import subprocess
 import re
 from multiprocessing import Pool
-from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args, eprint, add_multi_thread_args
+from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args, eprint, add_multi_thread_args, mult_safe_remove
 from init_genome_ref_wgbs import chromosome_order
 from pat2beta import pat2beta
 from genomic_region import GenomicRegion
@@ -67,8 +67,7 @@ def pat_unq(out_path, debug, unq, temp_dir):
                   unq_path
             subprocess_wrap(cmd, debug)
 
-        os.remove(out_path)
-        os.remove(tmp_path)
+        mult_safe_remove([out_path, tmp_path])
 
         return pat_path, unq_path
     except IllegalArgumentError as e:
@@ -205,10 +204,9 @@ class Bam2Pat:
             os.system('cat ' + ' '.join([u for p, u in res]) + ' > ' + unq_path)  # unq
 
         # remove all small files
-        # list(map(os.remove, [x for l in res for x in l]))
-        list(map(os.remove, [x[0] for x in res ]))
+        mult_safe_remove([x[0] for x in res])
         if self.args.unq:
-            list(map(os.remove, [x[1] for x in res ]))
+            mult_safe_remove([x[1] for x in res])
 
         # generate beta file and bgzip the pat, unq files:
         eprint('[bam2pat] bgzipping and indexing:')
