@@ -334,6 +334,14 @@ def splitextgz(input_file):
     return b, suff
 
 
+def safe_remove(fpath):
+    if op.isfile(fpath):
+        os.remove(fpath)
+
+def mult_safe_remove(files):
+    for f in files:
+        safe_remove(f)
+
 def delete_or_skip(output_file, force):
     """
     If file exists, and force==True, remove it
@@ -347,9 +355,7 @@ def delete_or_skip(output_file, force):
         return True
     if op.isfile(output_file):
         if force:
-            os.remove(output_file)
-            if op.isfile(output_file + '.csi'):
-                os.remove(output_file + '.csi')
+            mult_safe_remove([output_file, output_file + '.csi'])
         else:
             msg = 'File {} already exists. Skipping it.'.format(output_file)
             msg += 'Use [-f] flag to force overwrite.'
