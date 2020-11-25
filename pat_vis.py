@@ -11,11 +11,15 @@ import sys
 str2int = {'C': 2, 'T': 3, '.': 4, 'D': 5}
 int2str = {2: 'C', 3: 'T', 4: '.', 5: 'D', 1: ' ', 0: ''}
 
-num2color_dict = {
-    'C': '31',  # red
-    'T': '92'   # green
-}
+# num2color_dict = {
+    # 'C': '31',  # red
+    # 'T': '32'   # green
+# }
 
+num2color_dict = {
+    'C': '01;31',  # red
+    'T': '01;32'   # green
+}
 
 class PatVis:
     def __init__(self, args, file):
