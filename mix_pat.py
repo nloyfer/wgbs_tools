@@ -17,7 +17,7 @@ import multiprocessing
 class Mixer:
 
     def __init__(self, args):
-        print('in mixer')
+        eprint('mixing...')
         self.args = args
         self.gr = GenomicRegion(args)
         self.pats = args.pat_files
@@ -71,7 +71,7 @@ class Mixer:
                 v += ' -s {}-{}'.format(*self.gr.sites)
             v += ' --sub_sample {}'.format(self.adj_rates[i])
             view_flags.append(v)
-        print('prefix:', prefix_i)
+        eprint('prefix:', prefix_i)
         m = MergePats(self.pats, prefix_i, self.labels, args=self.args)
         m.fast_merge_pats(view_flags=view_flags)
 
@@ -94,7 +94,7 @@ class Mixer:
             raise IllegalArgumentError('Sum(rates) == {} != 1'.format(np.sum(rates)))
 
         if np.min(rates) < 0 or np.max(rates) > 1:
-            raise IllegalArgumentError('rates must be in range (0, 1)')
+            raise IllegalArgumentError('rates must be in range [0, 1)')
 
         self.add_stats_col('ReqstRates', rates)
         return rates
