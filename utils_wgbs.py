@@ -14,8 +14,10 @@ DIR = op.dirname(os.path.realpath(__file__)) + '/'
 SRC_DIR = DIR + 'src/'
 pat_sampler = SRC_DIR + 'pat_sampler/pat_sampler'
 PAT2BETA_TOOL = SRC_DIR + 'pat2beta/stdin2beta'
+PAT2RHO_TOOL = SRC_DIR + 'pat2beta/stdin2rho'
 collapse_pat_script = SRC_DIR + 'collapse_pat.pl'
 segment_tool = SRC_DIR + 'segment_betas/segmentor'
+pat_segment_tool = SRC_DIR + 'segment_pats/pat_segmentor'
 
 match_maker_tool = DIR + 'pipeline_wgbs/match_maker'
 patter_tool = DIR + 'pipeline_wgbs/patter'
@@ -156,7 +158,7 @@ def add_GR_args(parser, required=False, bed_file=False):
 
 
 def add_multi_thread_args(parser):
-    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
+    parser.add_argument('-@', '--threads', type=int, default=1,#multiprocessing.cpu_count(),
                         help='Number of threads to use (default: multiprocessing.cpu_count)')
 
 
