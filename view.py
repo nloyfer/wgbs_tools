@@ -123,7 +123,7 @@ class ViewPat:
                        ' print $1,s,pat,$4,$5,$6;}\' '.replace('%s', str(start)).replace('%e', str(end))
             if self.min_len > 1:
                 cmd += ' | awk \'{(OFS="\t"); if (length($3) >= %m) {print $1,$2,$3,$4,$5,$6}}\' '.replace('%m', str(self.min_len))
-        if self.sub_sample:  # sub-sample reads
+        if self.sub_sample is not None:  # sub-sample reads
             cmd += ' | {} {} '.format(pat_sampler, self.sub_sample)
         return cmd
 
@@ -292,7 +292,7 @@ def parse_args():
     add_GR_args(parser, bed_file=True)
     parser.add_argument('-o', '--out_path', type=argparse.FileType('w'), default=sys.stdout,
                         help='Output path. [stdout]')
-    parser.add_argument('--sub_sample', type=float, metavar='(0.0, 1.0)',
+    parser.add_argument('--sub_sample', type=float, metavar='[0.0, 1.0]',
                         help='pat: subsample from reads. Only supported for pat')
     parser.add_argument('--strict', action='store_true',
                         help='pat: Truncate reads that start/end outside the given region. '
@@ -327,8 +327,8 @@ def main():
     input_file = args.input_file
     validate_single_file(input_file)
 
-    if args.sub_sample is not None and not 1 > args.sub_sample > 0:
-        eprint('sub-sampling rate must be within (0.0, 1.0)')
+    if args.sub_sample is not None and not 1 >= args.sub_sample >= 0:
+        eprint('sub-sampling rate must be within [0.0, 1.0]')
         return
 
     bed_wrapper = BedFileWrap(args.bed_file) if args.bed_file else None
