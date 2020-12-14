@@ -8,18 +8,15 @@ import os.path as op
 import sys
 
 
-str2int = {'C': 2, 'T': 3, '.': 4, 'D': 5}
-int2str = {2: 'C', 3: 'T', 4: '.', 5: 'D', 1: ' ', 0: ''}
-
-# num2color_dict = {
-    # 'C': '31',  # red
-    # 'T': '32'   # green
-# }
+str2int = {'C': 2, 'T': 3, '.': 4, 'D': 5, 'X': 6}
+int2str = {2: 'C', 3: 'T', 4: '.', 5: 'D', 1: ' ', 0: '', 6: 'X'}
 
 num2color_dict = {
-    'C': '01;31',  # red
-    'T': '01;32'   # green
+    'C': '31',  # red
+    'T': '92',   # green
+    'X': '33'
 }
+
 
 class PatVis:
     def __init__(self, args, file):
@@ -34,6 +31,7 @@ class PatVis:
         self.max_width = self.end - self.start + 2 * MAX_PAT_LEN  # maximal width of the output (in characters)
         self.blocks_path = args.blocks_path
         self.no_dense = args.no_dense
+        self.uxm = args.uxm
 
         self.fullres = self.get_block()
 
@@ -88,6 +86,8 @@ class PatVis:
         if not self.no_color:
             txt = color_text(txt, num2color_dict)
 
+        if self.uxm:
+            print("U, X, M: ({}, {}, {})".format(res['uxm'][0], res['uxm'][1], res['uxm'][2]))
         print(markers)
         print(txt)
 
@@ -102,12 +102,18 @@ class PatVis:
         table = np.zeros((df['count'].sum() + 1, self.max_width), dtype=np.int8)
         first_to_show = df.loc[0, 'start']
         row = -1
+        u_count = 0
+        m_count = 0
+        x_count = 0
 
         for idx, read in df.iterrows():
             # _, read_start, patt, count = row
             read_start = int(read[1])
             patt = read[2]
             count = int(read[3])
+
+            u_sites = 0
+            m_sites = 0
 
             # perform multiple times for reads with count > 1, but no more than "max_reps" times:
             for c in range(min(self.max_reps, count)):
@@ -129,9 +135,35 @@ class PatVis:
 
                 # insert read and spaces:
                 for j, l in enumerate(patt):
-                    table[row, col + j] = str2int[l]
+                    if self.uxm:
+                        if l == 'C':
+                            m_sites += 1
+                        elif l == 'T':
+                            u_sites += 1
+                    else:
+                        table[row, col + j] = str2int[l]
                 table[row, :col][table[row, :col] == 0] = 1
                 table[row, col + len(patt)] = 1
+                if self.uxm:
+                    total = u_sites + m_sites
+                    u_prop = u_sites / total if total > 0 else 0
+                    m_prop = m_sites / total if total > 0 else 0
+                    is_u = u_prop >= self.uxm
+                    is_m = m_prop >= self.uxm
+                    if is_u:
+                        u_count += 1
+                    elif is_m:
+                        m_count += 1
+                    else:
+                        x_count += 1
+                    for j, l in enumerate(patt):
+                        if is_u:
+                            table[row, col + j] = str2int['T']
+                        elif is_m:
+                            table[row, col + j] = str2int['C']
+                        else:
+                            table[row, col + j] = str2int['X']
+
 
         nr_lines = int(np.argmin(table[:, 0]))
         width = np.max(np.argmin(table, axis=1))
@@ -156,7 +188,8 @@ class PatVis:
                    'text': res,
                    'width': width,
                    'table': table,
-                   'score': calc_score(df)}
+                   'score': calc_score(df),
+                   'uxm': (u_count, x_count, m_count)}
         return fullres
 
 
@@ -175,4 +208,3 @@ def main(args):
     for pat_file in args.input_files:
         print(splitextgz(op.basename(pat_file))[0])     # print file name
         PatVis(args, pat_file).print_results()
-
