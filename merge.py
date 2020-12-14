@@ -2,7 +2,7 @@
 
 import argparse
 from utils_wgbs import validate_files_list, splitextgz, delete_or_skip, trim_to_uint8, load_beta_data, \
-    collapse_pat_script, IllegalArgumentError, main_script, eprint
+    collapse_pat_script, IllegalArgumentError, main_script, eprint, add_GR_args
 import subprocess
 import numpy as np
 import os.path as op
@@ -19,7 +19,20 @@ class MergePats:
         self.labels = labels
 
     def merge_pats(self):
-        self.fast_merge_pats()
+        view_flags = []
+        for i in range(len(self.pats)):
+            v = ' --awk '
+            if self.args.strict:
+                v += ' --strict'
+            if self.args.min_len:
+                v += ' --min_len {}'.format(self.args.min_len)
+            if self.args.bed_file is not None:
+                v += ' -L {}'.format(self.args.bed_file)
+            # v += ' -@ {}'.format(max(1, len(self.pats) // 16))
+            view_flags.append(v)
+        if not view_flags:
+            view_flags = None
+        self.fast_merge_pats(view_flags)
 
     def compose_view_cmd(self, i, view_flags):
         if view_flags is None:
@@ -47,6 +60,7 @@ class MergePats:
         cmd += ' | {} - '.format(collapse_pat_script)
         cmd += ' | bgzip > {}.gz'.format(self.out_nogzip)
         cmd = '/bin/bash -c "{}"'.format(cmd)
+        # eprint(cmd)
         subprocess.check_call(cmd, shell=True)
 
         if not op.isfile(self.out_nogzip + '.gz'):
@@ -84,6 +98,12 @@ def parse_args():
     # parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--labels', nargs='+', help='labels for the mixed reads. '
                                                     'Default is None')
+    add_GR_args(parser, bed_file=True)
+    parser.add_argument('--min_len', type=int, default=None,
+                        help='consider only reads covering at least MIN_LEN CpG sites [1]')
+    parser.add_argument('--strict', action='store_true', help='Truncate reads that start/end outside the given region. '
+                                                              'Only relevant if "region", "sites" '
+                                                              'or "bed_file" flags are given.')
 
     args = parser.parse_args()
     return args
