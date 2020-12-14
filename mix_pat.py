@@ -109,6 +109,8 @@ class Mixer:
                 pat2beta(pat, op.dirname(pat), args=self.args, force=True)
             if self.bed:
                 cov = beta_cov_by_bed(beta, self.bed)
+            elif self.args.bed_cov:
+                cov = beta_cov_by_bed(beta, BedFileWrap(self.args.bed_cov))
             else:
                 cov = beta_cov(beta, self.gr.sites, print_res=True)
             covs.append(cov)
@@ -138,12 +140,13 @@ def single_mix(i, m):
 
 def mult_mix(args):
     m = Mixer(args)
+    m.print_rates()
     with Pool(args.threads) as p:
         for i in range(args.reps):
             p.apply_async(single_mix, (i, m))
         p.close()
         p.join()
-    m.print_rates()
+    # m.print_rates()
 
 
 ##########################
@@ -156,6 +159,7 @@ def mult_mix(args):
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('pat_files', nargs='+', help='Two or more pat files')
+    parser.add_argument('--bed_cov', help='calculate coverage on this bed file regions only') # todo: remove or validate file exists etc.
     parser.add_argument('-c', '--cov', type=float,
                         help='Coverage of the output pat. '
                              'Default the coverage of the file with the highest rate. '
