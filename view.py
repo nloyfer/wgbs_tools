@@ -93,7 +93,7 @@ class ViewPat:
         df = read_shell(self.build_cmd(),
                         names=get_pat_cols(self.pat_path))  # todo use for loop for large sections (or full file)
         if df.empty:
-            eprint('empty')
+            # eprint('empty')
             return df
         if self.gr.sites is not None:
             start, _ = self.gr.sites
@@ -172,7 +172,41 @@ def view_pat_mult_proc(input_file, strict, sub_sample, min_len, grs, i, step, aw
     return reads, cgrs
 
 
+
 def view_pat_bed_multiprocess(args, bed_wrapper):
+    if not bed_wrapper:
+        raise IllegalArgumentError('bed file is None')
+
+    full_regions_lst = list(bed_wrapper.fast_iter_regions())
+    bigstep = 100
+    for ch in range(0, len(full_regions_lst), bigstep):
+        regions_lst = full_regions_lst[ch:ch + bigstep]
+
+        n = len(regions_lst)
+        # eprint(args.input_file, ch)
+        step = max(1, n // args.threads)
+
+        processes = []
+        with Pool() as p:
+            for i in range(0, n, step):
+                params = (args.input_file, args.strict, args.sub_sample, args.min_len, regions_lst, i, step,
+                        args.awk_engine, args.strip, args.genome)
+                processes.append(p.apply_async(view_pat_mult_proc, params))
+            p.close()
+            p.join()
+        # res = [sec.decode() for pr in processes for sec in pr.get()]
+        for pr in processes:
+            for reads, regions in zip(*pr.get()):
+                if args.print_region:
+                    args.out_path.write(str(regions) + '\n')
+                if not reads: # if the current region has no CpGs
+                    continue
+                args.out_path.write(reads)
+
+
+
+
+def view_pat_bed_multiprocess2(args, bed_wrapper):
     if not bed_wrapper:
         raise IllegalArgumentError('bed file is None')
 
