@@ -3,7 +3,7 @@
 import numpy as np
 import os.path as op
 import argparse
-from utils_wgbs import load_beta_data, add_GR_args, BedFileWrap
+from utils_wgbs import load_beta_data, add_GR_args, BedFileWrap, eprint
 import multiprocessing
 from genomic_region import GenomicRegion
 
@@ -37,13 +37,23 @@ def pretty_name(beta_path):
     return op.splitext(op.basename(beta_path))[0]
 
 
-def beta_cov_by_bed(beta_path, bed_wrapper):
+def beta_cov_by_bed2(beta_path, bed_wrapper):
     nr_sites = 0
     total_cov = 0
     for gr in bed_wrapper.iter_grs():
         table = load_beta_data(beta_path, gr.sites)[:, 1]
         nr_sites += table.size
         total_cov += table.sum()
+    return total_cov / nr_sites if nr_sites else 0
+
+def beta_cov_by_bed(beta_path, bed_wrapper):
+    nr_sites = 0
+    total_cov = 0
+    vec = load_beta_data(beta_path)[:, 1].flatten()
+    for sites in bed_wrapper.cheat_sites():
+        start, end = sites
+        nr_sites += end - start
+        total_cov += np.sum(vec[start - 1:end - 1])
     return total_cov / nr_sites if nr_sites else 0
 
 
