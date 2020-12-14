@@ -100,6 +100,14 @@ class BedFileWrap:
         for _, r in self.df.iterrows():
             yield '{}:{}-{}'.format(*r)
 
+    def cheat_sites(self):
+        df = pd.read_csv(self.bed_path, usecols=[3, 4], sep='\t',
+                          names=['startCpG', 'endCpG'], header=None, comment='#')
+        for _, r in df.iterrows():
+            yield (r[0], r[1])
+
+
+
 
 def validate_dir(directory):
     if not op.isdir(directory):
