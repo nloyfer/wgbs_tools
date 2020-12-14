@@ -32,8 +32,12 @@ def parse_args():  # todo: seperate args parsing for beta and pat
     parser.add_argument('--no_dense', action='store_true',
                         help='pat: Do not squeeze multiple reads to every line.\n'
                              'Each read appears in a different line.')
+    parser.add_argument('--uxm', type=float, default=None,
+                        help='Pat vis: Float between 0 and 1 where reads with methylation proportion above'
+                             ' this value will be displayed as fully methylated, reads with unmethylated CpG site proporiton below 1 - value will be displayed as fully unmethylated,'
+                             ' or otherwise as X. ')
     add_GR_args(parser, required=True)
-    return parser.parse_args()
+    return parser.parse_args(), parser
 
 
 def main():
@@ -44,7 +48,9 @@ def main():
         - One or more beta files
     """
 
-    args = parse_args()
+    args, parser = parse_args()
+    if args.uxm and not (args.uxm <= 1 and args.uxm >= 0):
+        parser.error("uxm value must be between 0 and 1")
     file_type = splitextgz(args.input_files[0])[1]
 
     # print title
