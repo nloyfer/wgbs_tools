@@ -3,7 +3,6 @@
 #### Dependencies
 - samtools
 - python 3+
-- c++ boost library
 
 
 #### Quick start
