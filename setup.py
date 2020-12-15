@@ -26,7 +26,8 @@ def compile_single(cmd, name, verbose):
     if p.returncode:
         eprint("Failed compilation.\nCommand: {}\nreturn code: {}\nstderr:\n{}\nstdout:\n{}".
                format(cmd, p.returncode, output.decode(), error.decode()))
-        raise RuntimeError('Failed compiling {}'.format(name))
+        eprint('Failed compiling {}'.format(name))
+        # raise RuntimeError('Failed compiling {}'.format(name))
 
     # If succeeded:
     elif verbose:
