@@ -53,9 +53,14 @@ class PatVis:
             charar[:] = ' '
             ctable = np.concatenate([ctable, charar], axis=1)
 
+        # shift the blocks to the right in case there are trailing read heads
+        borders += markers.find('+')
+
         # insert the borders:
         table = np.insert(ctable, borders, '|', axis=1)
         txt = '\n'.join(''.join(line) for line in table)
+
+        # insert the borders to the markers line:
         rmark = ''
         j = 0
         for i in range(ctable.shape[1] + 1):
