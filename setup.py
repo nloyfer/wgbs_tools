@@ -97,6 +97,11 @@ def validate_file(file):
     # validate_file(ilmn2cpg_dict)
     # return
 
+# TODO:
+# 1. blocks file: make a symbolic link to references/genome/blocks.bed.gz[.tbi]
+#    Maybe even upload an ultra compressed (diffs) version of the latest hg19 blocks to GitHub.
+# 2. add shebang line to wgbs_tools.py. Maybe add it to PATH, or add instructions in the README.md
+# 3. Annotaions.gz file - same as blocks.
 
 def main():
     args = parse_args()
