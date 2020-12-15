@@ -6,15 +6,20 @@ from genomic_region import GenomicRegion
 from view import ViewPat
 import os.path as op
 import sys
+import argparse
+from utils_wgbs import splitextgz, add_GR_args, default_blocks_path
 
 
 str2int = {'C': 2, 'T': 3, '.': 4, 'D': 5, 'X': 6}
-int2str = {2: 'C', 3: 'T', 4: '.', 5: 'D', 1: ' ', 0: '', 6: 'X'}
+int2str = {2: 'C', 3: 'T', 4: '.', 5: 'D', 1: ' ', 0: ''}
+int2strUXM = {2: 'M', 3: 'U', 6: 'X', 1: ' '}
 
 num2color_dict = {
     'C': '01;31',  # red
     'T': '01;32',   # green
-    'X': '01;33'
+    'X': '01;33',
+    'M': '01;31',
+    'U': '01;32',
 }
 
 
@@ -70,7 +75,17 @@ class PatVis:
         if not res:
             return
         if res['score'] != 'NA':
-            print('Methylation average: {}%'.format(res['score']))
+            if self.uxm:
+                u_thresh = round((1- self.uxm)*100, 2)
+                m_thresh = round(self.uxm*100, 2)
+                u_thresh = str(int(u_thresh)) if u_thresh == int(u_thresh) else str(u_thresh)
+                m_thresh = str(int(m_thresh)) if m_thresh == int(m_thresh) else str(m_thresh)
+                to_print = 'Methylation average: {}%, UXM {}/{} [{}/{}/{}]'.format(res['score'], u_thresh, m_thresh,
+                                                                                   res['uxm'][0], res['uxm'][1],
+                                                                                   res['uxm'][2])
+            else:
+                to_print = 'Methylation average: {}%'.format(res['score'])
+            print(to_print)
 
         # Markers for sites of interest:
         markers = ' ' * (self.start - res['start']) + '+' * (self.end - self.start)
@@ -85,9 +100,6 @@ class PatVis:
         # Color text
         if not self.no_color:
             txt = color_text(txt, num2color_dict)
-
-        if self.uxm:
-            print("U, X, M: ({}, {}, {})".format(res['uxm'][0], res['uxm'][1], res['uxm'][2]))
         print(markers)
         print(txt)
 
@@ -177,8 +189,14 @@ class PatVis:
 
         # Translate ints table to characters table
         table = table.astype(np.str)
-        for key in int2str.keys():
-            table = np.core.defchararray.replace(table, str(key), int2str[key])
+        if self.uxm:
+            keys = int2strUXM.keys()
+            letterMap = int2strUXM
+        else:
+            keys = int2str.keys()
+            letterMap = int2str
+        for key in keys:
+            table = np.core.defchararray.replace(table, str(key), letterMap[key])
 
         # Convert table to one long string
         res = '\n'.join([''.join(row) for row in table])
@@ -208,3 +226,42 @@ def main(args):
     for pat_file in args.input_files:
         print(splitextgz(op.basename(pat_file))[0])     # print file name
         PatVis(args, pat_file).print_results()
+
+
+def parse_args():  # todo: seperate args parsing for beta and pat
+    parser = argparse.ArgumentParser(description=main.__doc__)
+    parser.add_argument('input_files', nargs='+', help='A pat.gz file or one or more beta files')
+    parser.add_argument('-d', '--dists', action='store_true', help='print results with distances (kind of log scale)')
+    parser.add_argument('-t', '--title', help='A text to be printed before the results.')
+    parser.add_argument('-o', '--output', help='beta vis: save plot to file')
+    parser.add_argument('-b', '--blocks_path', help='Display blocks borders. If [-b] is specified with no '
+                                                    'blocks path, default blocks are used.',
+                        nargs='?', const=default_blocks_path, default=False)
+    parser.add_argument("--no_color", action='store_true', help='Print without colors.')
+    #parser.add_argument('--debug', action='store_true', help='debug')
+    parser.add_argument('--strict', action='store_true', help='Truncate reads that start/end outside the given region. '
+                                                              'Only relevant for pat files.')
+    parser.add_argument('--strip', action='store_true',
+                        help='pat: Remove trailing dots (from beginning/end of reads).')
+    parser.add_argument('--max_reps', '-m', type=int, default=10,
+                        help='Pat vis: Display a read at most "max_reps" times, '
+                             'if it is repeating itself. [10]')
+    parser.add_argument('--min_len', type=int, default=1,
+                        help='Pat vis: Display only reads covering at least MIN_LEN CpG sites [1]')
+    parser.add_argument('--color_scheme', '-cs', type=int, default=256,
+                        help='beta vis: Color scheme. Possible values: 16 or 256 [256]')
+    parser.add_argument('--plot', action='store_true', help='beta vis: plot results in a heatmap.')
+    parser.add_argument('--no_dense', action='store_true',
+                        help='pat: Do not squeeze multiple reads to every line.\n'
+                             'Each read appears in a different line.')
+    parser.add_argument('--uxm', type=float, default=None,
+                        help='Pat vis: Float between 0 and 1 where reads with methylation proportion above'
+                             ' this value will be displayed as fully methylated, reads with unmethylated CpG site proporiton below 1 - value will be displayed as fully unmethylated,'
+                             ' or otherwise as X. ')
+    add_GR_args(parser, required=True)
+    return parser.parse_args(), parser
+
+
+if __name__ == '__main__':
+    args, parser = parse_args()
+    main(args)
