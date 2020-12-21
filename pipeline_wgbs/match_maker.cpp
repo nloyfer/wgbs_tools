@@ -143,6 +143,7 @@ void action() {
     std::ostream &outfile(std::cout);
 
     int line_i = 0;
+    clock_t begin = clock();
     std::string log_pref = "[match maker] ";
 //    std::ios_base::sync_with_stdio(false);  // improves reading speed by x70
     for (std::string line; std::getline(std::cin, line) && (line_i > -1); line_i++) {
@@ -162,7 +163,10 @@ void action() {
             }
 
             //if (line_i % 1000000 == 0) {
-                //std::cerr  << log_pref << " line " << addCommas(line_i) << std::endl;
+                //clock_t end = clock();
+                //double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+                //clock_t begin = end;
+                //std::cerr  << log_pref << " line " << addCommas(line_i) << " " << elapsed_secs << std::endl;
             //}
         }
     }
