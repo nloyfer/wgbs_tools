@@ -111,7 +111,7 @@ class ViewPat:
     def compose_awk_cmd(self):
         cmd = self.build_cmd()
         if self.strip:
-            eprint('WARNING: strip flag not supported with awk_engine. Ignoring it')
+            eprint('[wt view] WARNING: strip flag not supported with awk_engine. Ignoring it')
         if self.gr.chrom:
             start, end = self.gr.sites
             cmd += ' | awk \'{if ($2 + length($3) > %s) {print;}}\' ' % start
@@ -138,14 +138,17 @@ class ViewPat:
 
 
 def get_pat_cols(pat_path):
-    cols = list(PAT_COLS)
-    peek = pd.read_csv(pat_path, sep='\t', nrows=1, header=None)
-    # validate fields:
-    chrom, site, pat, count = peek.values[0][:4]
-    if not (str(site).isdigit() and str(count).isdigit() and set(pat) <= set('.CT')):
-        eprint('WARNING: Invalid first line in pat file:', peek.values)
-    while len(peek.columns) > len(cols):
-        cols += ['tag{}'.format(len(cols) - len(PAT_COLS) + 1)]
+    try:
+        cols = list(PAT_COLS)
+        peek = pd.read_csv(pat_path, sep='\t', nrows=1, header=None)
+        # validate fields:
+        chrom, site, pat, count = peek.values[0][:4]
+        if not (str(site).isdigit() and str(count).isdigit() and set(pat) <= set('.CT')):
+            eprint('[wt view] WARNING: Invalid first line in pat file:', peek.values)
+        while len(peek.columns) > len(cols):
+            cols += ['tag{}'.format(len(cols) - len(PAT_COLS) + 1)]
+    except pd.errors.EmptyDataError as e:
+        eprint('[wt view] WARNING: Empty pat file')
     return cols
 
 
