@@ -46,8 +46,8 @@ class BetaVis:
     def load_data(self):
         # raw table from *beta files:
         dsets = np.zeros((len(self.files), self.nr_sites, 2))
-        for i, file in enumerate(self.files):
-            dsets[i] = load_beta_data(file, (self.start, self.end))
+        for i, fpath in enumerate(self.files):
+            dsets[i] = load_beta_data(fpath, (self.start, self.end))
         return dsets
 
     def build_vals_line(self, data):
@@ -78,12 +78,12 @@ class BetaVis:
     def print_all(self):
         print(self.gr)
 
-        # set the fixed number of characters for file names:
+        # set the fixed number of characters for fpath names:
         fname_len = min(NR_CHARS_PER_FNAME, max([len(op.basename(op.splitext(f)[0])) for f in self.files]))
 
-        for dset, file in zip(self.dsets, self.files):
+        for dset, fpath in zip(self.dsets, self.files):
             line = self.build_vals_line(dset)
-            adj_fname = op.splitext(op.basename(file))[0][:fname_len].ljust(fname_len)
+            adj_fname = op.splitext(op.basename(fpath))[0][:fname_len].ljust(fname_len)
             print(adj_fname + ': ' + line)
 
     def plot_all(self):
