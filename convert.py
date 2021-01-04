@@ -33,6 +33,8 @@ def load_bed(bed_path, nrows):
 def chr_thread(df, chrom, cf, genome):
     # eprint(chrom)
 
+    # we don't need duplicates here (they'll be back in reorder_to_original)
+    df.drop_duplicates(subset=COORDS_COLS, inplace=True)
     rf = load_dict_section(chrom, genome).sort_values('start')
 
     # starts:
