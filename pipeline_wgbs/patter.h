@@ -79,7 +79,6 @@ public:
     void action_sam(std::string samFilePath);
     void handle_action_sam_line(std::string line_str, bool first_in_pair);
     std::string samLineMethyldataMakeString(std::string originalLine, patter::MethylData md);
-    void merge_and_print(std::vector<std::string> l1, std::vector<std::string> l2);
     void proc_sam_in_stream(std::istream& in);
     patter::MethylData merge_and_count_methyl_data(std::vector <std::string> l1, std::vector <std::string> l2);
     void proc2lines(std::vector<std::string> tokens1, std::vector<std::string> tokens2);
