@@ -43,12 +43,6 @@ void print_vec(std::vector <std::string> &vec) {
     std::cerr << std::endl;
 }
 
-void vec2string(std::vector <std::string> &vec) {
-    /** print a 5 items vector to stdout, tab separated */
-    if (vec.size() == 5)  // vec length must be either 5 or 0.
-        std::cout << vec[0] + TAB + vec[1] + TAB + vec[2] + TAB + vec[3] + TAB + vec[4] << std::endl;
-}
-
 
 std::string addCommas(int num) {
     auto s = std::to_string(num);
@@ -289,21 +283,16 @@ bool validate_seq_bp(std::string &seq, std::string &ref, bool reversed, int marg
     return (((float) nr_conv / (float) nr_ch) >= 0.9) ? true : false;
 }
 
-int strip_pat(std::string &pat, std::vector<int> cpg_inds) {
+int strip_pat(std::string &pat) {
     // remove dots from the tail (e.g. CCT.C.... -> CCT.C)
-    //std::cerr << "orig: " << pat << ", first locus: " << cpg_inds[0] <<  std::endl;
     pat = pat.substr(0, pat.find_last_not_of('.') + 1);
-    //std::cerr << "no tail: " << pat << std::endl;
-    if (pat == "") {
-        return -1;
-    }
+    if (pat == "") { return -1; }
     // remove dots from the head (..CCT -> CCT)
     int pos = pat.find_first_not_of('.');
     if (pos > 0) {
         pat = pat.substr(pos, pat.length() - pos);
     }
-    //std::cerr << "no head: " << pat << std::endl;
-    return cpg_inds[pos];
+    return pos;
 }
 
 int patter::compareSeqToRef(std::string &seq,
@@ -358,8 +347,7 @@ int patter::compareSeqToRef(std::string &seq,
         meth_pattern.push_back(cur_status);
     }
 
-    //return cpg_inds[0];
-    return strip_pat(meth_pattern, cpg_inds);
+    return cpg_inds[strip_pat(meth_pattern)];
 }
 
 
@@ -368,6 +356,10 @@ std::vector <std::string> merge(std::vector <std::string> l1, std::vector <std::
     /** Merge 2 complementary lines to a single output.
      * each line has the following fields: [chr, startCpG, pat, start_bp, read_len_bp]
      * One or more of the lines may be empty */
+
+    // if one of the lines is empty - return the other
+    if (l1.empty()) { return l2; }
+    if (l2.empty()) { return l1; }
 
     // Swap lines s.t l1 starts before l2
     if (stoi(l1[1]) > stoi(l2[1])) {
@@ -399,37 +391,26 @@ std::vector <std::string> merge(std::vector <std::string> l1, std::vector <std::
         if (merged_pat[adj_i] == '.') {   // this site was missing from read1
             merged_pat[adj_i] = pat2[i];
         } else if ((pat2[i] != '.') && (merged_pat[adj_i] != pat2[i])) {
-            // read1 and read2 disagree. treat this case as a missing value for now
+            // read1 and read2 disagree, and none of them is missing ('.').
+            // treat this case as a missing value for now
             // future work: consider only the read with the higher quality.
             merged_pat[adj_i] = '.';
         }
     }
-    l1[1] = std::to_string(start1);
+    // strip merged pat:
+    int pos = strip_pat(merged_pat);
+    if (pos < 0 ) { return {}; }
+    l1[1] = std::to_string(start1 + pos);
     l1[2] = merged_pat;
     return l1;
 }
 
-void patter::merge_and_print(std::vector <std::string> l1, std::vector <std::string> l2) {
-    /** Merge 2 complementary lines to a single output.
-     * each line has the following fields: [chr, startCpG, pat, start_bp, read_len_bp]
-     * One or more of the lines may be empty */
-
-    //  First line is empty
-    if (l1.empty()) {
-        return vec2string(l2);
-    }
-    // Second line is empty
-    if (l2.empty()) {
-        return vec2string(l1);
-    }
-    l1 = merge(l1, l2);
-    vec2string(l1);
-}
-
-patter::MethylData meth_pattern_count(std::string meth_pattern) {
-    patter::MethylData res;
+patter::MethylData meth_pattern_count(std::vector<std::string> tokens) {
+    patter::MethylData res = {};
+    if (tokens.empty()) { return res; }
     int countMethyl = 0;
     int countUnmethyl = 0;
+    std::string meth_pattern = tokens[2];
     for (int i = 0; i < meth_pattern.length(); i++){
         char cur_char = meth_pattern[i];
         if(cur_char == METH){
@@ -456,15 +437,15 @@ patter::MethylData patter::merge_and_count_methyl_data(std::vector <std::string>
         return res;
     }
     if (l1.empty()) {
-        return meth_pattern_count(l2[2]);
+        return meth_pattern_count(l2);
     }
     if (l2.empty()) {
-        return meth_pattern_count(l1[2]);
+        return meth_pattern_count(l1);
     }
 
     l1 = merge(l1, l2);
     //2 is the index of the meth_pattern
-    return meth_pattern_count(l1[2]);
+    return meth_pattern_count(l1);
 }
 
 std::string patter::samLineMethyldataMakeString(std::string originalLine, patter::MethylData md) {
@@ -619,7 +600,7 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
 void patter::proc2lines(std::vector <std::string> tokens1,
                         std::vector <std::string> tokens2) {
 
-    std::vector <std::string> l1, l2;
+    std::vector <std::string> l1, l2, res;
 
     /** print result to stdout */
     try {
@@ -632,7 +613,14 @@ void patter::proc2lines(std::vector <std::string> tokens1,
         l1 = samLineToPatVec(tokens1);
         l2 = samLineToPatVec(tokens2);
 
-        merge_and_print(l1, l2);
+        // Merge 2 complementary lines to a single output. 
+        res = merge(l1, l2);
+        if (res.empty()) { return; } 
+
+        // print to stdout
+        for (auto &j: res)
+            std::cout << j << TAB;
+        std::cout << std::endl;
     }
     catch (std::exception &e) {
         std::string msg = "[ " + chr + " ] Exception while merging. lines ";
