@@ -12,6 +12,7 @@ from init_genome_ref_wgbs import chromosome_order
 from pat2beta import pat2beta
 from genomic_region import GenomicRegion
 
+blacklist='/cs/cbio/netanel/tools/wgbs_tools/references/hg19/hg19-blacklist.v2.bed'
 PAT_SUFF = '.pat'
 UNQ_SUFF = '.unq'
 
@@ -84,20 +85,23 @@ def proc_chr(input_path, out_path, region, genome, paired_end, ex_flags, mapq, d
 
     # use samtools to extract only the reads from 'chrom'
     flag = '-f 3' if paired_end else ''
-    cmd = "samtools view {} {} -q {} -F {} {} | ".format(input_path, region, mapq, ex_flags, flag)
+    cmd = "samtools view {} {} -q {} -F {} {} ".format(input_path, region, mapq, ex_flags, flag)
+    if op.isfile(blacklist):
+        cmd += f' -b | bedtools intersect -sorted -v -abam stdin -b {blacklist} | samtools view '
     if debug:
-        cmd += ' head -200 | '
+        cmd += ' " head -200 '
     if paired_end:
         # change reads order, s.t paired reads will appear in adjacent lines
-        cmd += "{} | ".format(match_maker_tool)
+        cmd += " | {} ".format(match_maker_tool)
 
     # first, if there are no reads in current region, return
-    validation_cmd = cmd + ' head -1'
+    validation_cmd = cmd + ' | head -1'
+    txt = subprocess.check_output(validation_cmd, shell=True, stderr=subprocess.PIPE).decode().strip()
     if not subprocess.check_output(validation_cmd, shell=True, stderr=subprocess.PIPE).decode().strip():
         eprint('[bam2pat] Skipping region {}, no reads found'.format(region))
         return '', ''
 
-    cmd += "{} {} {} ".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes)
+    cmd += " | {} {} {} ".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes)
     if blueprint:
         cmd += ' --blueprint '
     cmd += ' > {}'.format(out_path)
