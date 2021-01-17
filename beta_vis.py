@@ -79,7 +79,7 @@ class BetaVis:
         print(self.gr)
 
         # set the fixed number of characters for fpath names:
-        fname_len = min(NR_CHARS_PER_FNAME, max([len(op.basename(op.splitext(f)[0])) for f in self.files]))
+        fname_len = min(NR_CHARS_PER_FNAME, max([len(op.basename(op.splitext(f)[0])) for f in self.files])) + 1
 
         for dset, fpath in zip(self.dsets, self.files):
             line = self.build_vals_line(dset)
