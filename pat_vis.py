@@ -63,6 +63,8 @@ class PatVis:
         # insert the borders to the markers line:
         rmark = ''
         j = 0
+        # todo: add | signs to header
+
         for i in range(ctable.shape[1] + 1):
             if table[0][i] == '|':
                 rmark += '|'
