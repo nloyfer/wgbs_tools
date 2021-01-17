@@ -133,7 +133,7 @@ void patter::load_genome_ref() {
     }
     // Was the reference sequence loaded? (not empty)
     if ((long) genome_ref.length() != fai_numbers[0]) {
-        std::cerr << "[patter] " << chr << "'s length is " << genome_ref.length() << " != " << fai_numbers[0] << std::endl;
+        std::cerr << "[ patter ] " << chr << "'s length is " << genome_ref.length() << " != " << fai_numbers[0] << std::endl;
         throw std::invalid_argument(" Error: Reference genome's length is wrong. chromosome " + chr);
     }
 
@@ -256,11 +256,11 @@ bool validate_seq_bp(std::string &seq, std::string &ref, bool reversed, int marg
      */
     int nr_conv = 0;
     int nr_non_conv = 0;
+    // case 1 - read 1 (not reversed)
     if (! reversed) {
         for (unsigned long j = 0; j < ref.length() - 1; j++) {
-            if ((j < margin) || (j >= seq.size() - margin)) {
-                continue;
-            }
+            // skip margins
+            if ((j < margin) || (j >= seq.size() - margin)) { continue; }
             if ((ref[j] == 'C') && (ref[j + 1] != 'G')) {
                 if (seq[j] == 'C') {
                     nr_non_conv++;
@@ -269,11 +269,10 @@ bool validate_seq_bp(std::string &seq, std::string &ref, bool reversed, int marg
                 }
             }
         }
-    } else {
+    } else { // case 2 - read 2 (reversed)
         for (unsigned long j = 1; j < ref.length(); j++) {
-            if ((j < margin) || (j >= seq.size() - margin)) {
-                continue;
-            }
+            // skip margins
+            if ((j < margin) || (j >= seq.size() - margin)) { continue; }
             if ((ref[j] == 'G') && (ref[j + 1] != 'C')) {
                 if (seq[j] == 'G') {
                     nr_non_conv++;
@@ -290,20 +289,35 @@ bool validate_seq_bp(std::string &seq, std::string &ref, bool reversed, int marg
     return (((float) nr_conv / (float) nr_ch) >= 0.9) ? true : false;
 }
 
-int compareSeqToRef(std::string &seq,
-                    std::string &ref,
-                    bool reversed,
-                    std::string &meth_pattern,
-                    bool blueprint) {
+int strip_pat(std::string &pat, std::vector<int> cpg_inds) {
+    // remove dots from the tail (e.g. CCT.C.... -> CCT.C)
+    //std::cerr << "orig: " << pat << ", first locus: " << cpg_inds[0] <<  std::endl;
+    pat = pat.substr(0, pat.find_last_not_of('.') + 1);
+    //std::cerr << "no tail: " << pat << std::endl;
+    if (pat == "") {
+        return -1;
+    }
+    // remove dots from the head (..CCT -> CCT)
+    int pos = pat.find_first_not_of('.');
+    if (pos > 0) {
+        pat = pat.substr(pos, pat.length() - pos);
+    }
+    //std::cerr << "no head: " << pat << std::endl;
+    return cpg_inds[pos];
+}
+
+int patter::compareSeqToRef(std::string &seq,
+                            std::string &ref,
+                            bool reversed,
+                            std::string &meth_pattern) {
     /** compare seq string to ref string. generate the methylation pattern, and return
      * the CpG index of the first CpG site in the seq (or -1 if there is none) */
 
     // ignore first/last 'margin' characters, since they are often biased
     size_t margin = 3;
 
-    if (blueprint && !validate_seq_bp(seq, ref, reversed, margin)) {
-        return -2;
-    }
+    // blueprint filter
+    if (blueprint && !validate_seq_bp(seq, ref, reversed, margin)) { return -2; }
 
     // find CpG indexes on reference sequence
     std::vector<int> cpg_inds;
@@ -312,8 +326,11 @@ int compareSeqToRef(std::string &seq,
             cpg_inds.push_back(j);
         }
     }
-    if (cpg_inds.empty()) {
-        return -1;
+    if (cpg_inds.empty()) { return -1; }
+
+    // sanity check: is read length larger than MAX_READ_LEN? avoid segmentaion fault when updating mbias arrays
+    if (ref.length() > MAX_READ_LEN) {
+        throw std::invalid_argument("[ patter ] Error: read is too long");
     }
 
     // generate the methylation pattern (e.g 'CC.TC'),
@@ -321,35 +338,31 @@ int compareSeqToRef(std::string &seq,
     char REF_CHAR = reversed ? 'G' : 'C';
     char UNMETH_SEQ_CHAR = reversed ? 'A' : 'T';
     int shift = reversed ? 1 : 0;
+    int mbias_ind = reversed ? 1 : 0;
 
     char cur_status;
     for (unsigned long j: cpg_inds) {
         j += shift;
         char s = seq[j];
         cur_status = UNKNOWN;
-        if ((j >= margin) && (j < seq.size() - margin)) {
-            if (s == UNMETH_SEQ_CHAR)
-                cur_status = UNMETH;
-            else if (s == REF_CHAR)
-                cur_status = METH;
+        if (s == UNMETH_SEQ_CHAR) {
+            cur_status = UNMETH;
+            mbias[mbias_ind].unmeth[j]++;
+        } else if (s == REF_CHAR) {
+            cur_status = METH;
+            mbias[mbias_ind].meth[j]++;
+        }
+        if (!((j >= margin) && (j < seq.size() - margin))) {
+            cur_status = UNKNOWN;
         }
         meth_pattern.push_back(cur_status);
     }
 
-    // an all-dots pattern is equivalent to empty pattern.
-    if (meth_pattern.find_first_not_of('.') == std::string::npos)
-        meth_pattern = "";
-
-
-//    std::cerr << seq << std::endl;
-//    std::cerr << ref << std::endl;
-//    for (auto c: cpg_inds){
-//        std::cerr << c << ", ";
-//    }
-//    std::cerr << std::endl;
-
-    return cpg_inds[0];
+    //return cpg_inds[0];
+    return strip_pat(meth_pattern, cpg_inds);
 }
+
+
 
 std::vector <std::string> merge(std::vector <std::string> l1, std::vector <std::string> l2) {
     /** Merge 2 complementary lines to a single output.
@@ -464,11 +477,11 @@ std::string patter::samLineToSamLineWithMethCounts(std::vector <std::string> tok
         return samLineMethyldataMakeString(originalLine, curRow);
     }
     catch (std::exception &e) {
-        std::string msg = "[patter] [ " + chr + " ] " + "Exception while processing line "
+        std::string msg = "[ patter ] [ " + chr + " ] " + "Exception while processing line "
                           + std::to_string(line_i) + ". Line content: \n";
         std::cerr << msg;
         print_vec(tokens);
-        std::cerr << "[patter] " << e.what() << std::endl;
+        std::cerr << "[ patter ] " << e.what() << std::endl;
         readsStats.nr_invalid++;
     }
     return originalLine; //TODO flag for throw error or print original line
@@ -508,9 +521,9 @@ patter::MethylData patter::samLineToMethCounts(std::vector <std::string> tokens,
     catch (std::exception &e) {
         std::string msg = "[ " + chr + " ] " + "Exception while processing line "
                           + std::to_string(line_i) + ". Line content: \n";
-        std::cerr << "[patter] " << msg;
+        std::cerr << "[ patter ] " << msg;
         print_vec(tokens);
-        std::cerr << "[patter] " << e.what() << std::endl;
+        std::cerr << "[ patter ] " << e.what() << std::endl;
         readsStats.nr_invalid++;
     }
     return errorres; //TODO throw error
@@ -559,9 +572,9 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
         } else {
             reversed = ((samflag & 0x0010) == 16);
         }
-        int first_ind = compareSeqToRef(seq, ref, reversed, meth_pattern, blueprint);
+        int first_locus = compareSeqToRef(seq, ref, reversed, meth_pattern);
 
-        if (blueprint && first_ind == -2) {
+        if (blueprint && first_locus == -2) {
             readsStats.nr_bad_conv++;
             return res;
         }
@@ -573,7 +586,7 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
         }
 
         // translate first CpG locus to CpG index
-        int start_site = locus2CpGIndex((int) start_locus + first_ind);
+        int start_site = locus2CpGIndex((int) start_locus + first_locus);
 
         // Push results into res vector and return:
         res.push_back(tokens[2]);                                  // chr
@@ -593,9 +606,9 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
     catch (std::exception &e) {
         std::string msg = "[ " + chr + " ] " + "Exception while processing line "
                           + std::to_string(line_i) + ". Line content: \n";
-        std::cerr << "[patter] " << msg;
+        std::cerr << "[ patter ] " << msg;
         print_vec(tokens);
-        std::cerr << "[patter] " << e.what() << std::endl;
+        std::cerr << "[ patter ] " << e.what() << std::endl;
         readsStats.nr_invalid++;
     }
     res.clear();
@@ -624,10 +637,10 @@ void patter::proc2lines(std::vector <std::string> tokens1,
     catch (std::exception &e) {
         std::string msg = "[ " + chr + " ] Exception while merging. lines ";
         msg += std::to_string(line_i) + ". Line content: \n";
-        std::cerr << "[patter] " << msg;
+        std::cerr << "[ patter ] " << msg;
         print_vec(tokens1);
         print_vec(tokens2);
-        std::cerr <<  "[patter] " << e.what() << std::endl;
+        std::cerr <<  "[ patter ] " << e.what() << std::endl;
         return;
     }
 }
@@ -659,10 +672,10 @@ void patter::procPairAddMethylData(std::vector <std::string> tokens1,
     catch (std::exception &e) {
         std::string msg = "[ " + chr + " ] Exception while merging. lines ";
         msg += std::to_string(line_i) + ". Line content: \n";
-        std::cerr << "[patter] " << msg;
+        std::cerr << "[ patter ] " << msg;
         print_vec(tokens1);
         print_vec(tokens2);
-        std::cerr << "[patter] " << e.what() << std::endl;
+        std::cerr << "[ patter ] " << e.what() << std::endl;
         return;
     }
 }
@@ -678,12 +691,28 @@ bool patter::first_line(std::string &line) {
         return (flag & 1);     // file is paired end iff flag 0x1 is on
     }
     catch (std::exception &e) {
-        std::cerr << "[patter] " << "[ " + chr + " ]" << "Invalid first line: \n" << line;
+        std::cerr << "[ patter ] " << "[ " + chr + " ]" << "Invalid first line: \n" << line;
         std::cerr << "\nexception: " << e.what() << std::endl;
         throw e;
     }
 }
 
+
+void patter::dump_mbias() {
+    if (mbias_path == "") { return; }
+
+    std::ofstream mbias_stream(mbias_path);
+    mbias_stream << "read1_meth\tread1_unmeth\tread2_meth\tread2_unmeth\n";
+    for (int pos = 0; pos < MAX_READ_LEN; pos++){
+        for (int i = 0; i < 2; i++ ) {
+            mbias_stream << mbias[i].meth[pos] << "\t";
+            mbias_stream << mbias[i].unmeth[pos];
+            if (i < 1) { mbias_stream << "\t"; }
+        }
+        mbias_stream << "\n";
+    }
+    mbias_stream.close();
+}
 
 void patter::print_stats_msg() {
     /** print informative summary message */
@@ -702,7 +731,7 @@ void patter::print_stats_msg() {
         msg += addCommas(readsStats.nr_bad_conv) + " bad conversion. ";
     }
     msg += "(success " + std::to_string(sucess) + "%)\n";
-    std::cerr << "[patter] " << msg;
+    std::cerr << "[ patter ] " << msg;
 }
 
 void patter::handlyMethylCountSamLine(std::string line) {
@@ -726,7 +755,7 @@ void patter::print_progress(){
         clock_t tock = clock();
         double elapsed_secs = double(tock - tick) / (CLOCKS_PER_SEC * 60);
         tick = tock;
-        std::cerr << "[patter] [ " + chr + " ]" << " line " << addCommas(line_i) 
+        std::cerr << "[ patter ] [ " + chr + " ]" << " line " << addCommas(line_i) 
             << " in " << std::setprecision(2) << elapsed_secs << " minutes." << std::endl;
     }
 }
@@ -846,6 +875,7 @@ void patter::action() {
 
     }
     print_stats_msg();
+    dump_mbias();
 }
 
 
@@ -879,26 +909,20 @@ private:
 int main(int argc, char **argv) {
     clock_t begin = clock();
     try {
-//        std::string genome_name = "/cs/cbio/netanel/tools/wgbs_tools/references/hg19/genome.fa";
-//        std::string chrom_size_path = "/cs/cbio/netanel/tools/wgbs_tools/references/hg19/CpG.chrome.size";
-//        std::string bam_path = "/cs/cbio/jon/projects/PyCharmProjects/wgbs_tools/pipeline_wgbs/check_check.sam";
-//        patter p(genome_name, chrom_size_path);
-//        p.action_sam(bam_path);
         InputParser input(argc, argv);
         if (argc < 3) {
-            throw std::invalid_argument("Usage: patter GENOME_PATH CPG_CHROM_SIZE_PATH [--bam] ");
+            throw std::invalid_argument("Usage: patter GENOME_PATH CPG_CHROM_SIZE_PATH [--bam] [--mbias MBIAS_PATH]");
         } else if (argc == 4 && input.cmdOptionExists("--bam")) {
-            patter p(argv[1], argv[2], false);
+            patter p(argv[1], argv[2], false, "");
             p.action_sam("");
         } 
         bool blueprint = input.cmdOptionExists("--blueprint");
-        patter p(argv[1], argv[2], blueprint);
+        std::string mbias_path = input.getCmdOption("--mbias");
+        patter p(argv[1], argv[2], blueprint, mbias_path);
         p.action();
-        //} else
-            //throw std::invalid_argument("Usage: patter GENOME_PATH CPG_CHROM_SIZE_PATH [--bam] ");
     }
     catch (std::exception &e) {
-        std::cerr << "[patter] Failed! exception:" << std::endl;
+        std::cerr << "[ patter ] Failed! exception:" << std::endl;
         std::cerr << e.what() << std::endl;
         return 1;
     }
