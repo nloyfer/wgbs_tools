@@ -15,10 +15,11 @@
 #include <unordered_map>
 #include <sstream>      // std::stringstream
 #include <iomanip>      // std::setprecision
-
+#include <fstream>
 
 
 #define MAX_PAT_LEN 300
+#define MAX_READ_LEN 2000
 
 struct reads_stats {
     int nr_pairs = 0;
@@ -27,11 +28,18 @@ struct reads_stats {
     int nr_bad_conv = 0;
 };
 
+
+struct mbias_ss {
+    int meth[MAX_READ_LEN] = {0};
+    int unmeth[MAX_READ_LEN] = {0};
+};
+
 class patter {
 public:
     std::string ref_path;
     std::string chrom_sz_path;
     std::string chr;
+    std::string mbias_path;
     std::unordered_map<int, int> dict;
     std::string genome_ref;
     reads_stats readsStats;
@@ -47,15 +55,19 @@ public:
         int originalIndex;
     };
 
+    mbias_ss mbias[2];
 
-    patter(std::string refpath, std::string cspath, bool bp): ref_path(refpath), chrom_sz_path(cspath), blueprint(bp) {}
+    patter(std::string refpath, std::string cspath, bool bp, std::string mb): 
+        ref_path(refpath), chrom_sz_path(cspath), blueprint(bp), mbias_path(mb) {}
 
     void load_genome_ref();
     int find_cpg_inds_offset();
     std::vector<long> fasta_index();
 
 
+    int compareSeqToRef(std::string &seq, std::string &ref, bool reversed, std::string &meth_pattern);
     void print_stats_msg();
+    void dump_mbias();
     void print_progress();
     int locus2CpGIndex(int locus);
     std::string clean_seq(std::string seq, std::string CIGAR);
