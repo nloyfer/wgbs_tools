@@ -40,7 +40,7 @@ class GenomicRegion:
     def add_anno(self):
         if self.args is None or self.is_whole():
             return
-        if self.args.no_anno:
+        if 'no_anno' in self.args and self.args.no_anno:
             return
         anno_path = self.genome.annotations
         if anno_path is None:
