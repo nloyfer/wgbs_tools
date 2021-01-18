@@ -12,7 +12,9 @@ from init_genome_ref_wgbs import chromosome_order
 from pat2beta import pat2beta
 from genomic_region import GenomicRegion
 
-blacklist='/cs/cbio/netanel/tools/wgbs_tools/references/hg19/hg19-blacklist.v2.bed'
+# todo: not generic
+def_blacklist = '/cs/cbio/netanel/tools/wgbs_tools/references/hg19/hg19-blacklist.v2.bed'
+def_whitelist = '/cs/cbio/netanel/tools/wgbs_tools/references/hg19/whitelist.bed'
 PAT_SUFF = '.pat'
 UNQ_SUFF = '.unq'
 
@@ -75,7 +77,8 @@ def pat_unq(out_path, debug, unq, temp_dir):
         return None
 
 
-def proc_chr(input_path, out_path, region, genome, paired_end, ex_flags, mapq, debug, unq, blueprint, temp_dir):
+def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
+             unq, blueprint, temp_dir, blacklist, whitelist):
     """ Convert a temp single chromosome file, extracted from a bam file,
         into two output files: pat and unq."""
 
@@ -85,27 +88,29 @@ def proc_chr(input_path, out_path, region, genome, paired_end, ex_flags, mapq, d
 
     # use samtools to extract only the reads from 'chrom'
     flag = '-f 3' if paired_end else ''
-    cmd = "samtools view {} {} -q {} -F {} {} ".format(input_path, region, mapq, ex_flags, flag)
-    if op.isfile(blacklist):
+    cmd = f'samtools view {bam} {region} -q {mapq} -F {ex_flags} {flag} '
+    if op.isfile(whitelist):
+        cmd += f' -M -L {whitelist} '
+    elif op.isfile(blacklist):
         cmd += f' -b | bedtools intersect -sorted -v -abam stdin -b {blacklist} | samtools view '
     if debug:
         cmd += ' " head -200 '
     if paired_end:
         # change reads order, s.t paired reads will appear in adjacent lines
-        cmd += " | {} ".format(match_maker_tool)
+        cmd += f' | {match_maker_tool} '
 
     # first, if there are no reads in current region, return
     validation_cmd = cmd + ' | head -1'
     txt = subprocess.check_output(validation_cmd, shell=True, stderr=subprocess.PIPE).decode().strip()
     if not subprocess.check_output(validation_cmd, shell=True, stderr=subprocess.PIPE).decode().strip():
-        eprint('[bam2pat] Skipping region {}, no reads found'.format(region))
+        eprint(f'[bam2pat] Skipping region {region}, no reads found')
         return '', ''
 
     cmd += " | {} {} {} ".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes)
     if blueprint:
         cmd += ' --blueprint '
     cmd += ' > {}'.format(out_path)
-    # print(cmd)
+    print(cmd)
     subprocess_wrap(cmd, debug)
 
     return pat_unq(out_path, debug, unq, temp_dir)
@@ -186,7 +191,8 @@ class Bam2Pat:
                 out_path = name + '_' + c + '.output.tmp'
                 params = (self.bam_path, out_path, c, self.gr.genome,
                           self.is_pair_end(), self.args.exclude_flags,
-                          self.args.mapq, self.debug, self.args.unq, self.args.blueprint, self.args.temp_dir)
+                          self.args.mapq, self.debug, self.args.unq, self.args.blueprint,
+                          self.args.temp_dir, self.args.blacklist, self.args.whitelist)
                 processes.append(p.apply_async(proc_chr, params))
             if not processes:
                 raise IllegalArgumentError('Empty bam file')
@@ -244,6 +250,11 @@ def add_args():
                         help='Minimal mapping quality (samtools view parameter) [{}]'.format(MAPQ),
                         default=MAPQ)
     parser.add_argument('-T', '--temp_dir', help='passed to unix sort. Useful in case bam file is very large')
+    lists = parser.add_mutually_exclusive_group()
+    lists.add_argument('--blacklist', help='bed file. Ignore reads overlapping this bed file',
+                        nargs='?', const=def_blacklist, default=False)
+    lists.add_argument('--whitelist', help='bed file. Consider only reads overlapping this bed file',
+                        nargs='?', const=def_whitelist, default=False)
     add_multi_thread_args(parser)
 
     return parser
