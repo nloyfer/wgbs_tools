@@ -253,7 +253,7 @@ def add_args():
     lists = parser.add_mutually_exclusive_group()
     lists.add_argument('--blacklist', help='bed file. Ignore reads overlapping this bed file',
                         nargs='?', const=def_blacklist, default=False)
-    lists.add_argument('--whitelist', help='bed file. Consider only reads overlapping this bed file',
+    lists.add_argument('-L', '--whitelist', help='bed file. Consider only reads overlapping this bed file',
                         nargs='?', const=def_whitelist, default=False)
     add_multi_thread_args(parser)
 
