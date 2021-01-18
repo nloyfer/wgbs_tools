@@ -2,15 +2,13 @@
 #!/usr/bin/env python3
 
 
-import matplotlib
 import os
+import sys
+import matplotlib
 if 'DISPLAY' not in os.environ.keys():
     matplotlib.use('Agg')
-import time
-from datetime import timedelta
 from collections import OrderedDict
 from unittest.mock import patch
-import sys
 from utils_wgbs import IllegalArgumentError, eprint
 from view import main as view_main
 from merge import main as merge_main
@@ -70,16 +68,13 @@ callbacks = [
     ('compare_betas', compare_beta_main),
     ('addMD2Bam', bamAddMethylData_main),
     ('frag_len', frag_len_main),
-    # todo: unq2beta
 ]
 callbacks = OrderedDict(callbacks)
 
-
 # todo:
 # tests
-# Add reports to log file / stderr. e.g: % success, # sites covered, # reads extracted etc.
-# translate region <-> sites - optional parsable format  
-# change unq to lpat? 
+# bam2pat: Add reports to log file / stderr. e.g: % success, # sites covered, # reads extracted etc.
+# convert: translate region <-> sites - optional parsable format  
 # Change wgbs_tools.py to new name, update the print_help method.
 
 
@@ -95,7 +90,11 @@ def print_help(short=False):
     eprint(msg)
 
 
-def run_command():
+def main():
+    if len(sys.argv) < 2 or (len(sys.argv) == 2 and sys.argv[1] in ('-h', '--help')):
+        print_help()
+        return
+
     try:
         command = sys.argv[1]
         if command not in callbacks.keys():
@@ -109,25 +108,6 @@ def run_command():
     except IllegalArgumentError as e:
         eprint('Invalid input argument\n{}'.format(e))
         return 1
-
-
-def time_wrap():
-    sys.argv.remove('--time')
-    start_time = time.time()
-    r = run_command()
-    eprint('time:', timedelta(seconds=time.time() - start_time))
-    return r
-
-
-def main():
-    if len(sys.argv) < 2 or (len(sys.argv) == 2 and sys.argv[1] in ('-h', '--help')):
-        print_help()
-        return
-
-    if '--time' in sys.argv:
-        return time_wrap()
-    else:
-        return run_command()
 
 
 if __name__ == '__main__':
