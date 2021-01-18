@@ -38,21 +38,18 @@ class GenomicRegion:
         self.annotation = self.add_anno()
 
     def add_anno(self):
-        if self.args is None or self.is_whole():
+        if self.args is None or self.is_whole() or 'no_anno' not in self.args:
             return
-        if 'no_anno' in self.args and self.args.no_anno:
+        elif self.args.no_anno:
             return
         anno_path = self.genome.annotations
         if anno_path is None:
             return
         try:
-
             cmd = 'tabix {} {} | cut -f4- | uniq'.format(anno_path, self.region_str)
-            res = subprocess.check_output(cmd, shell=True).decode().strip()
-            return res
+            return subprocess.check_output(cmd, shell=True).decode().strip()
         except subprocess.CalledProcessError:
             eprint('Failed to retrieve annotation for reagion ', self.region_str)
-            return
 
     def parse_sites(self, sites_str):
         """ Parse input of the type -s / --sites (e.g 15-25) """
@@ -169,14 +166,11 @@ class GenomicRegion:
             return 'Whole genome'
         s1, s2 = self.sites
         f, t = self.bp_tuple
-        # res = '{} ({:,} sites, {:,} bp, sites {}-{})'.format(self.region_str, s2 - s1, t - f + 1, s1, s2)
         res = '{} - {:,}bp, {:,}CpGs: {}-{}'.format(self.region_str, t - f + 1, s2 - s1, s1, s2)
         if self.annotation:
             res += '\n' + self.annotation
         return res
 
     def is_whole(self):
-        """
-        :return: True iff no filters (-r, -s) were applied. i.e, this gr is the whole genome.
-        """
+        """ True iff no filters (-r, -s) were applied. i.e, this gr is the whole genome."""
         return self.sites is None
