@@ -42,7 +42,7 @@ def parse_args():  # todo: seperate args parsing for beta and pat
                                                     'blocks path, default blocks are used.',
                         nargs='?', const=default_blocks_path, default=False)
     parser.add_argument("--no_color", action='store_true', help='Print without colors.')
-    add_GR_args(parser, required=True)
+    add_GR_args(parser, required=True, no_anno=True)
     pat_args(parser)
     beta_args(parser)
     return parser
