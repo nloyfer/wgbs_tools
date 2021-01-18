@@ -238,7 +238,6 @@ def main(args):
 def parse_args():  # todo: seperate args parsing for beta and pat
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('input_files', nargs='+', help='A pat.gz file or one or more beta files')
-    parser.add_argument('-d', '--dists', action='store_true', help='print results with distances (kind of log scale)')
     parser.add_argument('-t', '--title', help='A text to be printed before the results.')
     parser.add_argument('-o', '--output', help='beta vis: save plot to file')
     parser.add_argument('-b', '--blocks_path', help='Display blocks borders. If [-b] is specified with no '
