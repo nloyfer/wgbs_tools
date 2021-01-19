@@ -41,7 +41,7 @@ def parse_args():  # todo: seperate args parsing for beta and pat
     parser.add_argument('-t', '--title', help='A text to be printed before the results.')
     parser.add_argument('-b', '--blocks_path', help='Display blocks borders. If [-b] is specified with no '
                                                     'blocks path, default blocks are used.',
-                        nargs='?', const=default_blocks_path, default=False)
+                        nargs='?', const=True, default=False)
     parser.add_argument("--no_color", action='store_true', help='Print without colors.')
     add_GR_args(parser, required=True, no_anno=True)
     pat_args(parser)
