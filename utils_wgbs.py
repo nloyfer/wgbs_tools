@@ -23,7 +23,6 @@ patter_tool = DIR + 'pipeline_wgbs/patter'
 MAX_PAT_LEN = 150  # maximal read length in sites
 MAX_READ_LEN = 1000  # maximal read length in bp
 
-default_blocks_path = '/cs/cbio/netanel/blocks/outputs/blocks.s150.p15.bed.gz'  # todo: not generic
 default_blocks_path = '/cs/cbio/netanel/blocks/outputs/blocks.s216.bed.gz'  # todo: not generic
 
 main_script = DIR + 'wgbs_tools.py'
@@ -44,9 +43,7 @@ class GenomeRefPaths:
         self.revdict_path = self.join('CpG.rev.bin')
         self.genome_path = self.join('genome.fa')
         self.annotations = self.join('annotations.bed.gz', validate=False)
-        if not op.isfile(self.annotations):
-            self.annotations = None
-
+        self.blocks = self.join('blocks.bed.gz', validate=False)
         self.nr_sites = self.count_nr_sites()
 
     def count_nr_sites(self):
@@ -57,8 +54,11 @@ class GenomeRefPaths:
 
     def join(self, fpath, validate=True):
         path = op.join(self.refdir, fpath)
-        if validate and not op.isfile(path):
-            raise IllegalArgumentError('Invalid reference path: ' + path)
+        if not op.isfile(path):
+            if validate:
+                raise IllegalArgumentError('Invalid reference path: ' + path)
+            else:
+                path = None
         return path
 
     def build_dir(self):
@@ -244,16 +244,16 @@ def load_beta_data(beta_path, sites=None):
     return data
 
 
+
 def load_borders(borders_path, gr):
     validate_single_file(borders_path, '.gz')
-    if not (op.isfile(borders_path + '.csi') or op.isfile(borders_path + '.tbi')):
-        eprint('No csi found for file {}. Attempting to index it...'.format(borders_path))
+    if not op.isfile(borders_path + '.tbi'):
+        eprint(f'No tbi found for file {borders_path}. Attempting to index it...')
         from index_wgbs import Indxer
         Indxer(borders_path).run()
 
     cmd = 'tabix {} {}'.format(borders_path, gr.region_str)
     res = subprocess.check_output(cmd, shell=True).decode()
-    # print(cmd)
     df = pd.read_csv(StringIO(res), sep='\t', names=['start', 'end'], header=None, usecols=[3, 4])
     df = df - gr.sites[0]
 
@@ -270,7 +270,6 @@ def load_borders(borders_path, gr):
     borders = borders[borders >= 0]
     borders = borders[borders <= gr.nr_sites]
     return borders
-
 
 def validate_files_list(files, force_suff=None, min_len=1):
     """
