@@ -1,7 +1,7 @@
 #!/usr/bin/python3 -u
 
 import argparse
-from utils_wgbs import add_GR_args, default_blocks_path, eprint
+from utils_wgbs import add_GR_args, eprint
 from beta_vis import main as beta_vis_main
 from pat_vis import main as pat_vis_main
 
