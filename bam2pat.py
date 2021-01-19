@@ -8,7 +8,7 @@ import subprocess
 import re
 from multiprocessing import Pool
 from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args, eprint, \
-        add_multi_thread_args, mult_safe_remove, collapse_pat_script
+        add_multi_thread_args, mult_safe_remove, collapse_pat_script, GenomeRefPaths, validate_single_file
 from init_genome_ref_wgbs import chromosome_order
 from pat2beta import pat2beta
 from genomic_region import GenomicRegion
@@ -77,7 +77,7 @@ def pat_unq(out_path, debug, unq, temp_dir):
 
 
 def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
-             unq, blueprint, temp_dir, blacklist, whitelist):
+             unq, blueprint, temp_dir, blacklist, whitelist, verbose):
     """ Convert a temp single chromosome file, extracted from a bam file,
         into two output files: pat and unq."""
 
@@ -88,12 +88,10 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
     # use samtools to extract only the reads from 'chrom'
     flag = '-f 3' if paired_end else ''
     cmd = f'samtools view {bam} {region} -q {mapq} -F {ex_flags} {flag} '
-    if op.isfile(whitelist):
+    if whitelist:
         cmd += f' -M -L {whitelist} '
-    elif op.isfile(blacklist):
+    elif blacklist:
         cmd += f' -b | bedtools intersect -sorted -v -abam stdin -b {blacklist} | samtools view '
-    elif (blacklist != False) and (whitelist != False):
-        eprint('[bam2pat] WARNING: ignoring whitelist and blacklist files')
     if debug:
         cmd += ' | head -200 '
     if paired_end:
@@ -104,13 +102,16 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
     validation_cmd = cmd + ' | head -1'
     if not subprocess.check_output(validation_cmd, shell=True, stderr=subprocess.PIPE).decode().strip():
         eprint(f'[bam2pat] Skipping region {region}, no reads found')
+        if verbose:
+            eprint('[bam2pat] ' + validation_cmd)
         return '', ''
 
     cmd += " | {} {} {} ".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes)
     if blueprint:
         cmd += ' --blueprint '
     cmd += ' > {}'.format(out_path)
-    # print(cmd)
+    if verbose:
+        print(cmd)
     subprocess_wrap(cmd, debug)
 
     return pat_unq(out_path, debug, unq, temp_dir)
@@ -119,6 +120,7 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
 class Bam2Pat:
     def __init__(self, args):
         self.args = args
+        self.verbose = args.verbose
         self.out_dir = args.out_dir
         self.bam_path = args.bam_path
         self.debug = args.debug
@@ -178,10 +180,28 @@ class Bam2Pat:
 
             return chroms
 
+    def set_lists(self):
+        # black/white lists:
+        blacklist = self.args.blacklist
+        whitelist = self.args.whitelist
+        if blacklist == True:
+            blacklist = GenomeRefPaths(self.args.genome).blacklist
+        elif whitelist == True:
+            whitelist = GenomeRefPaths(self.args.genome).whitelist
+        if blacklist:
+            validate_single_file(blacklist)
+        elif whitelist:
+            validate_single_file(whitelist)
+        if self.verbose:
+            eprint(f'blacklist: {blacklist}')
+            eprint(f'whitelist: {whitelist}')
+        return blacklist, whitelist
+
     def start_threads(self):
         """ Parse each chromosome file in a different process,
             and concatenate outputs to pat and unq files """
 
+        blist, wlist = self.set_lists()
         name = op.join(self.out_dir, op.basename(self.bam_path)[:-4])
         processes = []
         nr_threads = self.args.threads  # todo smarted default!
@@ -191,7 +211,7 @@ class Bam2Pat:
                 params = (self.bam_path, out_path, c, self.gr.genome,
                           self.is_pair_end(), self.args.exclude_flags,
                           self.args.mapq, self.debug, self.args.unq, self.args.blueprint,
-                          self.args.temp_dir, self.args.blacklist, self.args.whitelist)
+                          self.args.temp_dir, blist, wlist, self.verbose)
                 processes.append(p.apply_async(proc_chr, params))
             if not processes:
                 raise IllegalArgumentError('Empty bam file')
@@ -240,6 +260,7 @@ def add_args():
     add_GR_args(parser)
     parser.add_argument('--out_dir', '-o', default='.')
     parser.add_argument('--debug', '-d', action='store_true')
+    parser.add_argument('--verbose', '-v', action='store_true')
     parser.add_argument('--blueprint', '-bp', action='store_true',
             help='filter bad BS conversion reads if <90 percent of CHs are converted')
     parser.add_argument('-F', '--exclude_flags', type=int,
@@ -251,9 +272,9 @@ def add_args():
     parser.add_argument('-T', '--temp_dir', help='passed to unix sort. Useful in case bam file is very large')
     lists = parser.add_mutually_exclusive_group()
     lists.add_argument('--blacklist', help='bed file. Ignore reads overlapping this bed file',
-                        nargs='?', const=def_blacklist, default=False)
+                        nargs='?', const=True, default=False)
     lists.add_argument('-L', '--whitelist', help='bed file. Consider only reads overlapping this bed file',
-                        nargs='?', const=def_whitelist, default=False)
+                        nargs='?', const=True, default=False)
     add_multi_thread_args(parser)
 
     return parser
