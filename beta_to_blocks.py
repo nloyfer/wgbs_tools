@@ -9,7 +9,7 @@ from utils_wgbs import validate_file_list
 import multiprocessing
 from multiprocessing import Pool
 import sys
-from utils_wgbs import load_beta_data, trim_to_uint8, default_blocks_path, GenomeRefPaths, \
+from utils_wgbs import load_beta_data, trim_to_uint8, GenomeRefPaths, \
                         IllegalArgumentError, add_multi_thread_args
 
 
@@ -159,7 +159,7 @@ def main():
 def parse_args():  # todo: add and implement -f 
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('input_files', nargs='+', help='one or more beta files')
-    parser.add_argument('-b', '--blocks_file', help='blocks path', default=default_blocks_path)
+    parser.add_argument('-b', '--blocks_file', help='blocks path', required=True)
     parser.add_argument('-o', '--out_dir', help='output directory. Default is "."', default='.')
     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of bin (uint8)')
     parser.add_argument('--bedGraph', action='store_true', help='output a text file in addition to binary file')
