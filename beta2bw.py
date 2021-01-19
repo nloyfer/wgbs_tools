@@ -4,7 +4,7 @@ import argparse
 import os.path as op
 import sys
 import subprocess
-from utils_wgbs import delete_or_skip, load_beta_data2, validate_files_list, load_dict, GenomeRefPaths, beta2vec, \
+from utils_wgbs import delete_or_skip, load_beta_data2, validate_file_list, GenomeRefPaths, beta2vec, \
     eprint, add_GR_args, IllegalArgumentError, load_dict_section, BedFileWrap
 from genomic_region import GenomicRegion
 import os
@@ -165,7 +165,7 @@ def main():
     Assuming bedGraphToBigWig is installed and in PATH
     """
     args = parse_args()
-    validate_files_list(args.beta_paths, '.beta')
+    validate_file_list(args.beta_paths, '.beta')
 
     b = BetaToBigWig(args)
     for beta in args.beta_paths:

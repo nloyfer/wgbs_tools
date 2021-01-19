@@ -5,7 +5,7 @@ import os.path as op
 import sys
 import pandas as pd
 import numpy as np
-from utils_wgbs import delete_or_skip, splitextgz, trim_to_uint8, validate_files_list, load_dict, eprint, load_dict_section
+from utils_wgbs import delete_or_skip, splitextgz, trim_to_uint8, validate_file_list, load_dict, eprint, load_dict_section
 from genomic_region import GenomicRegion
 
 
@@ -103,7 +103,7 @@ def main():
     """
     # todo: bed or bedGraph?
     args = parse_args()
-    validate_files_list(args.bed_paths)
+    validate_file_list(args.bed_paths)
     bed2betas(args)
 
 
