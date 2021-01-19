@@ -244,9 +244,14 @@ def load_beta_data(beta_path, sites=None):
     return data
 
 
+def load_borders(borders_path, gr, genome):
+    if borders_path == False:
+        return np.array()
+    elif borders_path == True:
+        borders_path = GenomeRefPaths(genome).blocks
+    # else, borders_path is a string
 
-def load_borders(borders_path, gr):
-    validate_single_file(borders_path, '.gz')
+    validate_single_file(borders_path, '.bed.gz')
     if not op.isfile(borders_path + '.tbi'):
         eprint(f'No tbi found for file {borders_path}. Attempting to index it...')
         from index_wgbs import Indxer

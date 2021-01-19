@@ -1,6 +1,7 @@
 #!/usr/bin/python3 -u
 
-from utils_wgbs import load_borders, load_dists, load_beta_data, validate_files_list, color_text, beta2vec
+from utils_wgbs import load_borders, load_dists, load_beta_data, validate_files_list, color_text, \
+        beta2vec
 from genomic_region import GenomicRegion
 import os.path as op
 import numpy as np
@@ -29,7 +30,7 @@ class BetaVis:
         self.dsets = self.load_data()
 
         # load borders:
-        self.borders = load_borders(args.blocks_path, self.gr) if args.blocks_path else None
+        self.borders = load_borders(args.blocks_path, self.gr, args.genome)
 
         # Generate colors dictionary
         self.num2color_dict = generate_colors_dict(args.color_scheme)
@@ -64,7 +65,7 @@ class BetaVis:
             vals = [c + ' ' * d for d, c in zip(self.distances, vals)]
 
         # insert borders:
-        if self.borders is not None:
+        if self.borders:
             # print(len(vals), len(self.borders))
             vals = np.insert(vals, self.borders, '|')
 
