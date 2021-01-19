@@ -1,7 +1,8 @@
 #!/usr/bin/python3 -u
 
 import numpy as np
-from utils_wgbs import MAX_PAT_LEN, validate_files_list, splitextgz, IllegalArgumentError, color_text, load_borders
+from utils_wgbs import MAX_PAT_LEN, validate_files_list, splitextgz, IllegalArgumentError, \
+                       color_text, load_borders
 from genomic_region import GenomicRegion
 from view import ViewPat
 import os.path as op
@@ -36,13 +37,14 @@ class PatVis:
         self.blocks_path = args.blocks_path
         self.no_dense = args.no_dense
         self.uxm = args.uxm
+        self.genome = args.genome
 
         self.fullres = self.get_block()
 
     def insert_borders(self, markers):
         ctable = self.fullres['table']
 
-        borders = load_borders(self.blocks_path, self.gr)# + self.start - self.fullres['start']
+        borders = load_borders(self.blocks_path, self.gr, self.genome)
         if not borders.size:
             return self.fullres['text'], markers
         # pad right columns with space, if there are missing sites before the last border/s
@@ -223,6 +225,7 @@ def calc_score(df):
     ntotal = nm + (df['pat'].str.count('T') * df['count']).sum()
     score = int(100 * nm / ntotal) if ntotal else 'NA'
     return score
+
 
 def main(args):
     validate_files_list(args.input_files, '.pat.gz')
