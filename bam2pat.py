@@ -93,6 +93,8 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
         cmd += f' -M -L {whitelist} '
     elif op.isfile(blacklist):
         cmd += f' -b | bedtools intersect -sorted -v -abam stdin -b {blacklist} | samtools view '
+    elif (blacklist != False) and (whitelist != False):
+        eprint('[bam2pat] WARNING: ignoring whitelist and blacklist files')
     if debug:
         cmd += ' " head -200 '
     if paired_end:
@@ -110,7 +112,7 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
     if blueprint:
         cmd += ' --blueprint '
     cmd += ' > {}'.format(out_path)
-    print(cmd)
+    # print(cmd)
     subprocess_wrap(cmd, debug)
 
     return pat_unq(out_path, debug, unq, temp_dir)
