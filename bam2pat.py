@@ -96,14 +96,13 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
     elif (blacklist != False) and (whitelist != False):
         eprint('[bam2pat] WARNING: ignoring whitelist and blacklist files')
     if debug:
-        cmd += ' " head -200 '
+        cmd += ' | head -200 '
     if paired_end:
         # change reads order, s.t paired reads will appear in adjacent lines
         cmd += f' | {match_maker_tool} '
 
     # first, if there are no reads in current region, return
     validation_cmd = cmd + ' | head -1'
-    txt = subprocess.check_output(validation_cmd, shell=True, stderr=subprocess.PIPE).decode().strip()
     if not subprocess.check_output(validation_cmd, shell=True, stderr=subprocess.PIPE).decode().strip():
         eprint(f'[bam2pat] Skipping region {region}, no reads found')
         return '', ''
