@@ -42,6 +42,8 @@ class GenomeRefPaths:
         self.genome_path = self.join('genome.fa')
         self.annotations = self.join('annotations.bed.gz', validate=False)
         self.blocks = self.join('blocks.bed.gz', validate=False)
+        self.blacklist = self.join('blacklist.bed', validate=False)
+        self.whitelist = self.join('whitelist.bed', validate=False)
         self.nr_sites = self.count_nr_sites()
 
     def count_nr_sites(self):
