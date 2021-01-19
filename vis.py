@@ -5,6 +5,7 @@ from utils_wgbs import add_GR_args, default_blocks_path, eprint
 from beta_vis import main as beta_vis_main
 from pat_vis import main as pat_vis_main
 
+
 def pat_args(parser):
     parser.add_argument('--strict', action='store_true',
                         help='Truncate reads that start/end outside the given region. '
