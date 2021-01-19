@@ -1,7 +1,7 @@
 #!/usr/bin/python3 -u
 
 import argparse
-from utils_wgbs import validate_files_list, add_GR_args
+from utils_wgbs import validate_file_list, add_GR_args
 from beta2bw import BetaToBigWig
 
 
@@ -25,7 +25,7 @@ def main():
     Convert beta file[s] to bed file[s].
     """
     args = parse_args()
-    validate_files_list(args.beta_paths, '.beta')
+    validate_file_list(args.beta_paths, '.beta')
     b = BetaToBigWig(args)
     for beta in args.beta_paths:
         b.run_beta_to_bed(beta)
