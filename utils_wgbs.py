@@ -246,7 +246,7 @@ def load_beta_data(beta_path, sites=None):
 
 def load_borders(borders_path, gr, genome):
     if borders_path == False:
-        return np.array()
+        return np.array([])
     elif borders_path == True:
         borders_path = GenomeRefPaths(genome).blocks
     # else, borders_path is a string
