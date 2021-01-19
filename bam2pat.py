@@ -7,7 +7,8 @@ import argparse
 import subprocess
 import re
 from multiprocessing import Pool
-from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args, eprint, add_multi_thread_args, mult_safe_remove
+from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args, eprint, \
+        add_multi_thread_args, mult_safe_remove, collapse_pat_script
 from init_genome_ref_wgbs import chromosome_order
 from pat2beta import pat2beta
 from genomic_region import GenomicRegion
@@ -32,15 +33,13 @@ def subprocess_wrap(cmd, debug):
     if debug:
         print(cmd)
         return
-    else:
-        os.system(cmd)
-        return
-        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output, error = p.communicate()
-        if p.returncode or not output:
-            eprint(cmd)
-            eprint("Failed with subprocess %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
-            raise IllegalArgumentError('Failed')
+    os.system(cmd)
+    # p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # output, error = p.communicate()
+    # if p.returncode or not output:
+        # eprint(cmd)
+        # eprint("Failed with subprocess %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
+        # raise IllegalArgumentError('Failed')
 
 
 def pat_unq(out_path, debug, unq, temp_dir):
@@ -48,15 +47,15 @@ def pat_unq(out_path, debug, unq, temp_dir):
         # sort
         tmp_path = out_path + '.tmp'
 
-        cmd = "sort " + out_path + " -k2,2n -k3,3 -o " + tmp_path
+        cmd = f'sort {out_path} -k2,2n -k3,3 -o {tmp_path}'
         if temp_dir:
-            cmd += ' -T {} '.format(temp_dir)
+            cmd += f' -T {temp_dir} '
         subprocess_wrap(cmd, debug)
 
         # break output file into pat and unq:
         # pat file:
         pat_path = out_path + PAT_SUFF
-        cmd = 'awk \'{print $1,$2,$3}\' ' + tmp_path + ' | uniq -c | awk \'{OFS="\\t"; print $2,$3,$4,$1}\' > ' + pat_path
+        cmd = 'awk \'BEGIN{OFS="\t"}{print $1,$2,$3,1}\' ' + f'{tmp_path} | {collapse_pat_script} - > {pat_path}'
         subprocess_wrap(cmd, debug)
 
         # unq file:
@@ -185,7 +184,6 @@ class Bam2Pat:
 
         name = op.join(self.out_dir, op.basename(self.bam_path)[:-4])
         processes = []
-        # nr_threads = max(1, self.args.threads // 2)
         nr_threads = self.args.threads  # todo smarted default!
         with Pool(nr_threads) as p:
             for c in self.set_regions():
