@@ -13,9 +13,6 @@ from init_genome_ref_wgbs import chromosome_order
 from pat2beta import pat2beta
 from genomic_region import GenomicRegion
 
-# todo: not generic
-def_blacklist = '/cs/cbio/netanel/tools/wgbs_tools/references/hg19/hg19-blacklist.v2.bed'
-def_whitelist = '/cs/cbio/netanel/tools/wgbs_tools/references/hg19/whitelist.bed'
 PAT_SUFF = '.pat'
 UNQ_SUFF = '.unq'
 
