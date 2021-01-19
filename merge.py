@@ -1,7 +1,7 @@
 #!/usr/bin/python3 -u
 
 import argparse
-from utils_wgbs import validate_files_list, splitextgz, delete_or_skip, trim_to_uint8, load_beta_data, \
+from utils_wgbs import validate_file_list, splitextgz, delete_or_skip, trim_to_uint8, load_beta_data, \
     collapse_pat_script, IllegalArgumentError, main_script, eprint, add_GR_args
 import subprocess
 import numpy as np
@@ -120,7 +120,7 @@ def main():
 
     # validate input files
     input_files = args.input_files
-    validate_files_list(input_files, min_len=2)
+    validate_file_list(input_files, min_len=2)
 
     # construct output path
     out_path = args.prefix + splitextgz(args.input_files[0])[1]
