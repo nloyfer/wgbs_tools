@@ -1,7 +1,7 @@
 #!/usr/bin/python3 -u
 
 import argparse
-from utils_wgbs import validate_files_list, add_GR_args, MAX_READ_LEN, splitextgz, BedFileWrap, eprint
+from utils_wgbs import validate_file_list, add_GR_args, MAX_READ_LEN, splitextgz, BedFileWrap, eprint
 from genomic_region import GenomicRegion
 import subprocess
 import numpy as np
@@ -119,7 +119,7 @@ def main():
     Output to stdout the histogram values if requested
     """
     args = parse_args()
-    validate_files_list(args.unq_paths, 'unq.gz')
+    validate_file_list(args.unq_paths, 'unq.gz')
     multi_FragLen(args)
 
 

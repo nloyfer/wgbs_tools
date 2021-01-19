@@ -156,10 +156,10 @@ def load_dict_section(region, genome_name='hg19'):
 def add_GR_args(parser, required=False, bed_file=False, no_anno=False):
     """ Add genomic regions arguments parsing (flags [-s] and [-r]) """
     region_or_sites = parser.add_mutually_exclusive_group(required=required)
-    region_or_sites.add_argument('-s', "--sites", help='a CpG index range, of the form: "450000-450050"')
-    region_or_sites.add_argument('-r', "--region", help='genomic region of the form "chr1:10,000-10,500"')
+    region_or_sites.add_argument('-s', '--sites', help='a CpG index range, of the form: "450000-450050"')
+    region_or_sites.add_argument('-r', '--region', help='genomic region of the form "chr1:10,000-10,500"')
     if bed_file:
-        region_or_sites.add_argument('-L', "--bed_file", help='Bed file. Columns <chr, start, end>')
+        region_or_sites.add_argument('-L', '--bed_file', help='Bed file. Columns <chr, start, end>')
     parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
     if no_anno:
         parser.add_argument('--no_anno', help='Do not print genomic annotations', action='store_true')
@@ -223,7 +223,7 @@ def load_beta_data2(beta_path, gr=None, bed=None):
 def load_beta_data(beta_path, sites=None):
     suff = op.splitext(beta_path)[1]
     if not (op.isfile(beta_path) and (suff in ('.beta', '.lbeta', '.bin'))):
-        raise IllegalArgumentError("Invalid beta file:\n{}".format(beta_path))
+        raise IllegalArgumentError(f'Invalid beta file:\n{beta_path}')
 
     if suff == '.lbeta':
         sizet = 2
@@ -276,12 +276,12 @@ def load_borders(borders_path, gr, genome):
     borders = borders[borders <= gr.nr_sites]
     return borders
 
-def validate_files_list(files, force_suff=None, min_len=1):
+def validate_file_list(files, force_suff=None, min_len=1):
     """
     Make sure all files exist, and end with the same suffix.
-    If force_suff is given, make sure it's identical (up to a leading '.') to the suffixes of the given files.
+    If force_suff is given (e.g. "beta"), make sure all files ends with it
     If files are pat.gz or unq.gz, make sure their corresponding csi files exist.
-    Make sure list has at least 2 items
+    Make sure list has at least min_len items
     :param files: List of paths of files
     :param force_suff: None or an extension (e.g 'pat.gz', '.beta')
     :param min_len: integer. minimal number of items in the list
@@ -289,48 +289,46 @@ def validate_files_list(files, force_suff=None, min_len=1):
     """
 
     if len(files) < min_len:
-        raise IllegalArgumentError('Input error: at least {} input files must be given'.format(min_len))
+        raise IllegalArgumentError(f'Input error: at least {min_len} input files must be given')
 
     first = files[0]
     if len(first) == 1:
-        raise IllegalArgumentError("Input is not a list of files:", files)
+        raise IllegalArgumentError(f'Input is not a list of files: {files}')
 
-    # split extension of first file:
-    suff = splitextgz(first)[1]
 
-    if force_suff:
-        if suff not in (force_suff, '.' + force_suff):
-            raise IllegalArgumentError("Input files must be of type {}:".format(force_suff), files)
+    if (force_suff is not None) and (not first.endswith(force_suff)):
+        raise IllegalArgumentError(f'Input file {first} must end with {force_suff}')
 
     # validate all files
-    for file in files:
-        validate_single_file(file, suff)
+    suff = splitextgz(first)[1]
+    for fpath in files:
+        validate_single_file(fpath, suff)
 
 
-def validate_single_file(file, suff=None):
+def validate_single_file(fpath, suff=None):
     """
-    Make sure input file is valid:
-        - file exists
+    Make sure input fpath is valid:
+        - fpath exists
         - has the correct suffix
-        - has an index file, (for unq/pat). If not, attempt to create one.
+        - has an index fpath, (for unq/pat). If not, attempt to create one.
     :param suff: 'beta', 'pat.gz' or 'unq.gz'
     """
 
-    if file is None:
+    if fpath is None:
         raise IllegalArgumentError("Input file is None")
 
-    if not (op.isfile(file)):
-        raise IllegalArgumentError("No such file: {}".format(file))
+    if not op.isfile(fpath):
+        raise IllegalArgumentError("No such file: {}".format(fpath))
 
-    if not suff:
-        suff = splitextgz(file)[1]
-    elif not file.endswith(suff):
-        raise IllegalArgumentError("file must end with {}:".format(suff), file)
+    # if not suff:
+        # suff = splitextgz(fpath)[1]
+    if suff is not None and not fpath.endswith(suff):
+        raise IllegalArgumentError(f'file {fpath} must end with {suff}')
 
-    if suff in ('.pat.gz', '.unq.gz') and not op.isfile(file + '.csi'):
-        eprint('No csi found for file {}. Attempting to index it...'.format(file))
+    if fpath.endswith(('.pat.gz', '.unq.gz')) and not op.isfile(fpath + '.csi'):
+        eprint('No csi found for file {}. Attempting to index it...'.format(fpath))
         from index_wgbs import Indxer
-        Indxer(file).run()
+        Indxer(fpath).run()
 
 
 def splitextgz(input_file):

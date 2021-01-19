@@ -1,7 +1,7 @@
 #!/usr/bin/python3 -u
 
 import argparse
-from utils_wgbs import validate_files_list, IllegalArgumentError, splitextgz, add_GR_args, delete_or_skip, \
+from utils_wgbs import validate_file_list, IllegalArgumentError, splitextgz, add_GR_args, delete_or_skip, \
     BedFileWrap, eprint, validate_dir, add_multi_thread_args
 from genomic_region import GenomicRegion
 from merge import MergePats
@@ -201,7 +201,7 @@ def main():
     with an informative name.
     """
     args = parse_args()
-    validate_files_list(args.pat_files, 'pat.gz', 2)
+    validate_file_list(args.pat_files, 'pat.gz', 2)
     mult_mix(args)
     return
 
