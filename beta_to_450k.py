@@ -5,7 +5,7 @@ import sys
 import numpy as np
 import os.path as op
 import pandas as pd
-from utils_wgbs import validate_files_list, load_beta_data, beta2vec, IllegalArgumentError, eprint
+from utils_wgbs import validate_file_list, load_beta_data, beta2vec, IllegalArgumentError, eprint
 from multiprocessing import Pool, cpu_count
 
 ilmn2cpg_dict = '/cs/cbio/netanel/indexes/ilmn2CpG.tsv.gz'  # todo: generate this and put in reference directory?
@@ -86,7 +86,7 @@ def main():
             all values are in range [0, 1], or NaN.
     """
     args = parse_args()
-    validate_files_list(args.input_files, '.beta')
+    validate_file_list(args.input_files, '.beta')
     betas2csv(args)
 
 

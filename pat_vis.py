@@ -1,7 +1,7 @@
 #!/usr/bin/python3 -u
 
 import numpy as np
-from utils_wgbs import MAX_PAT_LEN, validate_files_list, splitextgz, IllegalArgumentError, \
+from utils_wgbs import MAX_PAT_LEN, validate_file_list, splitextgz, IllegalArgumentError, \
                        color_text, load_borders
 from genomic_region import GenomicRegion
 from view import ViewPat
@@ -228,7 +228,7 @@ def calc_score(df):
 
 
 def main(args):
-    validate_files_list(args.input_files, '.pat.gz')
+    validate_file_list(args.input_files, '.pat.gz')
 
     gr = GenomicRegion(args)
     print(gr)

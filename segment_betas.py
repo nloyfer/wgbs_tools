@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import sys
 from utils_wgbs import IllegalArgumentError, eprint, segment_tool, add_GR_args, GenomeRefPaths, \
-                       load_dict_section, validate_files_list , validate_single_file, \
+                       load_dict_section, validate_file_list , validate_single_file, \
                        segment_tool, load_dists, add_multi_thread_args
 from genomic_region import GenomicRegion
 from multiprocessing import Pool
@@ -230,7 +230,7 @@ def parse_betas_input(args):
         validate_single_file(args.beta_file)
         with open(args.beta_file, 'r') as f:
             betas = [b.strip() for b in f.readlines() if b.strip() and not b.startswith('#')]
-    validate_files_list(betas)
+    validate_file_list(betas)
     return betas
 
 

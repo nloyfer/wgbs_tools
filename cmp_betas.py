@@ -3,7 +3,7 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
-from utils_wgbs import load_beta_data, validate_files_list, add_GR_args
+from utils_wgbs import load_beta_data, validate_file_list, add_GR_args
 from genomic_region import GenomicRegion
 import os.path as op
 from itertools import combinations
@@ -51,7 +51,7 @@ def main():
     for performance and robustness.
     """
     args = parse_args()
-    validate_files_list(args.betas, '.beta', min_len=2)
+    validate_file_list(args.betas, '.beta', min_len=2)
     compare_all_paires(args.betas, args.min_cov, GenomicRegion(args).sites)
 
 

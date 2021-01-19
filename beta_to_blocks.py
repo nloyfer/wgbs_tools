@@ -5,7 +5,7 @@ import os
 import numpy as np
 import os.path as op
 import pandas as pd
-from utils_wgbs import validate_files_list
+from utils_wgbs import validate_file_list
 import multiprocessing
 from multiprocessing import Pool
 import sys
@@ -143,7 +143,7 @@ def main():
 
     args = parse_args()
     files = args.input_files
-    validate_files_list(files, '.beta')
+    validate_file_list(files, '.beta')
 
     # load blocks:
     # b2b_log('load blocks...')

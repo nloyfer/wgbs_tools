@@ -1,6 +1,6 @@
 #!/usr/bin/python3 -u
 
-from utils_wgbs import load_borders, load_dists, load_beta_data, validate_files_list, color_text, \
+from utils_wgbs import load_borders, load_dists, load_beta_data, validate_file_list, color_text, \
         beta2vec
 from genomic_region import GenomicRegion
 import os.path as op
@@ -128,5 +128,5 @@ def generate_colors_dict(scheme=16):
 
 
 def main(args):
-    validate_files_list(args.input_files, '.beta')
+    validate_file_list(args.input_files, '.beta')
     BetaVis(args)
