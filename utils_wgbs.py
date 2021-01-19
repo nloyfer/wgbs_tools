@@ -295,7 +295,6 @@ def validate_file_list(files, force_suff=None, min_len=1):
     if len(first) == 1:
         raise IllegalArgumentError(f'Input is not a list of files: {files}')
 
-
     if (force_suff is not None) and (not first.endswith(force_suff)):
         raise IllegalArgumentError(f'Input file {first} must end with {force_suff}')
 
@@ -320,8 +319,6 @@ def validate_single_file(fpath, suff=None):
     if not op.isfile(fpath):
         raise IllegalArgumentError("No such file: {}".format(fpath))
 
-    # if not suff:
-        # suff = splitextgz(fpath)[1]
     if suff is not None and not fpath.endswith(suff):
         raise IllegalArgumentError(f'file {fpath} must end with {suff}')
 
