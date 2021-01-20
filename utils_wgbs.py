@@ -219,7 +219,6 @@ def load_beta_data2(beta_path, gr=None, bed=None):
         return load_beta_data(beta_path, None)
 
 
-
 def load_beta_data(beta_path, sites=None):
     suff = op.splitext(beta_path)[1]
     if not (op.isfile(beta_path) and (suff in ('.beta', '.lbeta', '.bin'))):
@@ -244,37 +243,23 @@ def load_beta_data(beta_path, sites=None):
     return data
 
 
-def load_borders(borders_path, gr, genome):
-    if borders_path == False:
+def load_borders(bpath, gr, genome):
+    if bpath == False:
         return np.array([])
-    elif borders_path == True:
-        borders_path = GenomeRefPaths(genome).blocks
-    # else, borders_path is a string
+    elif bpath == True:
+        bpath = GenomeRefPaths(genome).blocks
+    # else, bpath is a string
 
-    validate_single_file(borders_path, '.bed.gz')
-    if not op.isfile(borders_path + '.tbi'):
-        eprint(f'No tbi found for file {borders_path}. Attempting to index it...')
+    validate_single_file(bpath, '.bed.gz')
+    if not op.isfile(bpath + '.tbi'):
+        eprint(f'No tbi found for file {bpath}. Attempting to index it...')
         from index_wgbs import Indxer
-        Indxer(borders_path).run()
+        Indxer(bpath).run()
 
-    cmd = 'tabix {} {}'.format(borders_path, gr.region_str)
-    res = subprocess.check_output(cmd, shell=True).decode()
-    df = pd.read_csv(StringIO(res), sep='\t', names=['start', 'end'], header=None, usecols=[3, 4])
-    df = df - gr.sites[0]
+    df = read_shell(f'tabix {bpath} {gr.region_str}', usecols=[3, 4]) # load borders section
+    borders = np.sort(np.unique(df.values.flatten())) - gr.sites[0]       # sort, unique, shift
+    return borders[np.logical_and(borders >= 0, gr.nr_sites >= borders)]  # return only blocks in range
 
-    # remove blocks with < MIN_SITES_PER_BLOCKS sites:
-    MIN_SITES_PER_BLOCKS = 1
-    df = df[df['end'] - df['start'] >= MIN_SITES_PER_BLOCKS]
-
-    # uniqe and sort all starts and ends:
-    borders = set(df['start'])
-    borders.update(set(df['end']))
-    borders = np.array(sorted(borders))
-
-    # keep only blocks within range [self.start, self.start + self.nsites]
-    borders = borders[borders >= 0]
-    borders = borders[borders <= gr.nr_sites]
-    return borders
 
 def validate_file_list(files, force_suff=None, min_len=1):
     """
