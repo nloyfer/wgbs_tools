@@ -99,10 +99,10 @@ class ViewPat:
             start, _ = self.gr.sites
             df = df[df['start'] + df['pat'].str.len() > start]
 
-        df = self.trim_reads(df)
         if self.strip:
-            df = self.strip_reads(df)
-        self.sample_reads(df)
+            df = self.strip_reads(df)       # --strip
+        df = self.trim_reads(df)            # --strict and --min_len
+        self.sample_reads(df)               # --sub_sample
         df.reset_index(drop=True, inplace=True)
         if dump:
             df.to_csv(self.opath, sep='\t', index=None, header=None)
