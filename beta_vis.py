@@ -65,8 +65,7 @@ class BetaVis:
             vals = [c + ' ' * d for d, c in zip(self.distances, vals)]
 
         # insert borders:
-        if self.borders:
-            # print(len(vals), len(self.borders))
+        if self.borders.size:
             vals = np.insert(vals, self.borders, '|')
 
         # join vals to a string line and color it:
@@ -97,7 +96,7 @@ class BetaVis:
 
         plt.imshow(1 - r, cmap='RdYlGn')
         # insert borders:
-        if self.borders is not None:
+        if self.borders.size:
             plt.vlines(self.borders - .5, -.5, len(self.files) - .5)
 
         plt.yticks(np.arange(len(self.files)), ticks)
