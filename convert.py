@@ -45,7 +45,7 @@ def chr_thread(df, chrom, cf, genome):
     e = pd.merge_asof(df[['chr', 'end']].sort_values('end'), rf, by='chr', left_on='end', right_on='start',
                       direction='forward')
     e = e.sort_values(by=['chr', 'start'])
-    e.loc[e['idx'].isna(), 'idx'] = cf[cf.chr == chrom]['size'].values[0]
+    e.loc[e['idx'].isna(), 'idx'] = cf[cf.chr == chrom]['size'].values[0] + 1
 
     # astype 'Int64' and not Int to avoid implicit casting to float in case there are NaNs
     s['idx2'] = e['idx'].astype('Int64')
@@ -54,8 +54,9 @@ def chr_thread(df, chrom, cf, genome):
 
     # drop regions without CpGs (pd.merge left them with a fictive 0 range, e.g 25-25)
     s.rename(columns={'idx': 'startCpG', 'idx2': 'endCpG'}, inplace=True)
-    s.dropna(inplace=True)
+    s.dropna(inplace=True, subset=['startCpG', 'endCpG'])
     s = s[s['endCpG'] - s['startCpG'] > 0]
+    print(s)
     return s
 
 
