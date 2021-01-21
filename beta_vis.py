@@ -1,14 +1,12 @@
 #!/usr/bin/python3 -u
 
-from utils_wgbs import load_borders, load_dists, load_beta_data, validate_file_list, color_text, \
-        beta2vec
+from utils_wgbs import load_borders, load_beta_data, validate_file_list, color_text, beta2vec
 from genomic_region import GenomicRegion
 import os.path as op
 import numpy as np
 
 NR_CHARS_PER_FNAME = 50
 MISSING_VAL = '.'
-# DISTS_STEPS = (10, 50, 100, 500, 1000, 5000)
 DISTS_STEPS = [10 ** i for i in range(6)]
 
 
@@ -105,6 +103,19 @@ class BetaVis:
         if self.args.output is not None:
             plt.savefig(self.args.output)
         plt.show()
+
+
+def load_dists(start, nr_sites, genome):
+    """ load and return distance differences between adjacent sites """
+
+    with open(genome.revdict_path, 'rb') as f:
+        f.seek((start - 1) * 4)
+        dists = np.fromfile(f, dtype=np.int32, count=nr_sites + 1)
+
+    dists = dists[1:] - dists[:-1]
+    dists[0] = 0
+    dists[dists < 0] = 1e6 # cross chromosome hack
+    return dists
 
 
 def generate_colors_dict(scheme=16):

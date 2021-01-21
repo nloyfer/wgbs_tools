@@ -193,18 +193,6 @@ def trim_to_uint8(data, lbeta = False):
     return data.astype(dtype)
 
 
-def load_dists(start, nr_sites, genome):
-    """ load and return distance differences between adjacent sites """
-
-    with open(genome.revdict_path, 'rb') as f:
-        f.seek((start - 1) * 4)
-        dists = np.fromfile(f, dtype=np.int32, count=nr_sites + 1)
-
-    dists = dists[1:] - dists[:-1]
-    dists[0] = 0
-    dists[dists < 0] = 1e6 # cross chromosome hack
-    return dists
-
 
 def load_beta_data2(beta_path, gr=None, bed=None):
     if gr is not None and bed is not None:
