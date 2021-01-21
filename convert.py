@@ -74,11 +74,11 @@ def add_cpgs_to_bed(bed_file, genome, drop_empty, threads):
     p.join()
 
     r = pd.concat(arr)
-    r = r[COORDS_COLS].merge(r, how='left', on=COORDS_COLS)
+    r = df[COORDS_COLS].merge(r, how='left', on=COORDS_COLS)
 
     # drop regions w/o CpGs
     if drop_empty:
-        r.dropna(inplace=True)
+        r.dropna(inplace=True, subset=['startCpG', 'endCpG'])
 
     return r
 
