@@ -1,6 +1,7 @@
 #!/usr/bin/python3 -u
 
-from utils_wgbs import load_borders, load_beta_data, validate_file_list, color_text, beta2vec
+from utils_wgbs import load_borders, load_beta_data, validate_file_list, color_text, \
+        beta2vec, catch_BrokenPipeError
 from genomic_region import GenomicRegion
 import os.path as op
 import numpy as np
@@ -139,4 +140,7 @@ def generate_colors_dict(scheme=16):
 
 def main(args):
     validate_file_list(args.input_files, '.beta')
-    BetaVis(args)
+    try:
+        BetaVis(args)
+    except BrokenPipeError:
+        catch_BrokenPipeError()
