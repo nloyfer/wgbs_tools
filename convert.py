@@ -56,7 +56,6 @@ def chr_thread(df, chrom, cf, genome):
     s.rename(columns={'idx': 'startCpG', 'idx2': 'endCpG'}, inplace=True)
     s.dropna(inplace=True, subset=['startCpG', 'endCpG'])
     s = s[s['endCpG'] - s['startCpG'] > 0]
-    print(s)
     return s
 
 
