@@ -4,14 +4,12 @@ import os.path as op
 import numpy as np
 import pandas as pd
 import sys
-from utils_wgbs import IllegalArgumentError, eprint, segment_tool, add_GR_args, GenomeRefPaths, \
+from utils_wgbs import IllegalArgumentError, eprint, segment_tool, add_GR_args, \
                        load_dict_section, validate_file_list , validate_single_file, \
-                       segment_tool, load_dists, add_multi_thread_args
+                       add_multi_thread_args
 from genomic_region import GenomicRegion
 from multiprocessing import Pool
 import argparse
-import time
-from datetime import timedelta
 import subprocess
 import multiprocessing
 
@@ -30,13 +28,11 @@ def segment_process(betas, skip, nsites, pcount, max_cpg, max_bp, dist_dict):
     if nsites == 1:
         return np.array([skip, skip + 1])
     try:
-        start_time = time.time()
         beta_files = ' '.join(betas)
         cmd = '{} {} '.format(segment_tool, beta_files)
         cmd += '-s {} -n {} -max_cpg {} '.format(skip, nsites, max_cpg)
         cmd += ' -ps {} -max_bp {} -rd {}'.format(pcount, max_bp, dist_dict)
         brd_str = subprocess.check_output(cmd, shell=True).decode().split()
-        # eprint('thread ({}, {}), time: {}'.format(skip, nsites, timedelta(seconds=time.time() - start_time)))
         return np.array(list(map(int, brd_str))) + skip + 1
 
     except Exception as e:
