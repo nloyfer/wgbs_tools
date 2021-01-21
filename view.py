@@ -2,7 +2,8 @@
 
 import argparse
 from utils_wgbs import load_beta_data2, MAX_PAT_LEN, MAX_READ_LEN, pat_sampler, validate_single_file, \
-    add_GR_args, IllegalArgumentError, BedFileWrap, load_dict_section, read_shell, eprint, add_multi_thread_args
+    add_GR_args, IllegalArgumentError, BedFileWrap, load_dict_section, read_shell, eprint, \
+    add_multi_thread_args, catch_BrokenPipeError
 from genomic_region import GenomicRegion
 import subprocess
 import numpy as np
@@ -403,11 +404,7 @@ def main():
             raise IllegalArgumentError('Unknown input format:', input_file)
 
     except BrokenPipeError:
-        # Python flushes standard streams on exit; redirect remaining output
-        # to devnull to avoid another BrokenPipeError at shutdown
-        devnull = os.open(os.devnull, os.O_WRONLY)
-        os.dup2(devnull, sys.stdout.fileno())
-        sys.exit(1)  # Python exits with error code 1 on EPIPE
+        catch_BrokenPipeError()
 
 
 if __name__ == '__main__':
