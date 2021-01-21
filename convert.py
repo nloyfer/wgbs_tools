@@ -23,17 +23,16 @@ def parse_args():
     return args
 
 
-def load_bed(bed_path, nrows):
+def load_bed(bed_path, nrows=None):
     df = pd.read_csv(bed_path, sep='\t', header=None, nrows=nrows, comment='#')
     df.columns = COORDS_COLS + list(df.columns)[3:]
-    # df.drop_duplicates(subset=['chr', 'start', 'end'], inplace=True)
     return df
 
 
 def chr_thread(df, chrom, cf, genome):
     # eprint(chrom)
 
-    # we don't need duplicates here (they'll be back in reorder_to_original)
+    # we don't need duplicates here (they'll be back later)
     df.drop_duplicates(subset=COORDS_COLS, inplace=True)
     rf = load_dict_section(chrom, genome).sort_values('start')
 
@@ -59,47 +58,29 @@ def chr_thread(df, chrom, cf, genome):
     return s
 
 
-class AddCpGsToBed:
-    def __init__(self, args):
-        self.args = args
-        self.out_path = args.out_path
-        if not delete_or_skip(self.out_path, self.args.force):
-            return
+def add_cpgs_to_bed(bed_file, genome, drop_empty, threads):
+    # load bed file:
+    df = load_bed(bed_file)
 
-        # load bed file:
-        self.df = load_bed(args.bed_file, 100000 if args.debug else None)
+    # load chromosomes sizes (in GpGs):
+    cf = GenomeRefPaths(genome).get_chrom_cpg_size_table()
+    cf['size'] = np.cumsum(cf['size'])
 
-        # load chromosomes sizes (in GpGs):
-        self.cf = GenomeRefPaths(args.genome).get_chrom_cpg_size_table()
-        self.cf['size'] = np.cumsum(self.cf['size'])
-        self.proc_bed()
+    chroms = sorted(set(cf.chr) & set(df.chr))
+    params = [(df[df.chr == chrom], chrom, cf, genome) for chrom in chroms]
+    p = Pool(threads)
+    arr = p.starmap(chr_thread, params)
+    p.close()
+    p.join()
 
-    def proc_bed(self):
+    r = pd.concat(arr)
+    r = r[COORDS_COLS].merge(r, how='left', on=COORDS_COLS)
 
-        processes = []
-        with Pool(self.args.threads) as p:
-            chroms = [x for x in self.cf.chr if x in self.df.chr.unique()]
-            for chrom in sorted(chroms):
-                params = (self.df[self.df.chr == chrom], chrom, self.cf,
-                         self.args.genome)
-                processes.append(p.apply_async(chr_thread, params))
-            p.close()
-            p.join()
+    # drop regions w/o CpGs
+    if drop_empty:
+        r.dropna(inplace=True)
 
-        r = pd.concat([pr.get() for pr in processes])
-        if self.out_path is None:
-            self.out_path = sys.stdout
-        r = self.reorder_to_original(r)
-
-        # drop regions w/o CpGs
-        if self.args.drop_empty:
-            r.dropna(inplace=True)
-
-        # dump
-        r.to_csv(self.out_path, sep='\t', header=None, index=None, na_rep='NaN', mode='a')
-
-    def reorder_to_original(self, res):
-        return self.df[COORDS_COLS].merge(res, how='left', on=COORDS_COLS)
+    return r
 
 
 def convert_bed_file(args):
@@ -111,7 +92,17 @@ def convert_bed_file(args):
     chr    start    end    startCpG    endCpG   [...]
     """
     try:
-        AddCpGsToBed(args)
+        out_path = args.out_path
+        if not delete_or_skip(out_path, args.force):
+            return
+        r = add_cpgs_to_bed(bed_file=args.bed_file,
+                genome=args.genome,
+                drop_empty=args.drop_empty,
+                threads=args.threads)
+        if out_path is None:
+            out_path = sys.stdout
+        r.to_csv(out_path, sep='\t', header=None, index=None, na_rep='NaN', mode='a')
+
     except pd.errors.ParserError as e:
         print('Invalid input file.\n{}'.format(e))
         return
