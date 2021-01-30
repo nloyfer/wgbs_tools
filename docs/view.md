@@ -7,9 +7,10 @@ Output to stdout as default
 
 Flags:
 ```
-usage: view [-h] [-s SITES | -r REGION] [--genome GENOME] [-o OUT_PATH]
-            [--sub_sample 0.0, 1.0] [-L BED_FILE] [--strict] [--inflate]
-            [--awk_engine]
+usage: view [-h] [-s SITES | -r REGION | -L BED_FILE] [--genome GENOME]
+            [-o OUT_PATH] [--sub_sample [0.0, 1.0]] [--strict] [--strip]
+            [--inflate] [--awk_engine] [-@ THREADS] [--min_len MIN_LEN]
+            [--print_region]
             input_file
 
 View the content of input file (pat/unq/beta) as plain text. Possible filter
@@ -24,19 +25,27 @@ optional arguments:
                         a CpG index range, of the form: "450000-450050"
   -r REGION, --region REGION
                         genomic region of the form "chr1:10,000-10,500"
+  -L BED_FILE, --bed_file BED_FILE
+                        Bed file. Columns <chr, start, end>
   --genome GENOME       Genome reference name. Default is hg19.
   -o OUT_PATH, --out_path OUT_PATH
                         Output path. [stdout]
-  --sub_sample (0.0, 1.0)
-                        pat: subsample from reads.
-  -L BED_FILE, --bed_file BED_FILE
-                        pat: Only output reads overlapping the input BED FILE
-  --strict              Truncate reads that start/end outside the given
+  --sub_sample [0.0, 1.0]
+                        pat: subsample from reads. Only supported for pat
+  --strict              pat: Truncate reads that start/end outside the given
                         region. Only relevant if "region", "sites" or
                         "bed_file" flags are given.
+  --strip               pat: Remove trailing dots (from beginning/end of
+                        reads). Not supported with awk_engine
   --inflate             unq: add CpG-Index column to the output
   --awk_engine          pat: use awk engine instead of python. Its saves RAM
                         when dealing with large regions.
+  -@ THREADS, --threads THREADS
+                        Number of threads to use (default:
+                        multiprocessing.cpu_count)
+  --min_len MIN_LEN     Pat: Display only reads covering at least MIN_LEN CpG
+                        sites [1]
+  --print_region        pat: Prints region before reads
 ```
 
 ### random access (-r, -s flags)
@@ -47,17 +56,6 @@ The genomic region may be specified in one of two ways:
 2. SITE1-SITE2, e.g. `-s 45-50`. This is non-inclusive, i.e. only sites 45,46,47,48,49 will be considered.
 This feature is using *tabix* and the \*.csi index to achieve a quick random access (without reading the whole pat/unq file).
 
-### inflate (unq)
-the unq file does not store the CpG index as the pat file does.
-Infer this field using the dictionary file "CpG.bed.gz", and output it along with the other columns.
-```
-% wgbs_tools view FILE.unq.gz -s 100000-100001
-chr1	3649298	100	CCCCT	1
-chr1	3649311	100	CCCTTC	1
-% wgbs_tools view FILE.unq.gz -s 100000-100001 --inflate
-chr1	99998	3649298	100	CCCCT	1
-chr1	100000	3649311	100	CCCTTC	1
-```
 
 ### awk_engine (pat)
 view command loads the contents of the requested region into the RAM, which can be ineffective when specifying very large regions from large files. Using the *awk_engine* reduces memory usage and improves speed. However, it is a wrapper for awk, which might not be compatible with every systems.
