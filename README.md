@@ -6,7 +6,14 @@
 
 
 #### Quick start
-First make sure you have a reference genome fasta (e.g `hg19.fa`).
+First make sure you have a reference genome FASTA (e.g `hg19.fa`).
+The FASTA must not be compressed (gzipped).
+For exapmle, download it with:
+
+```bash
+curl https://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/hg19.fa.gz -o hg19.fa.gz
+gunzip hg19.fa.gz
+```
 
 
 ```bash
