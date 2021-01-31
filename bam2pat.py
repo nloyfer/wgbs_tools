@@ -190,8 +190,8 @@ class Bam2Pat:
         elif whitelist:
             validate_single_file(whitelist)
         if self.verbose:
-            eprint(f'blacklist: {blacklist}')
-            eprint(f'whitelist: {whitelist}')
+            eprint(f'[wt bam2pat] blacklist: {blacklist}')
+            eprint(f'[wt bam2pat] whitelist: {whitelist}')
         return blacklist, whitelist
 
     def start_threads(self):
