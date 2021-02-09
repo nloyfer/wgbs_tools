@@ -22,6 +22,7 @@ class MergePats:
         view_flags = []
         for i in range(len(self.pats)):
             v = ' --awk '
+            # v = ' '
             if self.args.strict:
                 v += ' --strict'
             if self.args.min_len:
@@ -38,6 +39,7 @@ class MergePats:
         if view_flags is None:
             view_cmd = ' <(gunzip -c'
         else:
+            # view_cmd = ' <({wt} cview {flags}'.format(wt=main_script, flags=view_flags[i])
             view_cmd = ' <({wt} view {flags}'.format(wt=main_script, flags=view_flags[i])
         view_cmd += ' {}'.format(self.pats[i])
         tagcmd = ''
