@@ -16,6 +16,7 @@ pat_sampler = SRC_DIR + 'pat_sampler/pat_sampler'
 PAT2BETA_TOOL = SRC_DIR + 'pat2beta/stdin2beta'
 collapse_pat_script = SRC_DIR + 'collapse_pat.pl'
 segment_tool = SRC_DIR + 'segment_betas/segmentor'
+cview_tool = SRC_DIR + 'cview/cview'
 
 match_maker_tool = DIR + 'pipeline_wgbs/match_maker'
 patter_tool = DIR + 'pipeline_wgbs/patter'
