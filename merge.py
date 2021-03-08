@@ -39,8 +39,8 @@ class MergePats:
         if view_flags is None:
             view_cmd = ' <(gunzip -c'
         else:
-            # view_cmd = ' <({wt} cview {flags}'.format(wt=main_script, flags=view_flags[i])
-            view_cmd = ' <({wt} view {flags}'.format(wt=main_script, flags=view_flags[i])
+            view_cmd = ' <({wt} cview {flags}'.format(wt=main_script, flags=view_flags[i])
+            # view_cmd = ' <({wt} view {flags}'.format(wt=main_script, flags=view_flags[i])
         view_cmd += ' {}'.format(self.pats[i])
         tagcmd = ''
         if self.labels is not None:
@@ -62,7 +62,7 @@ class MergePats:
         cmd += ' | {} - '.format(collapse_pat_script)
         cmd += ' | bgzip > {}.gz'.format(self.out_nogzip)
         cmd = '/bin/bash -c "{}"'.format(cmd)
-        # eprint(cmd)
+        eprint(cmd)
         subprocess.check_call(cmd, shell=True)
 
         if not op.isfile(self.out_nogzip + '.gz'):

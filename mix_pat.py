@@ -62,7 +62,8 @@ class Mixer:
 
         view_flags = []
         for i in range(self.nr_pats):
-            v = ' --awk '
+            # v = ' --awk '
+            v = ''
             if self.args.strict:
                 v += ' --strict'
             if self.args.bed_file is not None:
@@ -109,7 +110,7 @@ class Mixer:
                 pat2beta(pat, op.dirname(pat), args=self.args, force=True)
             if self.bed:
                 cov = beta_cov_by_bed(beta, self.bed)
-            elif self.args.bed_cov:
+            elif self.args.bed_cov:     # todo: this is messy. fix it
                 cov = beta_cov_by_bed(beta, BedFileWrap(self.args.bed_cov))
             else:
                 cov = beta_cov(beta, self.gr.sites, print_res=True)
