@@ -175,7 +175,7 @@ def main():
     p.close()
     p.join()
 
-def parse_args():  # todo: add and implement -f 
+def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('input_files', nargs='+', help='one or more beta files')
     parser.add_argument('-b', '--blocks_file', help='blocks path', required=True)
