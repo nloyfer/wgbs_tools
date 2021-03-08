@@ -60,9 +60,12 @@ def compile_all(args):
         compile_single(cmd, 'match_maker', args.verbose)
 
         # segmentor (segment)
-        cmd = 'g++ -std=c++11 pipeline_wgbs/match_maker.cpp -o pipeline_wgbs/match_maker'
         cmd = 'g++ -std=c++11 src/segment_betas/main.cpp src/segment_betas/segmentor.cpp -o src/segment_betas/segmentor '
         compile_single(cmd, 'segmentor', args.verbose)
+
+        # cview (cview)
+        cmd = 'g++ -c -o src/cview/main.o src/cview/main.cpp; g++ -c -o src/cview/cview.o src/cview/cview.cpp ; g++ -o src/cview/cview src/cview/main.o src/cview/cview.o -std=c++11'
+        compile_single(cmd, 'match_maker', args.verbose)
 
     except RuntimeError as e:
         eprint(e)
