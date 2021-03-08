@@ -10,7 +10,9 @@ import multiprocessing
 from multiprocessing import Pool
 import sys
 from utils_wgbs import load_beta_data, trim_to_uint8, GenomeRefPaths, \
-                        IllegalArgumentError, add_multi_thread_args
+                        IllegalArgumentError, add_multi_thread_args, \
+                        splitextgz
+
 
 
 def b2b_log(*args, **kwargs):
@@ -26,35 +28,34 @@ def is_block_file_nice(df):
 
     # startCpG and endCpG is monotonically increasing
     if not pd.Index(df['startCpG']).is_monotonic:
-        b2b_log('startCpG is not monotonically increasing')
-        return False
+        msg = 'startCpG is not monotonically increasing'
+        return False, msg
     if not pd.Index(df['endCpG']).is_monotonic:
-        b2b_log('endCpG is not monotonically increasing')
-        return False
+        msg = 'endCpG is not monotonically increasing'
+        return False, msg
 
     # no duplicated blocks
     if (df.shape[0] != df.drop_duplicates().shape[0]):
-        b2b_log('Some blocks are duplicated')
-        return False
+        msg = 'Some blocks are duplicated'
+        return False, msg
 
     # no empty blocks
     if not (df['endCpG'] - df['startCpG'] > 0).all():
-        b2b_log('Some blocks are empty (no CpGs)')
-        return False
+        msg = 'Some blocks are empty (no CpGs)'
+        return False, msg
 
     # no overlaps between blocks
     if not (df['startCpG'][1:].values - df['endCpG'][:df.shape[0] - 1].values  >= 0).all():
-        b2b_log('Some blocks overlap')
-        return False
+        msg = 'Some blocks overlap'
+        return False, msg
 
-    return True
+    return True, ''
 
 
 def load_blocks_file(blocks_path):
     # validate blocks_path
     if not op.isfile(blocks_path):
-        b2b_log('Invalid blocks file:', blocks_path)
-        raise IllegalArgumentError('No blocks file')
+        raise IllegalArgumentError(f'Invalid blocks file: {blocks_path}')
 
     # see if blocks_path has a header:
     peek_df = pd.read_csv(blocks_path, sep='\t', nrows=1, header=None)
@@ -110,8 +111,8 @@ def collapse_process(beta_path, df, is_nice, lbeta, out_dir, bedGraph):
         dump(df, reduced_data, beta_path, lbeta, out_dir, bedGraph)
 
     except Exception as e:
-        print('Failed with beta', beta_path)
-        print('Exception:', e)
+        eprint('Failed with beta', beta_path)
+        eprint('Exception:', e)
 
 
 ######################################################
@@ -136,6 +137,19 @@ def dump(df, reduced_data, beta_path, lbeta, out_dir, bedGraph):
         df[['chr', 'start', 'end', 'beta', 'coverage']].to_csv(prefix + '.bedGraph', sep='\t',
                   index=None, header=None, na_rep=-1, float_format='%.2f')
 
+
+def filter_existing_files(files, out_dir, lbeta):
+    files_to_process = []
+    suff = '.lbeta' if lbeta else '.bin'
+    for beta in files:
+        prefix = op.join(out_dir, splitextgz(op.basename(beta))[0])
+        if not op.isfile(prefix + suff):
+            files_to_process.append(beta)
+        else:
+            b2b_log(f'Skipping {beta}. Use -f flag to overwrite')
+    return files_to_process
+
+
 def main():
     """
     Collapse beta file to blocks binary file, of the same beta format
@@ -145,10 +159,15 @@ def main():
     files = args.input_files
     validate_file_list(files, '.beta')
 
+    if not args.force:
+        files = filter_existing_files(files, args.out_dir, args.lbeta)
+
     # load blocks:
     # b2b_log('load blocks...')
     df = load_blocks_file(args.blocks_file)
-    is_nice = is_block_file_nice(df)
+    is_nice, msg = is_block_file_nice(df)
+    if not is_nice:
+        b2b_log(msg)
     p = Pool(args.threads)
     params = [(b, df, is_nice, args.lbeta, args.out_dir, args.bedGraph)
               for b in files]
@@ -163,7 +182,7 @@ def parse_args():  # todo: add and implement -f
     parser.add_argument('-o', '--out_dir', help='output directory. Default is "."', default='.')
     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of bin (uint8)')
     parser.add_argument('--bedGraph', action='store_true', help='output a text file in addition to binary file')
-    parser.add_argument('--debug', '-d', action='store_true')
+    parser.add_argument('--force', '-f', action='store_true', help='Overwrite existing files if existed')
     parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
     add_multi_thread_args(parser)
 
