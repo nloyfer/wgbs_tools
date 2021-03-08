@@ -25,7 +25,7 @@ PAT_COLS = ('chr', 'start', 'pat', 'count')
 #                 #
 ###################
 
-def view_gr(pat, view_flags, args):
+def view_gr(pat, args):
     gr = GenomicRegion(args)
     if gr.is_whole():
         s = 1
@@ -36,6 +36,7 @@ def view_gr(pat, view_flags, args):
         s = max(1, s - MAX_PAT_LEN)
         cmd = f'tabix {pat} {gr.chrom}:{s}-{e - 1} '
 
+    view_flags = set_view_flags(args)
     cmd = f"""/bin/bash -c 'cat <(echo "{s}\t{e}") <(echo "-1") <({cmd}) | {cview_tool}'"""
     cmd = cmd.rstrip("'") + f" {view_flags} ' "
     if args.sub_sample is not None:  # sub-sample reads
@@ -97,14 +98,10 @@ def view_bed(pat, args):
 
 
 def cview(pat, args):
-
-    view_flags = set_view_flags(args)
     if args.bed_file:
         view_bed(pat, args)
     else:
-        view_gr(pat, view_flags, args)
-
-    return
+        view_gr(pat, args)
 
 
 
