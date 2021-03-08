@@ -11,6 +11,7 @@ from collections import OrderedDict
 from unittest.mock import patch
 from utils_wgbs import IllegalArgumentError, eprint
 from view import main as view_main
+from cview import main as cview_main
 from merge import main as merge_main
 from index_wgbs import main as index_main
 from vis import main as vis_main
@@ -44,6 +45,7 @@ callbacks = [
     # view data
     ('vis', vis_main),
     ('view', view_main),
+    ('cview', cview_main),
     ('convert', convert_main),
 
     # convert beta to other formats
