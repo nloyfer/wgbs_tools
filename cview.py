@@ -3,7 +3,7 @@
 import argparse
 from utils_wgbs import load_beta_data2, MAX_PAT_LEN, pat_sampler, validate_single_file, \
     add_GR_args, IllegalArgumentError, BedFileWrap, load_dict_section, read_shell, eprint, add_multi_thread_args, \
-    cview_tool, splitextgz, collapse_pat_script
+    cview_tool, splitextgz, collapse_pat_script, extend_blocks_script
 from genomic_region import GenomicRegion
 from convert import add_cpgs_to_bed, load_bed
 from view import ViewPat
@@ -60,41 +60,24 @@ def set_view_flags(args):
         # view_flags += f' --sub_sample {args.sub_sample}'
     return view_flags
 
-def modified_bed_for_tabix(df, name):
-
-    fake_df = df[['chr', 'startCpG', 'endCpG']].drop_duplicates()
-    fake_df['startCpG'] = (fake_df['startCpG'].astype(int) - MAX_PAT_LEN).clip(lower=1)
-    b = name + '.fake_tmp_df.tsv'
-    fake_df.to_csv(b, sep='\t', header=None, index=None)
-    t = b + '.tmp'
-    cmd = f'sort -k1,1 -k2,2n {b} -o {t} && bedtools merge -d 1 -i {t} | sort -k2,2n > {b} && rm {t}'
-    subprocess.check_call(cmd, shell=True)
-    return b
-
 
 def view_bed(pat, args):
-    # df = add_cpgs_to_bed(args.bed_file, args.genome, drop_empty=True, threads=16)
     # assume columns 4-5 of args.bed_file are startCpG, endCpG:
-    df = load_bed(args.bed_file).iloc[:, [0, 3, 4]]
-    df.columns = ['chr', 'startCpG', 'endCpG']
+    bpath = args.bed_file
 
-    uniq_name = op.basename(splitextgz(pat)[0])
-    uniq_name = f'{uniq_name}.tmp.{str(uuid.uuid4())[:8]}'
-    uniq_name = op.join(args.tmp_dir, uniq_name)
-    extended = modified_bed_for_tabix(df, uniq_name)
+    # extended blocks:
+    cat_cmd = ('gunzip -c' if bpath.endswith('.gz') else 'cat') + f' {bpath}'
+    tabix_cmd = cat_cmd + f' | {extend_blocks_script} | tabix -R - {pat} '
+
+    blocks_cmd = cat_cmd + f' | cut -f4-5 | sort -k1,1n '
+    cmd = f'/bin/bash -c \"cat <({blocks_cmd}) <(echo -1) <({tabix_cmd}) \" '
     view_flags = set_view_flags(args)
-    # blocks_cmd = f'wgbstools convert -L {args.bed_file} | cut -f4-5 | sort -k1,1n '
-    # assume columns 4-5 of args.bed_file are startCpG, endCpG:
-    blocks_cmd = f'cut -f4-5 {args.bed_file} | sort -k1,1n '
-    tabix_cmd = f'tabix -R {extended} {pat} '
-    cmd = f"""/bin/bash -c 'cat <({blocks_cmd}) <(echo -1) <({tabix_cmd}) '"""
     cmd += f' | {cview_tool} {view_flags}'
     if args.sub_sample is not None:  # sub-sample reads
         cmd += f' | {pat_sampler} {args.sub_sample} '
     cmd += f' | sort -k2,2n -k3,3 | {collapse_pat_script} - '  # todo: implement the sort & collapsing in cview_tool
     # eprint(cmd)
     subprocess.check_call(cmd, shell=True)
-    os.remove(extended)
 
 
 def cview(pat, args):
