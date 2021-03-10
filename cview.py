@@ -56,9 +56,10 @@ def view_bed(pat, args):
     # assume columns 4-5 of args.bed_file are startCpG, endCpG:
     bpath = args.bed_file
 
-    # validate blocks file:
+    # validate blocks file. If it's long, and starts with "chr1", use gunzip instead of tabix.
     tabix_cmd = ''
-    if load_blocks_file(bpath, nrows=1e6).shape[0] == 1e6:
+    df =  load_blocks_file(bpath, nrows=1e6)
+    if df.shape[0] == 1e6 and df.iloc[0, 0] == 'chr1':
         tabix_cmd = f'gunzip -c {pat} '
 
     # extended blocks:
@@ -97,7 +98,7 @@ def parse_args():
     parser.add_argument('pat')
     add_GR_args(parser, bed_file=True)
     parser.add_argument('--tmp_dir', '-T', default='.',
-            help='Temp directory for intermediate files [.]')
+                        help='Temp directory for intermediate files [.]')
     parser.add_argument('--strict', action='store_true',
                         help='pat: Truncate reads that start/end outside the given region. '
                              'Only relevant if "region", "sites" '
