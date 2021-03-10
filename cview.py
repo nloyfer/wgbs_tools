@@ -3,7 +3,7 @@
 import argparse
 from utils_wgbs import load_beta_data2, MAX_PAT_LEN, pat_sampler, validate_single_file, \
     add_GR_args, IllegalArgumentError, BedFileWrap, load_dict_section, read_shell, eprint, add_multi_thread_args, \
-    cview_tool, splitextgz, collapse_pat_script, extend_blocks_script
+    cview_tool, splitextgz, collapse_pat_script, cview_extend_blocks_script
 from genomic_region import GenomicRegion
 from convert import add_cpgs_to_bed, load_bed
 from view import ViewPat
@@ -67,7 +67,7 @@ def view_bed(pat, args):
 
     # extended blocks:
     cat_cmd = ('gunzip -c' if bpath.endswith('.gz') else 'cat') + f' {bpath}'
-    tabix_cmd = cat_cmd + f' | {extend_blocks_script} | tabix -R - {pat} '
+    tabix_cmd = cat_cmd + f' | {cview_extend_blocks_script} | tabix -R - {pat} '
 
     blocks_cmd = cat_cmd + f' | cut -f4-5 | sort -k1,1n '
     cmd = f'/bin/bash -c \"cat <({blocks_cmd}) <(echo -1) <({tabix_cmd}) \" '
