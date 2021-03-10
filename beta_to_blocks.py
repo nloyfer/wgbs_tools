@@ -52,7 +52,7 @@ def is_block_file_nice(df):
     return True, ''
 
 
-def load_blocks_file(blocks_path):
+def load_blocks_file(blocks_path, nrows=None):
     # validate blocks_path
     if not op.isfile(blocks_path):
         raise IllegalArgumentError(f'Invalid blocks file: {blocks_path}')
@@ -61,9 +61,14 @@ def load_blocks_file(blocks_path):
     peek_df = pd.read_csv(blocks_path, sep='\t', nrows=1, header=None)
     header = None if str(peek_df.iloc[0, 1]).isdigit() else 0
 
-    # load 
     names = ['chr', 'start', 'end', 'startCpG', 'endCpG']
-    df = pd.read_csv(blocks_path, sep='\t', usecols=range(5), header=header, names=names)
+    if len(peek_df.columns) < len(names):
+        msg = f'Invalid blocks file: {blocks_path}. less than {len(names)} columns'
+        raise IllegalArgumentError(msg)
+
+    # load 
+    df = pd.read_csv(blocks_path, sep='\t', usecols=range(len(names)),
+                     header=header, names=names, nrows=None)
 
     # blocks start before they end - invalid file
     if not ((df['endCpG'] -  df['startCpG']) >= 0).all():
