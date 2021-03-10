@@ -230,8 +230,12 @@ def calc_score(df):
 def main(args):
     validate_file_list(args.input_files, '.pat.gz')
 
+    # drop duplicated files, while keeping original order
+    seen = set()
+    input_files = [x for x in args.input_files if not (x in seen or seen.add(x))]
+
     gr = GenomicRegion(args)
     print(gr)
-    for pat_file in args.input_files:
+    for pat_file in input_files:
         print(splitextgz(op.basename(pat_file))[0])     # print file name
         PatVis(args, pat_file).print_results()
