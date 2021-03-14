@@ -1,7 +1,8 @@
 #!/usr/bin/python3 -u
 
 import argparse
-from utils_wgbs import add_GR_args, eprint, GenomeRefPaths, delete_or_skip, load_dict_section, add_multi_thread_args
+from utils_wgbs import add_GR_args, eprint, GenomeRefPaths, delete_or_skip, \
+                       load_dict_section, add_multi_thread_args
 from genomic_region import GenomicRegion
 import pandas as pd
 import numpy as np
