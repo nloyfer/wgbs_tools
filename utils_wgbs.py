@@ -41,7 +41,7 @@ class GenomeRefPaths:
         self.dict_path = self.join('CpG.bed.gz')
         self.chrom_cpg_sizes = self.join('CpG.chrome.size')
         self.chrom_sizes = self.join('chrome.size')
-        self.revdict_path = self.join('CpG.rev.bin')
+        self.revdict_path = self.join('rev.CpG.bed.gz')
         self.genome_path = self.join('genome.fa')
         self.annotations = self.join('annotations.bed.gz', validate=False)
         self.blocks = self.join('blocks.bed.gz', validate=False)
