@@ -32,7 +32,7 @@ class GenomicRegion:
             self.genome = GenomeRefPaths(self.genome_name)
             self.parse_sites(sites)
         else:
-            raise IllegalArgumentError('Invalid GR init {}'.format(region))
+            raise IllegalArgumentError(f'Invalid GR init {region}')
 
         self.nr_sites = None if self.sites is None else self.sites[1] - self.sites[0]
         self.annotation = self.add_anno()
@@ -46,10 +46,10 @@ class GenomicRegion:
         if anno_path is None:
             return
         try:
-            cmd = 'tabix {} {} | cut -f4- | uniq'.format(anno_path, self.region_str)
+            cmd = f'tabix {anno_path} {self.region_str} | cut -f4- | uniq'
             return subprocess.check_output(cmd, shell=True).decode().strip()
         except subprocess.CalledProcessError:
-            eprint('Failed to retrieve annotation for reagion ', self.region_str)
+            eprint(f'Failed to retrieve annotation for reagion {self.region_str}')
 
     def parse_sites(self, sites_str):
         """ Parse input of the type -s / --sites (e.g 15-25) """
@@ -62,12 +62,12 @@ class GenomicRegion:
         chrom2, region_to = self.index2locus(s2 - 1)  # non-inclusive
         region_to += 1  # include the whole last site (C and G)
         if self.chrom != chrom2:
-            eprint('ERROR: sites range cross chromosomes! ({}, {})'.format(s1, s2))
+            eprint(f'ERROR: sites range cross chromosomes! ({s1}, {s2})')
             raise IllegalArgumentError('Invalid sites input')
 
         # Update GR fields:
         self.sites = (s1, s2)
-        self.region_str = "{}:{}-{}".format(self.chrom, region_from, region_to)
+        self.region_str = f'{self.chrom}:{region_from}-{region_to}'
         self.bp_tuple = (region_from, region_to)
 
     def _chrome_size(self):
@@ -92,12 +92,12 @@ class GenomicRegion:
             region_from = int(region_match.group(2))
             region_to = int(region_match.group(3))
             if region_to <= region_from:
-                raise IllegalArgumentError('Invalid genomic region: {}. end before start'.format(region))
+                raise IllegalArgumentError(f'Invalid genomic region: {region}. end before start')
             if region_to > self._chrome_size() or region_from < 1:
-                raise IllegalArgumentError('Invalid genomic region: {}. Out of range'.format(region))
+                raise IllegalArgumentError(f'Invalid genomic region: {region}. Out of range')
 
         else:
-            raise IllegalArgumentError('Invalid genomic region: {}'.format(region))
+            raise IllegalArgumentError(f'Invalid genomic region: {region}')
 
         # Update GR fields:
         self.region_str = region
@@ -106,16 +106,13 @@ class GenomicRegion:
 
     def _region_str2sites(self):
         # find CpG indexes in range of the region:
-        # todo: find start and end separately (in case they are far apart)
-        cmd = 'tabix {} {} | '.format(self.genome.dict_path, self.region_str)
-        # cmd += 'awk \'{if (NR == 1) {first=substr($4,4)}}END{print first"-"substr($4,4)}\''
+        cmd = f'tabix {self.genome.dict_path} {self.region_str} | '
         cmd += 'awk \'{if (NR == 1) {first=$3}}END{print first"-"$3+1}\''
-        # eprint(cmd)
         res = subprocess.check_output(cmd, shell=True).decode()
 
         # throw error if there are no CpGs in range
         if res.strip() == '-1':
-            raise IllegalArgumentError('Invalid genomic region: {}. No CpGs in range'.format(self.region_str))
+            raise IllegalArgumentError('Invalid genomic region: {iself.region_str}. No CpGs in range')
 
         s1, s2 = self._sites_str_to_tuple(res)
         # s2 += 1     # non-inclusive
@@ -123,18 +120,27 @@ class GenomicRegion:
 
     def _sites_str_to_tuple(self, sites_str):
         """ extract integers tuple (e.g (120, 130)) from a sites string (e.g '120-130') """
-        if sites_str:
-            sites_str = sites_str.replace(',', '')
-            matchObj = re.match(r'([\d]+)-([\d]+)', sites_str)
-            if matchObj:
-                site1 = int(matchObj.group(1))
-                site2 = int(matchObj.group(2))
-                if not self.genome.nr_sites + 1 >= site2 > site1 >= 1:
-                    msg = 'sites violate the constraints: '
-                    msg += '{} >= {} > {} >= 1'.format(self.genome.nr_sites + 1, site2, site1)
-                    raise IllegalArgumentError(msg)
-                return site1, site2
-        raise IllegalArgumentError('sites must be of format: ([\d])-([\d]).\nGot: {}'.format(sites_str))
+        if not sites_str:
+            raise IllegalArgumentError(f'Empty sites string: {sites_str}')
+
+        sites_str = sites_str.replace(',', '')
+        # start-end syntax
+        matchObj = re.match(r'([\d]+)-([\d]+)', sites_str)
+        if matchObj:
+            site1 = int(matchObj.group(1))
+            site2 = int(matchObj.group(2))
+        # single site syntax:
+        elif '-' not in sites_str and sites_str.isdigit():
+            site1 = int(sites_str)
+            site2 = site1 + 1
+        else:
+            raise IllegalArgumentError(f'sites must be of format: ([\d])-([\d]).\nGot: {sites_str}')
+        # validate sites are in range:
+        if not self.genome.nr_sites + 1 >= site2 > site1 >= 1:
+            msg = 'sites violate the constraints: '
+            msg += f'{self.genome.nr_sites + 1} >= {site2} > {site1} >= 1'
+            raise IllegalArgumentError(msg)
+        return site1, site2
 
     def index2chrom(self, site):
         if self.chrs_sz is None:
@@ -155,18 +161,19 @@ class GenomicRegion:
             eprint('Invalid site index:', index)
             raise IllegalArgumentError('Out of range site index:', index)
 
+        # find chromosome:
+        chrom = self.index2chrom(index)
         # find locus:
-        with open(self.genome.revdict_path, 'rb') as f:
-            f.seek((index - 1) * 4)
-            loc = np.fromfile(f, dtype=np.int32, count=1)[0] - 1
-            return self.index2chrom(index), loc
+        cmd = f'tabix {self.genome.revdict_path} {chrom}:{index}-{index} | cut -f2'
+        loc = int(subprocess.check_output(cmd, shell=True).decode().strip())
+        return chrom, loc
 
     def __str__(self):
         if self.sites is None:
             return 'Whole genome'
         s1, s2 = self.sites
-        f, t = self.bp_tuple
-        res = '{} - {:,}bp, {:,}CpGs: {}-{}'.format(self.region_str, t - f + 1, s2 - s1, s1, s2)
+        nr_bp = np.diff(self.bp_tuple)[0] + 1
+        res = f'{self.region_str} - {nr_bp:,}bp, {s2 - s1:,}CpGs: {s1}-{s2}'
         if self.annotation:
             res += '\n' + self.annotation
         return res
