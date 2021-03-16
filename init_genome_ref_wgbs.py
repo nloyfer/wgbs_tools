@@ -99,10 +99,14 @@ class InitGenome:
         eprint('[wt init] Building CpG-Index dictionary...')
         df['site'] = df.index + 1
         self.dump_df(df, 'CpG.bed')
-        self.bgzip_tabix_dict(op.join(self.out_dir, 'CpG.bed'))
+        cpg_dict = self.bgzip_tabix_dict(op.join(self.out_dir, 'CpG.bed'))
 
-        # CpG.rev.bin - a reverse dictionary (mapping CpG index to locus
-        np.array(df['loc'] + 1, dtype=np.uint32).tofile(op.join(self.out_dir, 'CpG.rev.bin'))
+        # rev.CpG.bed.gz - symbolic link to the dictionary, 
+        # with an index file corresponds to the 3rd column, the CpG-Index,
+        # To map CpG to locus
+        rev_dict = op.join(self.out_dir, 'rev.CpG.bed.gz')
+        os.symlink(cpg_dict, rev_dict)
+        subprocess.check_call(f'tabix -b 3 -e 3 {rev_dict}', shell=True)
 
         # chrome.size - number of bases in each chromosome
         self.dump_df(self.fai_df[['chr', 'size']], 'chrome.size')
@@ -144,6 +148,7 @@ class InitGenome:
         eprint('[wt init] bgzip and index...')
         subprocess.check_call(f'bgzip -@ {self.args.threads} -f {dict_path}', shell=True)
         subprocess.check_call(f'tabix -Cf -b 2 -e 2 {dict_path}.gz', shell=True)
+        return dict_path + '.gz'
 
     def dump_df(self, df, path):
         path = op.join(self.out_dir, path)
