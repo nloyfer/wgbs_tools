@@ -21,8 +21,8 @@ class MergePats:
     def merge_pats(self):
         view_flags = []
         for i in range(len(self.pats)):
-            v = ' --awk '
-            # v = ' '
+            # v = ' --awk '
+            v = ' '
             if self.args.strict:
                 v += ' --strict'
             if self.args.min_len:
