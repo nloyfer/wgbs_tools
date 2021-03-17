@@ -69,7 +69,7 @@ class GenomeRefPaths:
             self.genome = 'hg19'
         refdir = op.join(op.join(op.dirname(os.path.realpath(__file__)), 'references'), self.genome)
         if not op.isdir(refdir):
-            raise IllegalArgumentError('Invalid reference name: {}'.format(self.genome))
+            raise IllegalArgumentError(f'Invalid reference name: {self.genome}')
         return refdir
 
     def get_chrom_cpg_size_table(self):
@@ -114,17 +114,18 @@ class BedFileWrap:
 
 def validate_dir(directory):
     if not op.isdir(directory):
-        raise IllegalArgumentError('Invalid directory:\n{}'.format(directory))
+        raise IllegalArgumentError(f'Invalid directory:\n{directory}')
 
 
 def color_text(txt, cdict, scheme=16):
+    if scheme not in [16, 256]:
+        raise IllegalArgumentError(f'Invalid color scheme: {scheme}')
     if scheme == 16:
-        return ''.join(['\033[{}m{}\033[00m'.format(cdict[c], c) if c in cdict.keys() else c for c in txt])
+        res = ''.join([f'\033[{cdict[c]}m{c}\033[00m' if c in cdict.keys() else c for c in txt])
     elif scheme == 256:
-        return ''.join(['\u001b[38;5;{}m{}\u001b[0m'.format(cdict[c], c) if c in cdict.keys() else c for c in txt])
-    else:
-        raise IllegalArgumentError('Invalid color scheme: {}'.format(scheme))
+        res = ''.join([f'\u001b[38;5;{cdict[c]}m{c}\u001b[0m' if c in cdict.keys() else c for c in txt])
 
+    return res
 
 # def build_tool_path(tool_path):
 #     return op.join(os.path.dirname(os.path.realpath(__file__)), tool_path)
@@ -135,10 +136,10 @@ def validate_prefix(prefix):
     Raise exception otherwise
     """
     if op.isdir(prefix):
-        raise IllegalArgumentError('Invalid prefix: {} is a directory.'.format(prefix))
+        raise IllegalArgumentError(f'Invalid prefix: {prefix} is a directory.')
     dirname = op.dirname(prefix)
     if not op.isdir(dirname):
-        raise IllegalArgumentError('Invalid prefix: no such directory: {}'.format(dirname))
+        raise IllegalArgumentError(f'Invalid prefix: no such directory: {dirname}')
 
 
 def load_dict(nrows=None, skiprows=None, genome_name='hg19'):
@@ -151,8 +152,9 @@ def load_dict(nrows=None, skiprows=None, genome_name='hg19'):
 
 def load_dict_section(region, genome_name='hg19'):
     if region is None:
-        return load_dict(genome_name = genome_name)
-    cmd = 'tabix {} {}'.format(GenomeRefPaths(genome_name).dict_path, region)
+        return load_dict(genome_name=genome_name)
+    dpath = GenomeRefPaths(genome_name).dict_path
+    cmd = f'tabix {dpath} {region}'
     return read_shell(cmd, names=['chr', 'start', 'idx'])
 
 
@@ -293,13 +295,13 @@ def validate_single_file(fpath, suff=None):
         raise IllegalArgumentError("Input file is None")
 
     if not op.isfile(fpath):
-        raise IllegalArgumentError("No such file: {}".format(fpath))
+        raise IllegalArgumentError(f'No such file: {fpath}')
 
     if suff is not None and not fpath.endswith(suff):
         raise IllegalArgumentError(f'file {fpath} must end with {suff}')
 
     if fpath.endswith(('.pat.gz', '.unq.gz')) and not op.isfile(fpath + '.csi'):
-        eprint('No csi found for file {}. Attempting to index it...'.format(fpath))
+        eprint(f'No csi found for file {fpath}. Attempting to index it...')
         from index_wgbs import Indxer
         Indxer(fpath).run()
 
@@ -341,7 +343,7 @@ def delete_or_skip(output_file, force):
         if force:
             mult_safe_remove([output_file, output_file + '.csi'])
         else:
-            msg = 'File {} already exists. Skipping it.'.format(output_file)
+            msg = f'File {output_file} already exists. Skipping it.'
             msg += 'Use [-f] flag to force overwrite.'
             eprint(msg)
             return False
