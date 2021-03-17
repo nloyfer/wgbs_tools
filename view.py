@@ -41,12 +41,12 @@ class ViewPat:
     def build_cmd(self, sites=None):
         """ Load a section from pat file using tabix """
         if not self.gr.chrom:  # entire pat file (no region filters)
-            cmd = 'gunzip -cd {} '.format(self.pat_path)
+            cmd = f'gunzip -cd {self.pat_path} '
         else:
             start, end = self.gr.sites if sites is None else sites
             start = max(1, start - MAX_PAT_LEN)
-            cmd = 'tabix {} '.format(self.pat_path)
-            cmd += '{}:{}-{} '.format(self.gr.chrom, start, end - 1)  # non-inclusive
+            cmd = f'tabix {self.pat_path} '
+            cmd += '{self.gr.chrom}:{start}-{end - 1} '  # non-inclusive
         return cmd
 
     def strict_reads(self, df):
@@ -128,7 +128,7 @@ class ViewPat:
                 cmd += ' | awk \'{(OFS="\t"); if (length($3) >= %m)'.replace('%m', str(self.min_len))
                 cmd += ' {print $1,$2,$3,$4,$5,$6}}\' '
         if self.sub_sample is not None:  # sub-sample reads
-            cmd += ' | {} {} '.format(pat_sampler, self.sub_sample)
+            cmd += f' | {pat_sampler} {self.sub_sample} '
         return cmd
 
     def perform_view_awk(self):
@@ -260,10 +260,10 @@ class ViewUnq:
 
     def build_cmd_unq(self):
         if not self.gr.chrom:
-            return 'gunzip -cd {}'.format(self.unq_path)
+            return f'gunzip -cd {self.unq_path}'
 
         start, end = self.gr.bp_tuple
-        cmd = 'tabix {} '.format(self.unq_path)
+        cmd = f'tabix {self.unq_path} '
         cmd += '{}:{}-{} '.format(self.gr.chrom, max(1, int(start) - MAX_READ_LEN), end)
         cmd += ' | awk \'{if (($2 + $3) > %s) {print;}}\'' % start
         return cmd
