@@ -8,11 +8,13 @@ from view import ViewPat
 import os.path as op
 import sys
 import argparse
+import re
 
 
-str2int = {'C': 2, 'T': 3, '.': 4, 'D': 5, 'X': 6}
-int2str = {2: 'C', 3: 'T', 4: '.', 5: 'D', 1: ' ', 0: ''}
-int2strUXM = {2: 'M', 3: 'U', 6: 'X', 1: ' '}
+FULL_CIRCLE = '\u25CF'
+DASH = '\u2014'
+str2int = {c: i for i, c in enumerate([''] + list(' .CTUXM'))}
+int2str = {v: k for k, v in str2int.items()}
 
 num2color_dict = {
     'C': '01;31',  # red
@@ -24,29 +26,25 @@ num2color_dict = {
 
 
 class PatVis:
-    def __init__(self, args, file):
+    def __init__(self, args, pat_path):
         self.gr = GenomicRegion(args)
+        self.args = args
         self.max_reps = args.max_reps if args.max_reps > 0 else sys.maxsize
-        self.strict = args.strict
-        self.strip = args.strip
-        self.min_len = args.min_len
         self.start, self.end = self.gr.sites
-        self.file = file
-        self.no_color = args.no_color
-        self.max_width = self.end - self.start + 2 * MAX_PAT_LEN  # maximal width of the output (in characters)
+        self.pat_path = pat_path
         self.blocks_path = args.blocks_path
-        self.no_dense = args.no_dense
         self.uxm = args.uxm
-        self.genome = args.genome
-
+        self.uxm_counts = {'U': 0, 'X': 0, 'M': 0}
         self.fullres = self.get_block()
 
     def insert_borders(self, markers):
         ctable = self.fullres['table']
 
-        borders = load_borders(self.blocks_path, self.gr, self.genome)
+        borders = load_borders(self.blocks_path, self.gr, self.args.genome)
         if not borders.size:
             return self.fullres['text'], markers
+        # shift the blocks to the right in case there are trailing read heads
+        borders += markers.find('+')
         # pad right columns with space, if there are missing sites before the last border/s
         missing_width = borders[-1] - ctable.shape[1]
         if missing_width > 0:
@@ -54,27 +52,13 @@ class PatVis:
             charar[:] = ' '
             ctable = np.concatenate([ctable, charar], axis=1)
 
-        # shift the blocks to the right in case there are trailing read heads
-        borders += markers.find('+')
-
         # insert the borders:
         table = np.insert(ctable, borders, '|', axis=1)
         txt = '\n'.join(''.join(line) for line in table)
 
         # insert the borders to the markers line:
-        rmark = ''
-        j = 0
-        # todo: add | signs to header
-
-        for i in range(ctable.shape[1] + 1):
-            if table[0][i] == '|':
-                rmark += '|'
-                continue
-            elif j < len(markers):
-                rmark += markers[j]
-            else:
-                rmark += ' '
-            j += 1
+        markers_arr = np.array(list(markers.ljust( ctable.shape[1])))[:, None]
+        rmark = ''.join(np.insert(markers_arr, borders, '|'))
         return txt, rmark
 
     def print_results(self):
@@ -83,16 +67,15 @@ class PatVis:
         if not res:
             return
         if res['score'] != 'NA':
+            to_print = 'Methylation average: {}%'.format(res['score'])
             if self.uxm:
-                u_thresh = round((1- self.uxm)*100, 2)
-                m_thresh = round(self.uxm*100, 2)
-                u_thresh = str(int(u_thresh)) if u_thresh == int(u_thresh) else str(u_thresh)
-                m_thresh = str(int(m_thresh)) if m_thresh == int(m_thresh) else str(m_thresh)
-                to_print = 'Methylation average: {}%, UXM {}/{} [{}/{}/{}]'.format(res['score'], u_thresh, m_thresh,
-                                                                                   res['uxm'][0], res['uxm'][1],
-                                                                                   res['uxm'][2])
-            else:
-                to_print = 'Methylation average: {}%'.format(res['score'])
+                u_thresh = round(self.uxm * 100, 2)
+                m_thresh = round((1 - self.uxm) * 100, 2)
+                if int(u_thresh) == u_thresh:
+                    u_thresh = int(u_thresh)
+                    m_thresh = int(m_thresh)
+                to_print += f', UXM {u_thresh} / {m_thresh} '
+                to_print += '[{}/{}/{}]'.format(res['uxm']['U'], res['uxm']['X'], res['uxm']['M'])
             print(to_print)
 
         # Markers for sites of interest:
@@ -106,84 +89,76 @@ class PatVis:
             txt, markers = self.insert_borders(markers)
 
         # Color text
-        if not self.no_color:
+        if not self.args.no_color:
             txt = color_text(txt, num2color_dict)
+        if not self.args.text:
+            txt = re.sub('[CTUXM]', FULL_CIRCLE, txt)
+            txt = re.sub('\.', DASH, txt)
         print(markers)
         print(txt)
 
     def get_block(self):
-        df = ViewPat(self.file, None, self.gr, self.strict, min_len=self.min_len,
-                strip = self.strip).perform_view(dump=False)
-        #print(df)
+        df = ViewPat(self.pat_path, None, self.gr, self.args.strict, min_len=self.args.min_len,
+                strip=self.args.strip).perform_view(dump=False)
         if not df.empty:
             return self.cyclic_print(df)
 
+    def read_uxm(self, patt, count):
+        u_sites = patt.count('T')
+        m_sites = patt.count('C')
+        total = u_sites + m_sites
+        assert(total > 0)
+        if u_sites / total >= self.uxm:
+            uxm_status = 'U'
+        elif m_sites / total >= self.uxm:
+            uxm_status = 'M'
+        else:
+            uxm_status = 'X'
+        self.uxm_counts[uxm_status] += count
+        return uxm_status * len(patt)
+
+    def insert_read_to_table(self, read, table, shift):
+        read_start = int(read[1])
+        patt = read[2]
+        count = int(read[3])
+
+        # skip empty (all dots) reads:
+        if not patt.strip('.'):
+            return
+
+        if self.uxm:
+            patt = self.read_uxm(patt, count)
+        patt_ints = [str2int[l] for l in patt]
+
+        # perform multiple times for reads with count > 1, but no more than "max_reps" times:
+        for c in range(min(self.max_reps, count)):
+            # find the relative starting point of the current read
+            col = read_start - shift
+            if col < 0:
+                raise IllegalArgumentError('Error: Pat is not sorted!')
+
+            # find the first available row to insert current read:
+            if self.args.no_dense: # no_dense: present each read in a new line
+                row = np.argmin(table.sum(axis=1))
+            else:
+                row = np.argmin(table[:, col])
+
+            # make sure the slots are free
+            assert(table[row, col:col + len(patt)].sum() == 0)
+            assert(row < table.shape[0])
+
+            # insert read and spaces:
+            table[row, col:col + len(patt)] = patt_ints
+            table[row, :col][table[row, :col] == 0] = 1  # before read
+            table[row, col + len(patt)] = 1              # after read
+
     def cyclic_print(self, df):
-        table = np.zeros((df['count'].sum() + 1, self.max_width), dtype=np.int8)
+        max_width = self.end - self.start + 2 * MAX_PAT_LEN  # maximal width of the output (in characters)
+        table = np.zeros((df['count'].sum() + 1, max_width), dtype=np.int8)
         first_to_show = df.loc[0, 'start']
-        row = -1
-        u_count = 0
-        m_count = 0
-        x_count = 0
 
-        for idx, read in df.iterrows():
-            # _, read_start, patt, count = row
-            read_start = int(read[1])
-            patt = read[2]
-            count = int(read[3])
-
-            u_sites = 0
-            m_sites = 0
-
-            # perform multiple times for reads with count > 1, but no more than "max_reps" times:
-            for c in range(min(self.max_reps, count)):
-
-                # find the relative starting point of the current read
-                col = read_start - first_to_show
-                if col < 0:
-                    raise IllegalArgumentError('Error: Input file must be sorted by CpG_ID!')
-
-                # find the first available row to insert current read:
-                if self.no_dense: # no_dense: present each read in a new line
-                    row += 1
-                else:
-                    row = np.argmin(table[:, col])
-
-                # make sure the slots are free
-                assert(table[row, col:col + len(patt)].sum() == 0)
-                assert(row < table.shape[0])
-
-                # insert read and spaces:
-                for j, l in enumerate(patt):
-                    if self.uxm:
-                        if l == 'C':
-                            m_sites += 1
-                        elif l == 'T':
-                            u_sites += 1
-                    else:
-                        table[row, col + j] = str2int[l]
-                table[row, :col][table[row, :col] == 0] = 1
-                table[row, col + len(patt)] = 1
-                if self.uxm:
-                    total = u_sites + m_sites
-                    u_prop = u_sites / total if total > 0 else 0
-                    m_prop = m_sites / total if total > 0 else 0
-                    is_u = u_prop >= self.uxm
-                    is_m = m_prop >= self.uxm
-                    if is_u:
-                        u_count += 1
-                    elif is_m:
-                        m_count += 1
-                    else:
-                        x_count += 1
-                    for j, l in enumerate(patt):
-                        if is_u:
-                            table[row, col + j] = str2int['T']
-                        elif is_m:
-                            table[row, col + j] = str2int['C']
-                        else:
-                            table[row, col + j] = str2int['X']
-
+        for _, read in df.iterrows():
+            self.insert_read_to_table(read, table, first_to_show)
 
         nr_lines = int(np.argmin(table[:, 0]))
         width = np.max(np.argmin(table, axis=1))
@@ -196,15 +171,8 @@ class PatVis:
             table = np.concatenate([np.ones((table.shape[0], first_to_show - self.start), dtype=np.uint8), table], axis=1)
 
         # Translate ints table to characters table
-        table = table.astype(np.str)
-        if self.uxm:
-            keys = int2strUXM.keys()
-            letterMap = int2strUXM
-        else:
-            keys = int2str.keys()
-            letterMap = int2str
-        for key in keys:
-            table = np.core.defchararray.replace(table, str(key), letterMap[key])
+        for key in int2str.keys():
+            table = np.core.defchararray.replace(table.astype(np.str), str(key), int2str[key])
 
         # Convert table to one long string
         res = '\n'.join([''.join(row) for row in table])
@@ -212,10 +180,9 @@ class PatVis:
         fullres = {'start': first_to_show,
                    'chr': df.loc[0, 'chr'],
                    'text': res,
-                   'width': width,
                    'table': table,
                    'score': calc_score(df),
-                   'uxm': (u_count, x_count, m_count)}
+                   'uxm': self.uxm_counts}
         return fullres
 
 
