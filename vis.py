@@ -25,6 +25,8 @@ def pat_args(parser):
                              ' above this value will be displayed as fully methylated, reads with'
                              ' unmethylated CpG site proporiton below 1 - value will be displayed as'
                              ' fully unmethylated, or otherwise as X. ')
+    parser.add_argument('--text', action='store_true',
+                        help='Pat vis: output colored text (C,T,.) instead of circles for each site')
 
 def beta_args(parser):
     parser.add_argument('-d', '--dists', action='store_true',
@@ -59,8 +61,8 @@ def main():
 
     parser = parse_args()
     args = parser.parse_args()
-    if args.uxm and not (0 <= args.uxm <= 1):
-        parser.error("uxm value must be between 0 and 1")
+    if args.uxm and not (0.5 <= args.uxm <= 1):
+        parser.error("uxm value must be between 0.5 and 1")
 
     # print title
     if args.title:
