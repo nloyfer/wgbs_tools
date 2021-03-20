@@ -1,5 +1,6 @@
 #!/usr/bin/python3 -u
 
+import re
 from utils_wgbs import load_borders, load_beta_data, validate_file_list, color_text, \
         beta2vec, catch_BrokenPipeError
 from genomic_region import GenomicRegion
@@ -47,7 +48,7 @@ class BetaVis:
         # raw table from *beta files:
         dsets = np.zeros((len(self.files), self.nr_sites, 2))
         for i, fpath in enumerate(self.files):
-            dsets[i] = load_beta_data(fpath, (self.start, self.end))
+            dsets[i] = load_beta_data(fpath, self.gr.sites)
         return dsets
 
     def build_vals_line(self, data):
@@ -71,6 +72,13 @@ class BetaVis:
         line = ''.join(vals)
         if not self.args.no_color:
             line = color_text(line, self.num2color_dict, scheme=self.args.color_scheme)
+            if not self.args.text:
+                FULL_CIRCLE = '\u25A0'
+                FULL_CIRCLE = '\u2588'
+                DASH = ' '
+                # breakpoint()
+                line = re.sub('m[0-9]', 'm' + FULL_CIRCLE * 1, line)
+                line = re.sub('\.', DASH, line)
 
         return line
 
