@@ -94,11 +94,13 @@ class PatVis:
         if not self.args.text:
             txt = re.sub('[CTUXM]', FULL_CIRCLE, txt)
             txt = re.sub('\.', DASH, txt)
+            txt = txt.replace(FULL_CIRCLE, FULL_CIRCLE + '\u0336')   # strikethrough
         print(markers)
         print(txt)
 
     def get_block(self):
-        df = ViewPat(self.pat_path, None, self.gr, self.args.strict, min_len=self.args.min_len,
+        df = ViewPat(self.pat_path, None, self.gr, self.args.strict,
+                min_len=self.args.min_len,
                 strip=self.args.strip).perform_view(dump=False)
         if not df.empty:
             return self.cyclic_print(df)
