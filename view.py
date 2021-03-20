@@ -46,7 +46,7 @@ class ViewPat:
             start, end = self.gr.sites if sites is None else sites
             start = max(1, start - MAX_PAT_LEN)
             cmd = f'tabix {self.pat_path} '
-            cmd += '{self.gr.chrom}:{start}-{end - 1} '  # non-inclusive
+            cmd += f'{self.gr.chrom}:{start}-{end - 1} '  # non-inclusive
         return cmd
 
     def strict_reads(self, df):
