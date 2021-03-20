@@ -16,7 +16,7 @@ def parse_args():
 
 def compile_single(cmd, name, verbose):
     """ Compile a single c++ module """
-    eprint('Compiling {}...'.format(name))
+    eprint(f'Compiling {name}...')
 
     # subprocess g++ command
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -26,7 +26,7 @@ def compile_single(cmd, name, verbose):
     if p.returncode:
         eprint("Failed compilation.\nCommand: {}\nreturn code: {}\nstderr:\n{}\nstdout:\n{}".
                format(cmd, p.returncode, output.decode(), error.decode()))
-        eprint('Failed compiling {}'.format(name))
+        eprint(f'Failed compiling {name}')
         # raise RuntimeError('Failed compiling {}'.format(name))
 
     # If succeeded:
@@ -64,8 +64,8 @@ def compile_all(args):
         compile_single(cmd, 'segmentor', args.verbose)
 
         # cview (cview)
-        cmd = 'g++ -c -o src/cview/main.o src/cview/main.cpp; g++ -c -o src/cview/cview.o src/cview/cview.cpp ; g++ -o src/cview/cview src/cview/main.o src/cview/cview.o -std=c++11'
-        compile_single(cmd, 'match_maker', args.verbose)
+        cmd = 'g++ -c -o src/cview/main.o src/cview/main.cpp -std=c++11; g++ -c -o src/cview/cview.o src/cview/cview.cpp ; g++ -o src/cview/cview src/cview/main.o src/cview/cview.o -std=c++11'
+        compile_single(cmd, 'cview', args.verbose)
 
     except RuntimeError as e:
         eprint(e)
