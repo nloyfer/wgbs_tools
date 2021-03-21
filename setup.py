@@ -75,17 +75,17 @@ def compile_all(args):
     os.chdir(curdir)
 
 
-def validate_index_file(file):
-    if not op.isfile(file + '.tbi'):
-        eprint('No tbi found for file {}. Attempting to index it...'.format(file))
-        from index_wgbs import Indxer
-        Indxer(file).run()
+# def validate_index_file(bedfile):
+    # if not op.isfile(bedfile + '.tbi'):
+        # eprint(f'No tbi found for file {bedfile}. Attempting to index it...')
+        # from index_wgbs import Indxer
+        # Indxer(bedfile).run()
 
 
-def validate_file(file):
-    if file is None:
-        return
-    validate_single_file(file)
+# def validate_file(file):
+    # if file is None:
+        # return
+    # validate_single_file(file)
 
 
 # def config_file(args):
