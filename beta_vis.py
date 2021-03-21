@@ -7,6 +7,9 @@ from genomic_region import GenomicRegion
 import os.path as op
 import numpy as np
 
+FULL_CIRCLE = '\u25A0'
+# FULL_CIRCLE = '\u2588'
+MISSING_VAL_SIGN = ' '
 NR_CHARS_PER_FNAME = 50
 MISSING_VAL = '.'
 DISTS_STEPS = [10 ** i for i in range(6)]
@@ -68,18 +71,17 @@ class BetaVis:
         if self.borders.size:
             vals = np.insert(vals, self.borders, '|')
 
+
+        return self.color_vals(vals)
+
+    def color_vals(self, vals):
         # join vals to a string line and color it:
         line = ''.join(vals)
         if not self.args.no_color:
             line = color_text(line, self.num2color_dict, scheme=self.args.color_scheme)
-            if not self.args.text:
-                FULL_CIRCLE = '\u25A0'
-                FULL_CIRCLE = '\u2588'
-                DASH = ' '
-                # breakpoint()
+            if self.args.heatmap:
                 line = re.sub('m[0-9]', 'm' + FULL_CIRCLE * 1, line)
-                line = re.sub('\.', DASH, line)
-
+                line = re.sub('\.', MISSING_VAL_SIGN, line)
         return line
 
     def print_all(self):
@@ -92,6 +94,13 @@ class BetaVis:
             line = self.build_vals_line(dset)
             adj_fname = op.splitext(op.basename(fpath))[0][:fname_len].ljust(fname_len)
             print(adj_fname + ': ' + line)
+
+        if self.args.colorbar:
+            digits = '0123456789'
+            print('colorbar')
+            print(self.color_vals(digits))
+            if self.args.heatmap:
+                print(digits)
 
     def plot_all(self):
         import matplotlib.pyplot as plt
