@@ -18,9 +18,9 @@ def load_bed(bed_path, nrows, add1=False):
                      usecols=[0, 1, 3, 4], nrows=nrows)
     nr_lines = df.shape[0]
     df.drop_duplicates(subset=['chr', 'start'], inplace=True)
-    nr_lines_nodups = df.shape[0]
-    if nr_lines != nr_lines_nodups:
-        eprint('Warning: dropped {} duplicated lines'.format(nr_lines - nr_lines_nodups))
+    nr_dup_lines = nr_lines - df.shape[0]
+    if nr_dup_lines > 0:
+        eprint(f'Warning: dropped {nr_dup_lines} duplicated lines')
     if add1:
         df['start'] = df['start'] + 1
     return df
@@ -35,8 +35,8 @@ def bed2betas(args):
     try:
         rf = None       # Reference dictionary
         for bed in args.bed_paths:
-            eprint('Converting {}...'.format(op.basename(bed)))
-            # Check if bed should be sk
+            eprint(f'Converting {op.basename(bed)}...')
+            # Check if bed should be skipped
             outpath = op.join(args.outdir, splitextgz(op.basename(bed))[0] + '.beta')
             if not delete_or_skip(outpath, args.force):
                 continue
@@ -52,7 +52,7 @@ def bed2betas(args):
             trim_to_uint8(np.array(res[['meth', 'total']])).tofile(outpath)
 
     except pd.errors.ParserError as e:
-        eprint('Invalid input file.\n{}'.format(e))
+        eprint(f'Invalid input file.\n{e}')
         return
 
 
