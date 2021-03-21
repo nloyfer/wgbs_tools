@@ -156,7 +156,7 @@ class InitGenome:
 
 
 def load_seq_by_chrom(ref_path, chrom):
-    eprint(chrom)
+    eprint(f'[wt init] {chrom}')
 
     # load the chromosome's subsequence from fasta
     cmd = f'samtools faidx {ref_path} {chrom} | tail -n +2'
