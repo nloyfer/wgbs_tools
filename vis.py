@@ -26,7 +26,7 @@ def pat_args(parser):
                              ' unmethylated CpG site proporiton below 1 - value will be displayed as'
                              ' fully unmethylated, or otherwise as X. ')
     parser.add_argument('--text', action='store_true',
-                        help='Pat vis: output colored text (C,T,.) instead of circles for each site')
+            help='Pat vis: output colored text instead of shapes')
 
 def beta_args(parser):
     parser.add_argument('-d', '--dists', action='store_true',
@@ -34,6 +34,10 @@ def beta_args(parser):
     parser.add_argument('-o', '--output', help='beta vis: save plot to file')
     parser.add_argument('--color_scheme', '-cs', type=int, default=256,
                         help='beta vis: Color scheme. Possible values: 16 or 256 [256]')
+    parser.add_argument('--heatmap', action='store_true',
+            help='beta vis: output ascii heatmap instead of colored digits')
+    parser.add_argument('--colorbar', action='store_true',
+            help='beta vis: output ascii colorbar')
     parser.add_argument('--plot', action='store_true', help='beta vis: plot results in a heatmap.')
 
 
