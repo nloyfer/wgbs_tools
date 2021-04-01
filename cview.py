@@ -10,6 +10,13 @@ import subprocess
 import os.path as op
 
 
+def subprocess_wrap_sigpipe(cmd):
+    try:
+        subprocess.check_call(cmd, shell=True)
+    except subprocess.CalledProcessError as e:
+        if e.returncode != 141:   # e.g. if the output is piped to head
+            raise e
+
 ###################
 #                 #
 #  Loading pat    #
@@ -36,8 +43,9 @@ def view_gr(pat, args):
         cmd += f' | sort -k2,2n -k3,3 '
     cmd += f' | {collapse_pat_script} - '
     # eprint(cmd)
-    subprocess.check_call(cmd, shell=True)
     # cmd += f'wgbstools convert -L {bed} | cut -f4-5 | <(tabix -R - | {cview_tool}) '
+    subprocess_wrap_sigpipe(cmd)
+
 
 def set_view_flags(args):
     view_flags = ''
@@ -75,7 +83,7 @@ def view_bed(pat, args):
         cmd += f' | {pat_sampler} {args.sub_sample} '
     cmd += f' | sort -k2,2n -k3,3 | {collapse_pat_script} - '  # todo: implement the sort & collapsing in cview_tool
     # eprint(cmd)
-    subprocess.check_call(cmd, shell=True)
+    subprocess_wrap_sigpipe(cmd)
 
 
 def cview(pat, args):
