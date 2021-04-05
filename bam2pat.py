@@ -5,6 +5,8 @@ import os
 import os.path as op
 import argparse
 import subprocess
+import shutil
+import uuid
 import re
 from multiprocessing import Pool
 from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args, eprint, \
@@ -42,7 +44,7 @@ def subprocess_wrap(cmd, debug):
 def pat_unq(out_path, debug, unq, temp_dir):
     try:
         # sort
-        tmp_path = out_path + '.tmp'
+        tmp_path = out_path
 
         cmd = f'sort {out_path} -k2,2n -k3,3 -o {tmp_path}'
         if temp_dir:
@@ -117,12 +119,19 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
 class Bam2Pat:
     def __init__(self, args):
         self.args = args
+        self.tmp_dir = None
         self.verbose = args.verbose
         self.out_dir = args.out_dir
         self.bam_path = args.bam_path
         self.debug = args.debug
         self.gr = GenomicRegion(args)
         self.validate_input()
+        self.start_threads()
+        self.cleanup()
+
+    def cleanup(self):
+        if self.tmp_dir is not None:
+            shutil.rmtree(self.tmp_dir)
 
     def validate_input(self):
 
@@ -200,11 +209,18 @@ class Bam2Pat:
 
         blist, wlist = self.set_lists()
         name = op.join(self.out_dir, op.basename(self.bam_path)[:-4])
+        # build temp dir:
+        name = op.splitext(op.basename(self.bam_path))[0]
+        uname = f'{name}.{str(uuid.uuid4())[:8]}.PID{os.getpid()}'
+        self.tmp_dir = op.join(op.dirname(self.args.out_dir), uname)
+        os.mkdir(self.tmp_dir)
+        prefix = op.join(self.tmp_dir, name)
+
         processes = []
         nr_threads = self.args.threads  # todo smarted default!
         with Pool(nr_threads) as p:
             for c in self.set_regions():
-                out_path = name + '_' + c + '.output.tmp'
+                out_path = f'{prefix}.{c}.out'
                 params = (self.bam_path, out_path, c, self.gr.genome,
                           self.is_pair_end(), self.args.exclude_flags,
                           self.args.mapq, self.debug, self.args.unq, self.args.blueprint,
@@ -289,7 +305,7 @@ def main():
     """
     parser = add_args()
     args = parse_args(parser)
-    Bam2Pat(args).start_threads()
+    Bam2Pat(args)
 
 
 if __name__ == '__main__':
