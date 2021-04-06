@@ -8,13 +8,15 @@ import pandas as pd
 import numpy as np
 from multiprocessing import Pool
 import sys
+import subprocess
+from io import StringIO
 
 COORDS_COLS = ['chr', 'start', 'end']
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
-    add_GR_args(parser, bed_file=True)
+    add_GR_args(parser, bed_file=True, no_anno=True)
     parser.add_argument('--out_path', '-o', help='Output path for bed file [stdout]')
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('--drop_empty', action='store_true', help='Drop empty regions (without CpGs)')
@@ -59,7 +61,7 @@ def chr_thread(df, chrom, cf, genome):
     return s
 
 
-def add_cpgs_to_bed(bed_file, genome, drop_empty, threads):
+def add_cpgs_to_bed(bed_file, genome, drop_empty, threads, add_anno):
     # load bed file:
     df = load_bed(bed_file)
 
@@ -68,20 +70,43 @@ def add_cpgs_to_bed(bed_file, genome, drop_empty, threads):
     cf['size'] = np.cumsum(cf['size'])
 
     chroms = sorted(set(cf.chr) & set(df.chr))
-    params = [(df[df.chr == chrom], chrom, cf, genome) for chrom in chroms]
+    params = [(df[df.chr == chrom].copy(), chrom, cf, genome) for chrom in chroms]
     p = Pool(threads)
     arr = p.starmap(chr_thread, params)
     p.close()
     p.join()
 
+    # concat chromosomes
     r = pd.concat(arr)
-    r = df[COORDS_COLS].merge(r, how='left', on=COORDS_COLS)
+    # merge with original table, to keep the order and the empty regions
+    r = df.merge(r[COORDS_COLS + ['startCpG', 'endCpG']], how='left', on=COORDS_COLS)
+    r = r[COORDS_COLS + ['startCpG', 'endCpG'] + list(r.columns)[3:-2]]
+
+    # add annotations:
+    if add_anno:
+        annodf = get_anno(bed_file, genome)
+        if annodf is not None:
+            r = r.merge(annodf, how='left', on=COORDS_COLS)
 
     # drop regions w/o CpGs
     if drop_empty:
         r.dropna(inplace=True, subset=['startCpG', 'endCpG'])
 
     return r
+
+
+def get_anno(bed_path, genome):
+    anno_path = GenomeRefPaths(genome).annotations
+    if anno_path is None:
+        return
+    read = 'gunzip -cd' if bed_path.endswith('.gz') else 'cat'
+    cmd = f'{read} {bed_path} | cut -f1-3 | '
+    cmd += f'bedtools intersect -wao -a - -b {anno_path} '
+    cmd += '| bedtools merge -c 7,8 -o distinct,distinct '
+    txt = subprocess.check_output(cmd, shell=True).decode()
+    names = COORDS_COLS + ['type', 'gene']
+    annodf = pd.read_csv(StringIO(txt), sep='\t', header=None, names=names)
+    return annodf
 
 
 def convert_bed_file(args):
@@ -96,16 +121,18 @@ def convert_bed_file(args):
         out_path = args.out_path
         if not delete_or_skip(out_path, args.force):
             return
+        if out_path is None:
+            out_path = sys.stdout
+        # add CpG columns
         r = add_cpgs_to_bed(bed_file=args.bed_file,
                 genome=args.genome,
                 drop_empty=args.drop_empty,
-                threads=args.threads)
-        if out_path is None:
-            out_path = sys.stdout
-        r.to_csv(out_path, sep='\t', header=None, index=None, na_rep='NaN', mode='a')
+                threads=args.threads,
+                add_anno=not args.no_anno)
+        r.to_csv(out_path, sep='\t', header=None, index=None, na_rep='NaN')
 
     except pd.errors.ParserError as e:
-        print('Invalid input file.\n{}'.format(e))
+        print(f'Invalid input file.\n{e}')
         return
 
 
