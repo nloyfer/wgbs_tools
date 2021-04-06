@@ -112,7 +112,7 @@ class GenomicRegion:
 
         # throw error if there are no CpGs in range
         if res.strip() == '-1':
-            raise IllegalArgumentError('Invalid genomic region: {iself.region_str}. No CpGs in range')
+            raise IllegalArgumentError(f'Invalid genomic region: {self.region_str}. No CpGs in range')
 
         s1, s2 = self._sites_str_to_tuple(res)
         # s2 += 1     # non-inclusive
