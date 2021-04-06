@@ -55,7 +55,7 @@ def is_block_file_nice(df):
 def load_blocks_file(blocks_path, nrows=None):
     # validate blocks_path
     if not op.isfile(blocks_path):
-        raise IllegalArgumentError(f'Invalid blocks file: {blocks_path}')
+        raise IllegalArgumentError(f'Invalid blocks file: {blocks_path}. No such file')
 
     # see if blocks_path has a header:
     peek_df = pd.read_csv(blocks_path, sep='\t', nrows=1, header=None)
@@ -72,7 +72,7 @@ def load_blocks_file(blocks_path, nrows=None):
 
     # blocks start before they end - invalid file
     if not ((df['endCpG'] -  df['startCpG']) >= 0).all():
-        raise IllegalArgumentError('Invalid blocks file')
+        raise IllegalArgumentError('Invalid CpG columns in blocks file')
 
     return df
 
