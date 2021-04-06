@@ -72,7 +72,7 @@ def load_blocks_file(blocks_path, nrows=None):
 
     # blocks start before they end - invalid file
     if not ((df['endCpG'] -  df['startCpG']) >= 0).all():
-        raise IllegalArgumentError('Invalid CpG columns in blocks file')
+        raise IllegalArgumentError(f'Invalid CpG columns in blocks file {blocks_path}')
 
     return df
 
