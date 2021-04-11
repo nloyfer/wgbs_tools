@@ -171,8 +171,13 @@ def add_GR_args(parser, required=False, bed_file=False, no_anno=False):
 
 
 def add_multi_thread_args(parser):
-    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
-                        help='Number of threads to use (default: multiprocessing.cpu_count)')
+    cpu_environ_var = 'SLURM_JOB_CPUS_PER_NODE'
+    if cpu_environ_var in os.environ.keys():
+        def_cpus = os.environ[cpu_environ_var]
+    else:
+        def_cpus = multiprocessing.cpu_count()
+    parser.add_argument('-@', '--threads', type=int, default=def_cpus,
+                        help='Number of threads to use (default: all available CPUs)')
 
 
 def beta2vec(data, min_cov=1, na=np.nan):
