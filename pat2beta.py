@@ -2,7 +2,7 @@
 
 import argparse
 from utils_wgbs import validate_single_file, PAT2BETA_TOOL, delete_or_skip, splitextgz, IllegalArgumentError, \
-    GenomeRefPaths, trim_to_uint8
+    GenomeRefPaths, trim_to_uint8, add_multi_thread_args
 import subprocess
 import os.path as op
 from multiprocessing import Pool
@@ -19,7 +19,7 @@ def pat2beta(pat_path, out_dir, args, force=True):
     elif pat_path.endswith('.pat'):
         cmd = 'cat'
     else:
-        raise IllegalArgumentError('Invalid pat suffix: {}'.format(pat_path))
+        raise IllegalArgumentError(f'Invalid pat suffix: {pat_path}')
 
     suff = '.lbeta' if args.lbeta else '.beta'
     out_beta = op.join(out_dir, splitextgz(op.basename(pat_path))[0] + suff)
@@ -30,7 +30,7 @@ def pat2beta(pat_path, out_dir, args, force=True):
         arr = mult_pat2beta(pat_path, args)
     else:
         nr_sites = GenomeRefPaths(args.genome).nr_sites
-        cmd += ' {} | {} {} {}'.format(pat_path, PAT2BETA_TOOL, 1, nr_sites + 1)
+        cmd += f' {pat_path} | {PAT2BETA_TOOL} {1} {nr_sites + 1}'
         x = subprocess.check_output(cmd, shell=True).decode()
         arr = np.fromstring(x, dtype=int, sep=' ').reshape((-1, 2))
 
@@ -58,8 +58,8 @@ def mult_pat2beta(pat_path, args):
 
 
 def chr_thread(pat, chrom, start, end):
-    cmd = 'tabix {} {} | '.format(pat, chrom)
-    cmd += '{} {} {}'.format(PAT2BETA_TOOL, start, end)
+    cmd = f'tabix {pat} {chrom} | '
+    cmd += f'{PAT2BETA_TOOL} {start} {end}'
     x = subprocess.check_output(cmd, shell=True).decode()
     x = np.fromstring(x, dtype=int, sep=' ').reshape((-1, 2))
     return x
@@ -72,8 +72,7 @@ def parse_args():
     parser.add_argument('-o', '--out_dir', help='Output directory for the beta file. [.]', default='.')
     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
     parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
-    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
-                        help='Number of threads to use (default: multiprocessing.cpu_count)')
+    add_multi_thread_args(parser)
     return parser.parse_args()
 
 
