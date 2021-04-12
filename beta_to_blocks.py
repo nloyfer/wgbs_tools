@@ -14,7 +14,6 @@ from utils_wgbs import load_beta_data, trim_to_uint8, GenomeRefPaths, \
                         splitextgz
 
 
-
 def b2b_log(*args, **kwargs):
     print('[ wt beta_to_blocks ]', *args, file=sys.stderr, **kwargs)
 
@@ -58,7 +57,7 @@ def load_blocks_file(blocks_path, nrows=None):
         raise IllegalArgumentError(f'Invalid blocks file: {blocks_path}. No such file')
 
     # see if blocks_path has a header:
-    peek_df = pd.read_csv(blocks_path, sep='\t', nrows=1, header=None)
+    peek_df = pd.read_csv(blocks_path, sep='\t', nrows=1, header=None, comment='#')
     header = None if str(peek_df.iloc[0, 1]).isdigit() else 0
 
     names = ['chr', 'start', 'end', 'startCpG', 'endCpG']
@@ -68,7 +67,7 @@ def load_blocks_file(blocks_path, nrows=None):
 
     # load 
     df = pd.read_csv(blocks_path, sep='\t', usecols=range(len(names)),
-                     header=header, names=names, nrows=None)
+                     header=header, names=names, nrows=None, comment='#')
 
     # blocks start before they end - invalid file
     if not ((df['endCpG'] -  df['startCpG']) >= 0).all():
@@ -103,21 +102,20 @@ def slow_method(data, df):
     return reduced_data
 
 
+def reduce_data(beta_path, df):
+    method = fast_method if is_block_file_nice(df)[0] else slow_method
+    return method(load_beta_data(beta_path), df)
 
-def collapse_process(beta_path, df, is_nice, lbeta, out_dir, bedGraph):
+
+def collapse_process(beta_path, df, lbeta=False, out_dir=None, bedGraph=False):
     try:
         # load beta file:
-        data = load_beta_data(beta_path)
-        if is_nice:
-            reduced_data = fast_method(data, df)
-        else:
-            reduced_data = slow_method(data, df)
-
-        dump(df, reduced_data, beta_path, lbeta, out_dir, bedGraph)
+        reduced_data = reduce_data(beta_path, df)
+        return dump(df, reduced_data, beta_path, lbeta, out_dir, bedGraph)
 
     except Exception as e:
-        eprint('Failed with beta', beta_path)
-        eprint('Exception:', e)
+        b2b_log('Failed with beta', beta_path)
+        b2b_log('Exception:', e)
 
 
 ######################################################
@@ -128,10 +126,14 @@ def collapse_process(beta_path, df, is_nice, lbeta, out_dir, bedGraph):
 
 def dump(df, reduced_data, beta_path, lbeta, out_dir, bedGraph):
 
+    bin_table = trim_to_uint8(reduced_data, lbeta)
+    name = op.splitext(op.basename(beta_path))[0]
+    if out_dir is None:
+        return {name: bin_table}
     # dump to binary file
     suff = '.lbeta' if lbeta else '.bin'
-    prefix = op.join(out_dir, op.splitext(op.basename(beta_path))[0])
-    trim_to_uint8(reduced_data, lbeta).tofile(prefix + suff)
+    prefix = op.join(out_dir, name)
+    bin_table.tofile(prefix + suff)
     b2b_log(prefix + suff)
 
     # dump to bed
@@ -174,7 +176,7 @@ def main():
     if not is_nice:
         b2b_log(msg)
     p = Pool(args.threads)
-    params = [(b, df, is_nice, args.lbeta, args.out_dir, args.bedGraph)
+    params = [(b, df, args.lbeta, args.out_dir, args.bedGraph)
               for b in files]
     arr = p.starmap(collapse_process, params)
     p.close()
@@ -188,7 +190,6 @@ def parse_args():
     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of bin (uint8)')
     parser.add_argument('--bedGraph', action='store_true', help='output a text file in addition to binary file')
     parser.add_argument('--force', '-f', action='store_true', help='Overwrite existing files if existed')
-    parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
     add_multi_thread_args(parser)
 
     return parser.parse_args()
