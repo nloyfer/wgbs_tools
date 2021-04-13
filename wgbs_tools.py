@@ -23,6 +23,7 @@ from beta2bed import main as beta2bed_main
 from beta2bw import main as beta2bw_main
 from beta_to_450k import main as beta_to_450k_main
 from beta_to_blocks import main as beta_to_blocks_main
+from betas_to_table import main as betas_to_table_main
 from bam2pat import main as bam2pat_main
 from bamAddMethylData import main as bamAddMethylData_main
 from mix_pat import main as mix_pat_main
@@ -30,6 +31,7 @@ from init_genome_ref_wgbs import main as init_genome_main
 from frag_len import main as frag_len_main
 from convert import main as convert_main
 from segment_betas import main as segment_beta_main
+from homog import main as homog_main
 
 """
 Dependencies:
@@ -50,6 +52,7 @@ callbacks = [
 
     # convert beta to other formats
     ('beta_to_blocks', beta_to_blocks_main),
+    ('beta_to_table', betas_to_table_main),
     ('beta2bed', beta2bed_main),
     ('beta2bw', beta2bw_main),
     ('beta_cov', beta_cov_main),
@@ -68,6 +71,7 @@ callbacks = [
 
     # less important
     ('compare_betas', compare_beta_main),
+    ('homog', homog_main),
     ('addMD2Bam', bamAddMethylData_main),
     ('frag_len', frag_len_main),
 ]
