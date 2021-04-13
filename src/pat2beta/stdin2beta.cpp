@@ -7,7 +7,6 @@
 #include <string>
 #include <iostream>
 
-#define NR_SITES 28217448
 
 
 //  g++ -std=c++11 stdin2beta.cpp -o stdin2beta
@@ -28,7 +27,7 @@ std::vector<std::string> line2tokens(std::string &line) {
 
 class Pat2Beta {
     int *meth, *cover;
-    int nr_sites = NR_SITES;
+    int nr_sites = 0;
     int start = 1;
     int end = 1;
     void dumpbin();
