@@ -220,11 +220,14 @@ def load_groups_file(groups_file, idir, verbose=False):
     # find binary file paths
     return find_bin_paths(gf, idir)
 
-def match_prefix_to_bin(prefixes, bins):
+def match_prefix_to_bin(prefixes, bins, suff=None):
     full_paths = []
     for prefix in prefixes:
         # look for bin files starting with current prefix:
-        results = [f for f in bins if op.basename(f).startswith(prefix)]
+        if suff is not None:
+            results = [f for f in bins if op.basename(f) == prefix + suff]
+        else:
+            results = [f for f in bins if op.basename(f).startswith(prefix)]
         # make sure there is exactly one such bin file
         if not results:
             raise IllegalArgumentError(f'Invalid prefix: {prefix}. Not in input bins')
