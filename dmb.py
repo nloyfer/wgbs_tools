@@ -12,7 +12,6 @@ from tqdm import tqdm
 from utils_wgbs import load_beta_data2, validate_single_file, eprint, \
                        IllegalArgumentError, GenomeRefPaths
 
-DEFAULT_BLOCKS = GenomeRefPaths().blocks
 DEBUG_NR = 100000
 um_ind_dict = {'U': 0, 'M': 2}
 
@@ -82,6 +81,9 @@ class MarkersFinder:
         names = ['chr', 'start', 'end', 'startCpG', 'endCpG']
         cols = range(len(names))
         nrows = DEBUG_NR if self.args.debug else None
+        blocks_path = self.args.blocks_path
+        if blocks_path is None:
+            blocks_path = GenomeRefPaths().blocks
         df = pd.read_csv(self.args.blocks_path, sep='\t',
                 header=None, names=names, nrows=nrows, usecols=cols)
         df['lenCpG'] = df['endCpG'] - df['startCpG']
@@ -257,8 +259,7 @@ def find_bin_paths(gf, idir):
 
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
-    parser.add_argument('--blocks_path', '-b', default=DEFAULT_BLOCKS,
-            help=f'Blocks bed path. Default [{DEFAULT_BLOCKS}]')
+    parser.add_argument('--blocks_path', '-b', help=f'Blocks bed path.')
 
     parser.add_argument('--groups_file', '-g', help='csv file of groups', required=True)
     parser.add_argument('--input_dir', '-i', help='directory with binary files.', required=True)
