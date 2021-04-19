@@ -44,9 +44,7 @@ def subprocess_wrap(cmd, debug):
 def pat_unq(out_path, debug, unq, temp_dir):
     try:
         # sort
-        tmp_path = out_path
-
-        cmd = f'sort {out_path} -k2,2n -k3,3 -o {tmp_path}'
+        cmd = f'sort {out_path} -k2,2n -k3,3 -o {out_path}'
         if temp_dir:
             cmd += f' -T {temp_dir} '
         subprocess_wrap(cmd, debug)
@@ -54,21 +52,21 @@ def pat_unq(out_path, debug, unq, temp_dir):
         # break output file into pat and unq:
         # pat file:
         pat_path = out_path + PAT_SUFF
-        cmd = 'awk \'BEGIN{OFS="\t"}{print $1,$2,$3,1}\' ' + f'{tmp_path} | {collapse_pat_script} - > {pat_path}'
+        cmd = 'awk \'BEGIN{OFS="\t"}{print $1,$2,$3,1}\' ' + f'{out_path} | {collapse_pat_script} - > {pat_path}'
         subprocess_wrap(cmd, debug)
 
         # unq file:
         unq_path = out_path + UNQ_SUFF
         if unq:
-            cmd = "sort {} -k4,4n -k3,3 -o {}".format(out_path, tmp_path)
+            cmd = "sort {} -k4,4n -k3,3 -o {}".format(out_path, out_path)
             if temp_dir:
                 cmd += ' -T {} '.format(temp_dir)
             subprocess_wrap(cmd, debug)
-            cmd = 'awk \'{print $1,$4,$5,$3}\' ' + tmp_path + ' | uniq -c | awk \'{OFS="\\t"; print $2,$3,$4,$5,$1}\' > ' + \
+            cmd = 'awk \'{print $1,$4,$5,$3}\' ' + out_path + ' | uniq -c | awk \'{OFS="\\t"; print $2,$3,$4,$5,$1}\' > ' + \
                   unq_path
             subprocess_wrap(cmd, debug)
 
-        mult_safe_remove([out_path, tmp_path])
+        mult_safe_remove([out_path])
 
         return pat_path, unq_path
     except IllegalArgumentError as e:
@@ -105,10 +103,10 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
             eprint('[bam2pat] ' + validation_cmd)
         return '', ''
 
-    cmd += " | {} {} {} ".format(patter_tool, genome.genome_path, genome.chrom_cpg_sizes)
+    cmd += f' | {patter_tool} {genome.genome_path} {genome.chrom_cpg_sizes} '
     if blueprint:
         cmd += ' --blueprint '
-    cmd += ' > {}'.format(out_path)
+    cmd += f' > {out_path}'
     if verbose:
         print(cmd)
     subprocess_wrap(cmd, debug)
@@ -141,7 +139,7 @@ class Bam2Pat:
             raise IllegalArgumentError('[bam2pat] Invalid bam: {}'.format(self.bam_path))
 
         # check if bam is sorted by coordinate:
-        peek_cmd = 'samtools view -H {} | head -1'.format(self.bam_path)
+        peek_cmd = f'samtools view -H {self.bam_path} | head -1'
         so = subprocess.PIPE
         if 'coordinate' not in subprocess.check_output(peek_cmd, shell=True).decode():
             raise IllegalArgumentError('bam file must be sorted by coordinate')
@@ -151,21 +149,21 @@ class Bam2Pat:
             eprint('[bam2pat] bai file was not found! Generating...')
             r = subprocess.call(['samtools', 'index', self.bam_path])
             if r:
-                raise IllegalArgumentError('Failed indexing bam: {}'.format(self.bam_path))
+                raise IllegalArgumentError(f'Failed indexing bam: {self.bam_path}')
 
         # validate output dir:
         if not (op.isdir(self.out_dir)):
-            raise IllegalArgumentError('Invalid output dir: {}'.format(self.out_dir))
+            raise IllegalArgumentError(f'Invalid output dir: {self.out_dir}')
 
     def is_pair_end(self):
-        first_line = subprocess.check_output('samtools view {} | head -1'.format(self.bam_path), shell=True)
+        first_line = subprocess.check_output(f'samtools view {self.bam_path} | head -1', shell=True)
         return int(first_line.decode().split('\t')[1]) & 1
 
     def set_regions(self):
         if self.gr.region_str:
             return [self.gr.region_str]
         else:
-            cmd = 'samtools idxstats {} | cut -f1 '.format(self.bam_path)
+            cmd = f'samtools idxstats {self.bam_path} | cut -f1 '
             p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             output, error = p.communicate()
             if p.returncode or not output:
@@ -214,13 +212,13 @@ class Bam2Pat:
         uname = f'{name}.{str(uuid.uuid4())[:8]}.PID{os.getpid()}'
         self.tmp_dir = op.join(op.dirname(self.args.out_dir), uname)
         os.mkdir(self.tmp_dir)
-        prefix = op.join(self.tmp_dir, name)
+        tmp_prefix = op.join(self.tmp_dir, name)
 
         processes = []
-        nr_threads = self.args.threads  # todo smarted default!
+        nr_threads = self.args.threads  # todo smarter default!
         with Pool(nr_threads) as p:
             for c in self.set_regions():
-                out_path = f'{prefix}.{c}.out'
+                out_path = f'{tmp_prefix}.{c}.out'
                 params = (self.bam_path, out_path, c, self.gr.genome,
                           self.is_pair_end(), self.args.exclude_flags,
                           self.args.mapq, self.debug, self.args.unq, self.args.blueprint,
@@ -239,8 +237,9 @@ class Bam2Pat:
             return
 
         # Concatenate chromosome files
-        pat_path = name + PAT_SUFF
-        unq_path = name + UNQ_SUFF
+        prefix = op.join(self.args.out_dir, name)
+        pat_path = prefix + PAT_SUFF
+        unq_path = prefix + UNQ_SUFF
         os.system('cat ' + ' '.join([p for p, u in res]) + ' > ' + pat_path)  # pat
         if self.args.unq:
             os.system('cat ' + ' '.join([u for p, u in res]) + ' > ' + unq_path)  # unq
@@ -255,11 +254,11 @@ class Bam2Pat:
         for f in (pat_path, unq_path):
             if not op.isfile(f):
                 continue
-            subprocess.call('bgzip -f@ 14 {f} && tabix -fCb 2 -e 2 {f}.gz'.format(f=f), shell=True)
-            eprint('[bam2pat] generated {}.gz'.format(f))
+            subprocess.call(f'bgzip -f@ 14 {f} && tabix -fCb 2 -e 2 {f}.gz', shell=True)
+            eprint(f'[bam2pat] generated {f}.gz')
 
-        beta_path = pat2beta(pat_path + '.gz', self.out_dir, args=self.args)
-        eprint('[bam2pat] generated {}.beta'.format(name))
+        beta_path = pat2beta(f'{pat_path}.gz', self.out_dir, args=self.args)
+        eprint(f'[bam2pat] generated {beta_path}')
 
 
 def parse_bam2pat_args(parser):
