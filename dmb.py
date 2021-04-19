@@ -181,7 +181,7 @@ class MarkersFinder:
         outpath = op.join(self.args.out_dir, f'Markers.{self.group}.bed')
         cols_to_dump = ['chr', 'start', 'end', 'startCpG', 'endCpG',
                         'target', 'region', 'lenCpG', 'bp', 'tg_low',
-                        'bg_high', 'direction', 'margin']
+                        'bg_high', 'margin', 'direction']
         self.dump_single_df(tf[cols_to_dump], outpath)
 
     def dump_single_df(self, df, outpath):
@@ -238,11 +238,12 @@ def match_prefix_to_bin(prefixes, bins, suff=None):
         full_paths.append(results[0])
     return full_paths
 
-def find_bin_paths(gf, idir):
+
+def find_bin_paths(gf, indir):
     # find full path for all samples
-    if not op.isdir(idir):
-        raise IllegalArgumentError(f'Invalid input directory: {idir}')
-    all_bins = [f for f in os.listdir(idir) if f.endswith(('.bin', '.lbeta', '.uxm', '.beta'))]
+    if not op.isdir(indir):
+        raise IllegalArgumentError(f'Invalid input directory: {indir}')
+    all_bins = [f for f in os.listdir(indir) if f.endswith(('.bin', '.lbeta', '.uxm', '.beta'))]
 
     gf['full_path'] = [op.join(indir, f) for f in match_prefix_to_bin(gf['fname'], all_bins)]
 
@@ -254,7 +255,6 @@ def find_bin_paths(gf, idir):
         raise IllegalArgumentError(f'Error. binary file sizes mismatch')
 
     return gf
-
 
 
 def parse_args():
