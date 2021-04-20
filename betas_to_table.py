@@ -45,7 +45,7 @@ def dump(outpath, df, verbose):
     mode = 'w'
     eixs = enumerate(ixs)
     if verbose:
-        eprint(f'dumping table to {outpath}')
+        eprint(f'[wt table] dumping table with shape {df.shape} to {outpath}')
         eixs = tqdm(enumerate(ixs), total=len(ixs))
     for ix, subset in eixs:
         df.loc[subset].to_csv(outpath, na_rep='NA',
@@ -70,7 +70,7 @@ def groups_load_wrap(groups_file, betas):
 
 def cwrap(b, df, verbose):
     if verbose:
-        eprint(op.splitext(op.basename(b))[0])
+        eprint('[wt table]', op.splitext(op.basename(b))[0])
     return collapse_process(b, df)
 
 def main():
@@ -83,6 +83,8 @@ def main():
 
     gf = groups_load_wrap(args.groups_file, args.betas)
     df = load_blocks_file(args.blocks)
+    if args.verbose:
+        eprint(f'[wt table] reducing to {df.shape[0]:,} blocks')
     p = Pool(args.threads)
     params = [(b, df, args.verbose) for b in sorted(gf['full_path'].unique())]
     arr = p.starmap(cwrap, params)
