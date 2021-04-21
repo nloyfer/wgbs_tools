@@ -210,7 +210,7 @@ class Bam2Pat:
         # build temp dir:
         name = op.splitext(op.basename(self.bam_path))[0]
         uname = f'{name}.{str(uuid.uuid4())[:8]}.PID{os.getpid()}'
-        self.tmp_dir = op.join(op.dirname(self.args.out_dir), uname)
+        self.tmp_dir = op.join(self.args.out_dir, uname)
         os.mkdir(self.tmp_dir)
         tmp_prefix = op.join(self.tmp_dir, name)
 
