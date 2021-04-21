@@ -62,6 +62,9 @@ def groups_load_wrap(groups_file, betas):
         gf = load_gfile_helper(groups_file)
     else:
         # otherwise, generate dummy group file for all binary files in input_dir
+        # first drop duplicated files, while keeping original order
+        seen = set()
+        betas = [x for x in betas.copy() if not (x in seen or seen.add(x))]
         fnames = [op.splitext(op.basename(b))[0] for b in betas]
         gf = pd.DataFrame(columns=['fname'], data=fnames)
         gf['group'] = gf['fname']
@@ -94,8 +97,10 @@ def main():
     dicts = [d for d in arr if d is not None]
     dres = {k: beta2vec(v, args.min_cov) for d in dicts for k, v in d.items()}
     groups = sorted(gf['group'].unique())
-    for group in groups:
-        df[group] = np.nanmean(np.concatenate([dres[k][None, :] for k in gf['fname'][gf['group'] == group]]), axis=0).T
+    with np.warnings.catch_warnings():
+        np.warnings.filterwarnings('ignore', r'Mean of empty slice')
+        for group in groups:
+            df[group] = np.nanmean(np.concatenate([dres[k][None, :] for k in gf['fname'][gf['group'] == group]]), axis=0).T
 
     dump(args.output, df, args.verbose)
 
