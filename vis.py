@@ -29,8 +29,8 @@ def pat_args(parser):
             help='Pat vis: output colored text instead of shapes')
 
 def beta_args(parser):
-    parser.add_argument('-d', '--dists', action='store_true',
-                        help='beta vis: print results with distances (kind of log scale)')
+    # parser.add_argument('-d', '--dists', action='store_true',
+                        # help='beta vis: print results with distances (kind of log scale)')
     parser.add_argument('-o', '--output', help='beta vis: save plot to file')
     parser.add_argument('--color_scheme', '-cs', type=int, default=256,
                         help='beta vis: Color scheme. Possible values: 16 or 256 [256]')

@@ -23,7 +23,8 @@ class BetaVis:
         self.args = args
 
         # load distances
-        self.distances = self.load_pairwise_dists() if args.dists else None
+        # self.distances = self.load_pairwise_dists() if args.dists else None # TODO: implement or remove
+        self.distances = None
 
         # drop duplicated files, while keeping original order
         seen = set()
