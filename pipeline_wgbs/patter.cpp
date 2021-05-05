@@ -38,8 +38,11 @@ std::vector <std::string> line2tokens(std::string &line) {
 
 void print_vec(std::vector <std::string> &vec) {
     /** print a vector to stderr, tab separated */
-    for (auto &j: vec)
-        std::cerr << j << TAB;
+    std::string sep = "";
+    for (auto &j: vec) {
+        std::cerr << sep << j;
+        sep = TAB;
+    }
     std::cerr << std::endl;
 }
 
@@ -534,7 +537,7 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
         unsigned long start_locus = stoul(tokens[3]);   // Fourth field from bam file
         int samflag = stoi(tokens[1]);
         std::string seq = tokens[9];
-        std::string bp_qual = tokens[10];
+        //std::string bp_qual = tokens[10];
         std::string CIGAR = tokens[5];
 
         seq = clean_seq(seq, CIGAR);
@@ -573,14 +576,16 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
         res.push_back(tokens[2]);                                  // chr
         res.push_back(std::to_string(start_site));                 // start site
         res.push_back(meth_pattern);                               // meth pattern
-        res.push_back(std::to_string(stoi(tokens[3])));            // start locus
+        if (unq) {
+            res.push_back(std::to_string(stoi(tokens[3])));            // start locus
 
-        // Read length:
-        int read_len = std::abs(stoi(tokens[8]));
-        if (!read_len) {        // Happens in single-end data
-            read_len = int(seq_len);
+            // Read length:
+            int read_len = std::abs(stoi(tokens[8]));
+            if (!read_len) {        // Happens in single-end data
+                read_len = int(seq_len);
+            }
+            res.push_back(std::to_string(read_len));                    // read length
         }
-        res.push_back(std::to_string(read_len));                    // read length
 
         return res;
     }
@@ -600,7 +605,6 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
 void patter::proc2lines(std::vector <std::string> tokens1,
                         std::vector <std::string> tokens2) {
 
-    std::vector <std::string> l1, l2, res;
 
     /** print result to stdout */
     try {
@@ -610,16 +614,17 @@ void patter::proc2lines(std::vector <std::string> tokens1,
             readsStats.nr_invalid += 2;
             throw std::invalid_argument("lines are not complements!");
         }
-        l1 = samLineToPatVec(tokens1);
-        l2 = samLineToPatVec(tokens2);
 
         // Merge 2 complementary lines to a single output. 
-        res = merge(l1, l2);
+        std::vector <std::string> res = merge(samLineToPatVec(tokens1), samLineToPatVec(tokens2));
         if (res.empty()) { return; } 
 
         // print to stdout
-        for (auto &j: res)
-            std::cout << j << TAB;
+         std::string sep = "";
+        for (auto &j: res) {
+            std::cout << sep << j;
+            sep = TAB;
+        }
         std::cout << std::endl;
     }
     catch (std::exception &e) {
@@ -899,14 +904,15 @@ int main(int argc, char **argv) {
     try {
         InputParser input(argc, argv);
         if (argc < 3) {
-            throw std::invalid_argument("Usage: patter GENOME_PATH CPG_CHROM_SIZE_PATH [--bam] [--mbias MBIAS_PATH]");
+            throw std::invalid_argument("Usage: patter GENOME_PATH CPG_CHROM_SIZE_PATH [--bam] [--unq] [--mbias MBIAS_PATH]");
         } else if (argc == 4 && input.cmdOptionExists("--bam")) {
-            patter p(argv[1], argv[2], false, "");
+            patter p(argv[1], argv[2], false, false, "");
             p.action_sam("");
         } 
         bool blueprint = input.cmdOptionExists("--blueprint");
+        bool unq = input.cmdOptionExists("--unq");
         std::string mbias_path = input.getCmdOption("--mbias");
-        patter p(argv[1], argv[2], blueprint, mbias_path);
+        patter p(argv[1], argv[2], blueprint, unq, mbias_path);
         p.action();
     }
     catch (std::exception &e) {

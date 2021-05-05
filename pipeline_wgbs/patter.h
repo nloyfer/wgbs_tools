@@ -48,6 +48,7 @@ public:
     clock_t tick = clock();
     bool is_paired_end = false;
     bool blueprint = false;
+    bool unq = false;
     bool first_line(std::string &line);
 
     struct MethylData {
@@ -57,8 +58,8 @@ public:
 
     mbias_ss mbias[2];
 
-    patter(std::string refpath, std::string cspath, bool bp, std::string mb): 
-        ref_path(refpath), chrom_sz_path(cspath), blueprint(bp), mbias_path(mb) {}
+    patter(std::string refpath, std::string cspath, bool bp, bool in_unq, std::string mb): 
+        ref_path(refpath), chrom_sz_path(cspath), blueprint(bp), unq(in_unq), mbias_path(mb) {}
 
     void load_genome_ref();
     int find_cpg_inds_offset();
