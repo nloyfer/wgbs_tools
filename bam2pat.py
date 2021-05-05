@@ -40,6 +40,21 @@ def subprocess_wrap(cmd, debug):
         # eprint("Failed with subprocess %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
         # raise IllegalArgumentError('Failed')
 
+def pat(out_path, debug, temp_dir):
+    try:
+        # sort
+        pat_path = out_path + PAT_SUFF
+        cmd = f'sort {out_path} -k2,2n -k3,3 '
+        if temp_dir:
+            cmd += f' -T {temp_dir} '
+        cmd += f' | sed -e "s/$/\t1/" | {collapse_pat_script} - > {pat_path}'
+        subprocess_wrap(cmd, debug)
+
+        mult_safe_remove([out_path])
+
+        return pat_path, None
+    except IllegalArgumentError as e:
+        return None
 
 def pat_unq(out_path, debug, unq, temp_dir):
     try:
@@ -104,6 +119,8 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
         return '', ''
 
     cmd += f' | {patter_tool} {genome.genome_path} {genome.chrom_cpg_sizes} '
+    if unq:
+        cmd += ' --unq '
     if blueprint:
         cmd += ' --blueprint '
     cmd += f' > {out_path}'
@@ -111,7 +128,10 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
         print(cmd)
     subprocess_wrap(cmd, debug)
 
-    return pat_unq(out_path, debug, unq, temp_dir)
+    if unq:
+        return pat_unq(out_path, debug, unq, temp_dir)
+    else:
+        return pat(out_path, debug, temp_dir)
 
 
 class Bam2Pat:
