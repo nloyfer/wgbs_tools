@@ -18,36 +18,28 @@ np.set_printoptions(linewidth=200, precision=2)
 CHUNK_MAX_SIZE = 60000
 
 
-def dump_table(df, path):
-    df.to_csv(path, sep='\t', header=None, index=None)
-    # eprint('dumped to file:', path)
-
-
 def segment_process(betas, skip, nsites, pcount, max_cpg, max_bp, dist_dict):
-    assert nsites, 'trying to segment an empty interval'.format(skip, nsites)
+    assert nsites, f'trying to segment an empty interval ({skip}, {nsites})'
     if nsites == 1:
         return np.array([skip, skip + 1])
     try:
         beta_files = ' '.join(betas)
-        cmd = '{} {} '.format(segment_tool, beta_files)
-        cmd += '-s {} -n {} -max_cpg {} '.format(skip, nsites, max_cpg)
-        cmd += ' -ps {} -max_bp {} -rd {}'.format(pcount, max_bp, dist_dict)
+        cmd = f'{segment_tool} {beta_files} '
+        cmd += f'-s {skip} -n {nsites} -max_cpg {max_cpg} '
+        cmd += f' -ps {pcount} -max_bp {max_bp} -rd {dist_dict}'
         brd_str = subprocess.check_output(cmd, shell=True).decode().split()
         return np.array(list(map(int, brd_str))) + skip + 1
 
     except Exception as e:
-        eprint('Failed in s={}, n={}'.format(skip, nsites))
+        eprint(f'Failed in s={skip}, n={nsites}')
         raise e
 
 
 class SegmentByChunks:
     def __init__(self, args, betas):
         self.gr = GenomicRegion(args)
-        self.chunk_size = args.chunk_size
         self.betas = betas
-        self.pcount = args.pcount
         self.revdict = self.gr.genome.revdict_path
-        self.max_bp = args.max_bp
         self.max_cpg = min(args.max_cpg, args.max_bp // 2)
         assert (self.max_cpg > 1)
         self.args = args
@@ -71,9 +63,9 @@ class SegmentByChunks:
             nsites = self.gr.nr_sites
             skip = self.gr.sites[0] - 1
 
-        step = self.chunk_size
+        step = self.args.chunk_size
 
-        if nsites < step:
+        if nsites <= step:
             return np.array([skip]), np.array([nsites])
 
         sls = np.arange(skip, skip + nsites, step)
@@ -83,7 +75,8 @@ class SegmentByChunks:
             # update the last step:
             nls[-1] = nsites % step
 
-            # in case last step is small, merge is with the one before last
+            # in case last step is small, merge it with the one before last
+            # TODO: this is not necessary
             if nls[-1] < step // 5:
                 sls = sls[:-1]
                 nls = np.concatenate([nls[:-2], [np.sum(nls[-2:])]])
@@ -93,7 +86,7 @@ class SegmentByChunks:
         skip_list, nsites_list = self.break_to_chunks()
         assert np.all(nsites_list > 0) and len(skip_list) == len(nsites_list) > 0
         p = Pool(self.args.threads)
-        params = [(self.betas, si, ni, self.pcount, self.max_cpg, self.max_bp, self.revdict)
+        params = [(self.betas, si, ni, self.args.pcount, self.max_cpg, self.args.max_bp, self.revdict)
                   for si, ni in zip(skip_list, nsites_list)]
         arr = p.starmap(segment_process, params)
         p.close()
@@ -108,8 +101,8 @@ class SegmentByChunks:
         j = 0
         while len(dflist) > 1:
             p = Pool(self.args.threads)
-            params = [(dflist[i - 1], dflist[i], self.betas, self.pcount,
-                       self.max_cpg, self.max_bp, self.revdict, (j, i // 2 )) for i in range(1, len(dflist), 2)]
+            params = [(dflist[i - 1], dflist[i], self.betas, self.args.pcount,
+                       self.max_cpg, self.args.max_bp, self.revdict, (j, i // 2 )) for i in range(1, len(dflist), 2)]
             arr = p.starmap(stitch_2_dfs, params)
             p.close()
             p.join()
@@ -124,13 +117,10 @@ class SegmentByChunks:
             eprint('Empty blocks array')
             return
 
-        df = np2pd(df)
+        df = pd.DataFrame({'startCpG': df[:-1], 'endCpG': df[1:]})
+        # eprint(f'found {df.shape} blocks')
         df = insert_genomic_loci(df, self.gr)
-        dump_table(df, self.args.out_path)
-
-
-def np2pd(arr):
-    return pd.DataFrame({'startCpG': arr[:-1], 'endCpG': arr[1:]})
+        df.to_csv(self.args.out_path, sep='\t', header=None, index=None)
 
 
 def stitch_2_dfs(b1, b2, betas, pcount, max_cpg, max_bp, revdict, debind):
