@@ -58,8 +58,8 @@ class MarkersFinder:
                 continue
             eprint(group)
             self.group = group
-            tfU = self.find_markers_group('U')
-            tfM = self.find_markers_group('M')
+            tfU = self.find_markers_group(self.dfU, 'U')
+            tfM = self.find_markers_group(self.dfM, 'M')
             tf = pd.concat([tfU, tfM])
             self.dump_results(tf)
 
@@ -139,8 +139,7 @@ class MarkersFinder:
         r[~cond] = np.nan
         return r.astype(np.float16)
 
-    def find_markers_group(self, um):
-        df = self.dfU if um == 'U' else self.dfM
+    def find_markers_group(self, df, um):
         if df.empty:
             return pd.DataFrame(columns=self.blocks.columns)
         self.tg_names = self.gf[self.gf['group'] == self.group]['fname'].values
@@ -202,6 +201,12 @@ class MarkersFinder:
         # dump df:
         df.to_csv(outpath, index=None, sep='\t', mode=df_mode, header=None)
 
+#######################################################
+#                                                     #
+#          Parse groups and bins                      #
+#                                                     #
+#######################################################
+
 def load_gfile_helper(groups_file):
     # load and validate csv
     gf = pd.read_csv(groups_file, index_col=False, comment='#')
@@ -215,12 +220,14 @@ def load_gfile_helper(groups_file):
     gf = gf[['fname', 'group']].dropna().reset_index(drop=True)
     return gf
 
+
 def load_groups_file(groups_file, idir, verbose=False):
     if verbose:
         eprint('loading groups_file...')
     gf = load_gfile_helper(groups_file)
     # find binary file paths
     return find_bin_paths(gf, idir)
+
 
 def match_prefix_to_bin(prefixes, bins, suff=None):
     full_paths = []
