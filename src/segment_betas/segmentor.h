@@ -6,18 +6,11 @@
 #define CSEGMENT_SEGMENTOR_H
 
 #include <iostream>
-
-#include <iostream>
-#include <ctime>
-//#include <string>
 #include <vector>
-#include <algorithm>    // std::sort
 #include <fstream>
-#include <regex>
-#include <unordered_map>
-#include <cmath>
+#include <cstring>      // memset
+#include <algorithm>    // numeric_limits
 #include <math.h>
-
 
 struct Params
 {
@@ -38,7 +31,6 @@ class segmentor {
     float pseudo_count = 0;
     int max_cpg = 0;
     double *mem = nullptr;
-
 
     void read_beta_file(const char *beta_path, float *data);
     void cost_memoization(std::vector<float*> &all_data);
