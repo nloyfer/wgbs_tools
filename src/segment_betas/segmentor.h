@@ -19,7 +19,6 @@ struct Params
     float pseudo_count;
     unsigned int max_cpg;
     unsigned int max_bp;
-    std::string revdict;
 };
 
 
