@@ -36,9 +36,12 @@ void segmentor::load_dists(uint32_t *dists) {
     if (params.max_bp == 0) { return; }
 
     int j = 0;
-    for (std::string line; std::getline(std::cin, line);) {
+    for (std::string line; std::getline(std::cin, line); j++) {
         dists[j] = std::stoi(line);
-        j++;
+    }
+    if (j != nr_sites) {
+        std::cerr << "Error: nr_sites != number of loci: " << nr_sites << " != " << j << ". Try different chunck size!"<< std::endl;
+        throw 0;
     }
 }
 
@@ -69,7 +72,7 @@ void segmentor::cost_memoization(std::vector<float*> &all_data){
         for (int j = 0; j < window; j++) {
 
 
-            if (dists[i + j] - dists[i] > params.max_bp) {
+            if ( (dists[i + j] - dists[i] > params.max_bp) || (dists[i + j] < dists[i]) ) {
                 mem[i * max_cpg + j] = -std::numeric_limits<float>::infinity();
                 continue;
             }
