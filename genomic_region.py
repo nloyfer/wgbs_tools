@@ -7,6 +7,11 @@ import pandas as pd
 import os.path as op
 
 
+def index2chrom(site, genome):
+    chrs_sz = genome.get_chrom_cpg_size_table()
+    return chrs_sz['chr'].loc[np.searchsorted(np.cumsum(chrs_sz['size']), site)]
+
+
 class GenomicRegion:
     def __init__(self, args=None, region=None, sites=None, genome_name='hg19'):
         self.genome_name = genome_name
@@ -14,7 +19,6 @@ class GenomicRegion:
         self.sites = sites
         self.region_str = region
         self.bp_tuple = None
-        self.chrs_sz = None  # DataFrame of chromosomes sizes (in number of sites)
         self.args = args
 
         # todo: this could be prettier
@@ -142,13 +146,6 @@ class GenomicRegion:
             raise IllegalArgumentError(msg)
         return site1, site2
 
-    def index2chrom(self, site):
-        if self.chrs_sz is None:
-            self.chrs_sz = self.genome.get_chrom_cpg_size_table()
-            self.chrs_sz['borders'] = np.cumsum(self.chrs_sz['size'])
-        cind = np.searchsorted(np.array(self.chrs_sz['borders']).flatten(), site)
-        return self.chrs_sz['chr'].loc[cind]
-
     def index2locus(self, index):
         """
         translate CpG index to genomic locus. e.g, CpG1 -> (chr1, 10469)
@@ -162,7 +159,7 @@ class GenomicRegion:
             raise IllegalArgumentError('Out of range site index:', index)
 
         # find chromosome:
-        chrom = self.index2chrom(index)
+        chrom = index2chrom(index, self.genome)
         # find locus:
         cmd = f'tabix {self.genome.revdict_path} {chrom}:{index}-{index} | cut -f2'
         loc = int(subprocess.check_output(cmd, shell=True).decode().strip())
