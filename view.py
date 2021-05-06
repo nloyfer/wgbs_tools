@@ -358,7 +358,7 @@ def parse_args():
                              # 'regions in parallel. Default number of processors: 16.')
     add_multi_thread_args(parser)
     parser.add_argument('--min_len', type=int, default=1,
-                        help='Pat: Display only reads covering at least MIN_LEN CpG sites [1]')
+                        help='pat: Display only reads covering at least MIN_LEN CpG sites [1]')
     parser.add_argument('--print_region', action='store_true', help='pat: Prints region before reads')
     return parser
 
