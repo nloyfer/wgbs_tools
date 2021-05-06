@@ -64,7 +64,8 @@ class InitGenome:
                 raise IllegalArgumentError('[wt init] Failed to generate index file (fai)')
 
         # Link fa + fai to the output dir
-        fasta_name = 'genome.fa' + '.gz' if self.ref_path.endswith('.gz') else ''
+        # fasta_name = 'genome.fa' + '.gz' if self.ref_path.endswith('.gz') else ''
+        fasta_name = 'genome.fa'
         self.link_file(self.ref_path, fasta_name)
         self.link_file(fai_path, fasta_name + '.fai')
 
