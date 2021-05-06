@@ -7,31 +7,23 @@
  * prints
  */
 
-void print_mem(double *mem, int nr_sites, int max_cpg) {
-    std::cerr << "\ncost" << std::endl;
+//void print_mem(double *mem, int nr_sites, int max_cpg) {
+    //std::cerr << "\ncost" << std::endl;
 
-    for (int i = 0; i < nr_sites; i++) {
-        for (int j = 0; j < max_cpg; j++) {
-            std::cerr << mem[i * max_cpg + j] << '\t';
-        }
-        std::cerr << std::endl;
-    }
-}
+    //for (int i = 0; i < nr_sites; i++) {
+        //for (int j = 0; j < max_cpg; j++) {
+            //std::cerr << mem[i * max_cpg + j] << '\t';
+        //}
+        //std::cerr << std::endl;
+    //}
+//}
 
-void print_MT(double *M, int *T, int nr_sites) {
-    std::cerr << "\nM" << '\t' << 'T' << std::endl;
-    for (int i = 0; i < nr_sites + 1; i++) {
-        std::cerr << M[i] << '\t' << T[i] << std::endl;
-    }
-}
-
-void print_data(const float *data, int nr_sites){
-    std::cerr << "\ndata" << std::endl;
-    for (int i = 0; i < nr_sites; i++) {
-        std::cerr << data[2 * i] << ", " << data[2 * i + 1] << " - " ;
-        std::cerr << (int) (data[2 * i] / data[2 * i + 1] * 100) << std::endl;
-    }
-}
+//void print_MT(double *M, int *T, int nr_sites) {
+    //std::cerr << "\nM" << '\t' << 'T' << std::endl;
+    //for (int i = 0; i < nr_sites + 1; i++) {
+        //std::cerr << M[i] << '\t' << T[i] << std::endl;
+    //}
+//}
 
 void print_borders(std::vector<int> borders){
     for (auto i = borders.rbegin(); i != borders.rend(); ++i )
@@ -39,28 +31,16 @@ void print_borders(std::vector<int> borders){
     printf("\n");
 }
 
-
 void segmentor::load_dists(uint32_t *dists) {
 
-    if (params.max_bp ==0) {
-        return;
-    }
-    memset(dists, 0, nr_sites * sizeof(*dists));
-    auto cdata = new char[nr_sites * 4];
-    std::ifstream infile;
-    infile.open(params.revdict, std::ios::binary | std::ios::in);
-    infile.seekg(start * 4);
-    infile.read(cdata, nr_sites * 4);
-    infile.close();
+    if (params.max_bp == 0) { return; }
 
-    // cast values to (uint32) and set dists variable
-    for (int i = 0; i < nr_sites * 4; i+=4) {
-        memcpy(&dists[i/4], cdata + i, 4);
-        //std::cerr << i / 4 << ", " << dists[i/4] << "\n";
+    int j = 0;
+    for (std::string line; std::getline(std::cin, line);) {
+        dists[j] = std::stoi(line);
+        j++;
     }
-    delete [] cdata;
 }
-
 
 void segmentor::cost_memoization(std::vector<float*> &all_data){
     /**
@@ -102,9 +82,7 @@ void segmentor::cost_memoization(std::vector<float*> &all_data){
                 ntotal[k] += all_data[k][((i + j) * 2) + 1];
                 ntotal_k = ntotal[k];
                 nmeth_k = nmeth[k];
-                if (!ntotal_k) {
-                    continue;
-                }
+                if (!ntotal_k) { continue; }
 
                 //log likelihood = nmeth * log(p_mle) + (ntotal - nmeth) * log(1 - p_mle)
                 p_mle_k = (nmeth_k + pseudo_count) / (ntotal_k + (2 * pseudo_count));
@@ -226,7 +204,6 @@ void segmentor::dp_wrapper(){
 
     // Delete data from memory
     for (auto dataset: all_data) {
-        //print_data(dataset, nr_sites);
         delete [] dataset;
     }
 }
