@@ -96,8 +96,6 @@ Params parse_params(InputParser &input){
 
 int main(int argc, char *argv[]) {
 
-
-
     InputParser input(argc, argv);
     if (argc < 6){
         std::cerr << "Usage: segment BETA_PATH [BETA_PATH...] -s START -n NR_SITES ";
@@ -115,11 +113,6 @@ int main(int argc, char *argv[]) {
             beta_paths.emplace_back(s);
         }
     }
-    // print beta files paths
-//    std::cerr << "beta files:\n";
-//    for (const auto &b: beta_paths) {
-//        std::cerr << b << "\n";
-//    }
 
     segmentor segmentor1(pams, beta_paths);
     segmentor1.dp_wrapper();
