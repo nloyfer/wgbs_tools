@@ -7,31 +7,42 @@ import sys
 from utils_wgbs import IllegalArgumentError, eprint, segment_tool, add_GR_args, \
                        load_dict_section, validate_file_list , validate_single_file, \
                        add_multi_thread_args
-from genomic_region import GenomicRegion
+from genomic_region import GenomicRegion, index2chrom
 from multiprocessing import Pool
 import argparse
 import subprocess
 import multiprocessing
 
-np.set_printoptions(linewidth=200, precision=2)
 
 CHUNK_MAX_SIZE = 60000
 
+def break_to_chunks_helper(start, end, step):
+    res = []
+    while start + step < end:
+        res.append((start, start + step))
+        start = start + step
+    res.append((start, end))
+    return res
 
-def segment_process(betas, skip, nsites, pcount, max_cpg, max_bp, dist_dict):
-    assert nsites, f'trying to segment an empty interval ({skip}, {nsites})'
-    if nsites == 1:
-        return np.array([skip, skip + 1])
+
+def segment_process(params):
+    sites = params['sites']
+    start, end = sites
+    assert end - start >= 1, f'trying to segment an empty interval {sites}'
+    if end - start == 1:
+        return np.array([start, end])
     try:
-        beta_files = ' '.join(betas)
+        beta_files = ' '.join(params['betas'])
         cmd = f'{segment_tool} {beta_files} '
-        cmd += f'-s {skip} -n {nsites} -max_cpg {max_cpg} '
-        cmd += f' -ps {pcount} -max_bp {max_bp} -rd {dist_dict}'
+        cmd += f'-s {start - 1} -n {end - start} -max_cpg {params["max_cpg"]} '
+        cmd += f' -ps {params["pcount"]} -max_bp {params["max_bp"]} '
+        chrom = index2chrom(start, params["genome"])
+        cmd = f'tabix {params["revdict"]} {chrom}:{start}-{end - 1} | cut -f2 |' + cmd
         brd_str = subprocess.check_output(cmd, shell=True).decode().split()
-        return np.array(list(map(int, brd_str))) + skip + 1
+        return np.array(list(map(int, brd_str))) + start
 
     except Exception as e:
-        eprint(f'Failed in s={skip}, n={nsites}')
+        eprint(f'Failed in sites {sites}')
         raise e
 
 
@@ -39,77 +50,57 @@ class SegmentByChunks:
     def __init__(self, args, betas):
         self.gr = GenomicRegion(args)
         self.betas = betas
-        self.revdict = self.gr.genome.revdict_path
-        self.max_cpg = min(args.max_cpg, args.max_bp // 2)
-        assert (self.max_cpg > 1)
+        max_cpg = min(args.max_cpg, args.max_bp // 2)
+        assert (max_cpg > 1)
+        self.param_dict = {'betas': betas,
+                          'pcount': args.pcount,
+                          'max_cpg': max_cpg,
+                          'max_bp': args.max_bp,
+                          'revdict': self.gr.genome.revdict_path,
+                          'genome': self.gr.genome
+                          }
         self.args = args
 
     def break_to_chunks(self):
-        """
-        Break range of sites to chunks of size 'step'. Examples:
-
-        skip=500, nsites=1500, step=500
-        output: sls: [500, 1000]
-                nls: [500, 500]
-
-        skip=500, nsites=1550, step=500
-        output: sls: [500, 1000]
-                nls: [500, 550]
-        """
-        if self.gr.is_whole():
-            nsites = op.getsize(self.betas[0]) // 2
-            skip = 0
-        else:
-            nsites = self.gr.nr_sites
-            skip = self.gr.sites[0] - 1
-
+        """ Break range of sites to chunks of size 'step', while keeping chromosomes separated """
         step = self.args.chunk_size
-
-        if nsites <= step:
-            return np.array([skip]), np.array([nsites])
-
-        sls = np.arange(skip, skip + nsites, step)
-        nls = np.ones_like(sls) * step
-
-        if len(nls) * step > nsites:  # there's a leftover
-            # update the last step:
-            nls[-1] = nsites % step
-
-            # in case last step is small, merge it with the one before last
-            # TODO: this is not necessary
-            if nls[-1] < step // 5:
-                sls = sls[:-1]
-                nls = np.concatenate([nls[:-2], [np.sum(nls[-2:])]])
-        return sls, nls
+        if not self.gr.is_whole():
+            start, end = self.gr.sites
+            return break_to_chunks_helper(start, end, step)
+        else:
+            res = []
+            cf = self.gr.genome.get_chrom_cpg_size_table()
+            cf['borders'] = np.cumsum(cf['size'])
+            for _, row in cf.iterrows():
+                chrom, size, border = row
+                r = break_to_chunks_helper(border - size + 1, border + 1, step)
+                res += r
+        return res
 
     def run(self):
-        skip_list, nsites_list = self.break_to_chunks()
-        assert np.all(nsites_list > 0) and len(skip_list) == len(nsites_list) > 0
+        chunks = self.break_to_chunks()
+        # print(np.array(chunks))
         p = Pool(self.args.threads)
-        params = [(self.betas, si, ni, self.args.pcount, self.max_cpg, self.args.max_bp, self.revdict)
-                  for si, ni in zip(skip_list, nsites_list)]
+        params = [(dict(self.param_dict, **{'sites': s}),) for s in chunks]
         arr = p.starmap(segment_process, params)
         p.close()
         p.join()
 
-        # eprint('merging chunks...')
+        eprint('merging chunks...')
         df = self.merge_df_list(arr)
         self.dump_result(df)
 
     def merge_df_list(self, dflist):
 
-        j = 0
         while len(dflist) > 1:
             p = Pool(self.args.threads)
-            params = [(dflist[i - 1], dflist[i], self.betas, self.args.pcount,
-                       self.max_cpg, self.args.max_bp, self.revdict, (j, i // 2 )) for i in range(1, len(dflist), 2)]
+            params = [(dflist[i - 1], dflist[i], self.param_dict) for i in range(1, len(dflist), 2)]
             arr = p.starmap(stitch_2_dfs, params)
             p.close()
             p.join()
 
             last_df = [dflist[-1]] if len(dflist) % 2 else []
             dflist = arr + last_df
-            j += 1
         return dflist[0]
 
     def dump_result(self, df):
@@ -118,22 +109,28 @@ class SegmentByChunks:
             return
 
         df = pd.DataFrame({'startCpG': df[:-1], 'endCpG': df[1:]})
-        # eprint(f'found {df.shape} blocks')
+        # eprint(f'found {df.shape[0]} blocks')
         df = insert_genomic_loci(df, self.gr)
         df.to_csv(self.args.out_path, sep='\t', header=None, index=None)
 
 
-def stitch_2_dfs(b1, b2, betas, pcount, max_cpg, max_bp, revdict, debind):
+def stitch_2_dfs(b1, b2, params):
 
-    patch1_size = 50
-    path2_size = 50
+    # if b1 and b2 are the edges of different chromosomes, simply concatenate them
+    if index2chrom(b1[-1] - 1, params['genome']) != index2chrom(b2[0], params['genome']):
+        return np.concatenate([b1[:-1], b2])
+
     n1 = b1[-1] - b1[0]
     n2 = b2[-1] - b2[0]
-    while patch1_size <= n1 and path2_size <= n2:
+    patch1_size = min(50, n1)
+    patch2_size = min(50, n2)
+    patch = np.array([], dtype=int)
+    while patch1_size <= n1 and patch2_size <= n2:
         # calculate blocks for patch:
-        skip = b1[-1] - patch1_size - 1
-        nsites = patch1_size + path2_size
-        patch = segment_process(betas, skip, nsites, pcount, max_cpg, max_bp, revdict)
+        start = b1[-1] - patch1_size - 1
+        end = b1[-1] + patch2_size
+        cparams = dict(params, **{'sites': (start, end)})
+        patch = segment_process(cparams)
 
         # find the overlaps
         if is_overlap(b1, patch) and is_overlap(patch, b2):
@@ -144,7 +141,7 @@ def stitch_2_dfs(b1, b2, betas, pcount, max_cpg, max_bp, revdict, debind):
             if not is_overlap(b1, patch):
                 patch1_size = increase_patch(patch1_size, n1)
             if not is_overlap(patch, b2):
-                path2_size = increase_patch(path2_size, n2)
+                patch2_size = increase_patch(patch2_size, n2)
 
     # Failed: could not stich the two chuncks
     eprint('ERROR: no overlaps at all!!', is_overlap(b1, patch), is_overlap(patch, b2))
@@ -156,18 +153,20 @@ def is_overlap(b1, b2):
 
 
 def find_dups(b1, b2):
-    return pd.Series(np.concatenate([b1, b2])).duplicated(keep='last')
+    return pd.Series(np.concatenate([b1, b2])).duplicated(keep=False).values
 
 
 def merge2(b1, b2):
-    nr_from_df1 = np.argmax(np.array(find_dups(b1, b2)))
+    nr_from_df1 = np.argmax(find_dups(b1, b2))
     skip_from_df2 = np.searchsorted(b2, b1[nr_from_df1])
     return np.concatenate([b1[:nr_from_df1 + 1], b2[skip_from_df2 + 1:]]).copy()
 
 
 def increase_patch(pre_size, maxval):
+    # TODO: limit patch to not cross chromosomes.
+    # Currently the c++ tool will throw exception if it happens.
     if pre_size == maxval:
-        return maxval + 1
+        return maxval + 1  # too large, so the while loop will break
     return int(min(pre_size * 2, maxval))
 
 
