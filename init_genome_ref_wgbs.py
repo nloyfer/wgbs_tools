@@ -48,7 +48,7 @@ class InitGenome:
         # If no fai file is found, generate it:
         if not op.isfile(fai_path):
             eprint(f'[wt init] fai file not found. Attempting to index {self.ref_path}')
-            cmd = 'samtools faidx {self.ref_path}'
+            cmd = f'samtools faidx {self.ref_path}'
             output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT).decode()
             if self.ref_path.endswith('.gz') and 'please use bgzip' in output:
                 msg = f'[wt init] Seems like your reference FASTA cannot be indexed with samtools faidx.\n' \
