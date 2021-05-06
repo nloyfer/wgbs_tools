@@ -77,14 +77,6 @@ Params parse_params(InputParser &input){
         pams.max_bp = std::stoul(max_bp_str);
     }
 
-    // rev_dict
-    std::string revd_str = input.getCmdOption("-rd");
-    if (!revd_str.empty()) {
-        pams.revdict = revd_str;
-    } else if (!max_bp_str.empty()) {
-        throw "Please provide path to revdict\n";
-    }
-
     // pseudo count
     std::string psud_str = input.getCmdOption("-ps");
     if (!psud_str.empty()) {
