@@ -564,7 +564,7 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
         }
 
         // in case read contains no CpG sites:
-        if (meth_pattern.empty()) {
+        if (meth_pattern.size() < min_cpg) {
             readsStats.nr_empty++;
             return res;     // return empty vector
         }
@@ -655,12 +655,15 @@ void patter::procPairAddMethylData(std::vector <std::string> tokens1,
         l2 = samLineToPatVec(tokens2);
 
         patter::MethylData res = merge_and_count_methyl_data(l1, l2);
-        if (!tokens1.empty()) {
-            std::string toPrint1 = samLineMethyldataMakeString(line1, res);
-            std::cout << line1 + toPrint1;
+        int total = res.countMethyl + res.countUnmethyl;
+        if (total > 0){
+            if (!tokens1.empty()) {
+                std::string toPrint1 = samLineMethyldataMakeString(line1, res);
+                std::cout << line1 + toPrint1;
+            }
+            std::string toPrint2 = samLineMethyldataMakeString(line2, res);
+            std::cout << line2 + toPrint2;
         }
-        std::string toPrint2 = samLineMethyldataMakeString(line2, res);
-        std::cout << line2 + toPrint2;
     }
     catch (std::exception &e) {
         std::string msg = "[ " + chr + " ] Exception while merging. lines ";
@@ -895,22 +898,39 @@ private:
     std::vector <std::string> tokens;
 };
 
+bool is_number(const std::string& s)
+{
+    std::string::const_iterator it = s.begin();
+    while (it != s.end() && std::isdigit(*it)) ++it;
+    return !s.empty() && it == s.end();
+}
+
 
 int main(int argc, char **argv) {
     clock_t begin = clock();
     try {
         InputParser input(argc, argv);
+        int min_cpg = 1;
+        if (input.cmdOptionExists("--min_cpg")){
+            std::string min_cpg_string = input.getCmdOption("--min_cpg");
+
+            if ( !is_number(min_cpg_string) )
+                throw std::invalid_argument("invalid min_cpg argument. min_cpg should be a non-negative integer.");
+            min_cpg = std::stoi(input.getCmdOption("--min_cpg"));
+        }
         if (argc < 3) {
             throw std::invalid_argument("Usage: patter GENOME_PATH CPG_CHROM_SIZE_PATH [--bam] [--unq] [--mbias MBIAS_PATH]");
-        } else if (argc == 4 && input.cmdOptionExists("--bam")) {
-            patter p(argv[1], argv[2], false, false, "");
+        } else if (input.cmdOptionExists("--bam")) {
+            patter p(argv[1], argv[2], false, false, "", min_cpg);
             p.action_sam("");
-        } 
-        bool blueprint = input.cmdOptionExists("--blueprint");
-        bool unq = input.cmdOptionExists("--unq");
-        std::string mbias_path = input.getCmdOption("--mbias");
-        patter p(argv[1], argv[2], blueprint, unq, mbias_path);
-        p.action();
+        } else{
+            bool blueprint = input.cmdOptionExists("--blueprint");
+            bool unq = input.cmdOptionExists("--unq");
+            std::string mbias_path = input.getCmdOption("--mbias");
+            patter p(argv[1], argv[2], blueprint, unq, mbias_path, min_cpg);
+            p.action();
+        }
+
     }
     catch (std::exception &e) {
         std::cerr << "[ patter ] Failed! exception:" << std::endl;
