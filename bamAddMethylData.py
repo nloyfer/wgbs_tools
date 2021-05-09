@@ -15,7 +15,7 @@ from init_genome_ref_wgbs import chromosome_order
 from genomic_region import GenomicRegion
 
 
-BAM_SUFF = '_md.bam'
+BAM_SUFF = '.counts.bam'
 
 # Minimal Mapping Quality to consider.
 # 10 means include only reads w.p. >= 0.9 to be mapped correctly.
@@ -25,7 +25,7 @@ MAPQ = 10
 # todo: unsorted / sorted by name
 
 
-def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end, ex_flags, mapq, debug):
+def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end, ex_flags, mapq, debug, min_cpg):
     """ Convert a temp single chromosome file, extracted from a bam file,
         into a sam formatted (no header) output file."""
 
@@ -42,12 +42,13 @@ def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end,
         cmd += ' head -200 | '
     if paired_end:
         # change reads order, s.t paired reads will appear in adjacent lines
-        cmd += "{} | ".format(match_maker_tool)
-    cmd += "{} {} {} --bam | cat {} - | samtools view -b - > {}".format(patter_tool, genome.genome_path,
-                                                                            genome.chrom_cpg_sizes,
-                                                                            header_path, unsorted_bam)
+        cmd += f'{match_maker_tool} | '
+    cmd += f'{patter_tool} {genome.genome_path} {genome.chrom_cpg_sizes} --bam '
+    if min_cpg > 1:
+        cmd += """ | awk '{for (i=12;i<=NF;i++) {if (substr($i, 0, 5)=="YI:Z:"){split(substr($i,6), a, ","); if(a[1]+a[2]>@TH){print}}}}'""".replace('@TH', str(min_cpg))
+    cmd += f' | cat {header_path} - | samtools view -b - > {unsorted_bam}'
 
-    sort_cmd = 'samtools sort -o {} -T {} {}'.format(out_path, out_directory, unsorted_bam)
+    sort_cmd = f'samtools sort -o {out_path} -T {out_directory} {unsorted_bam}'  # TODO: use temp directory, as in bam2pat
 
     # print(cmd)
     subprocess_wrap(cmd, debug)
@@ -56,12 +57,12 @@ def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end,
     return out_path
 
 def get_header_command(input_path):
-    return "samtools view -H {}".format(input_path)
+    return f'samtools view -H {input_path}'
 
 def proc_header(input_path, out_path, debug):
     """ extracts header from bam file and saves it to tmp file."""
 
-    cmd = get_header_command(input_path) + " > {} ".format(out_path)
+    cmd = get_header_command(input_path) + f' > {out_path} '
     #print(cmd)
     subprocess_wrap(cmd, debug)
 
@@ -148,7 +149,7 @@ class BamMethylData:
                 out_path_name = name + '_' + c
                 params = (self.bam_path, out_path_name, c, self.gr.genome,
                         header_path, self.is_pair_end(), self.args.exclude_flags,
-                        self.args.mapq, self.debug)
+                        self.args.mapq, self.debug, self.args.min_cpg)
                 processes.append(p.apply_async(proc_chr, params))
             if not processes:
                 raise IllegalArgumentError('Empty bam file')
@@ -166,7 +167,7 @@ class BamMethylData:
         out_directory = os.path.dirname(final_path)
         # cmd = '/bin/bash -c "cat <({})'.format(get_header_command(self.bam_path)) + ' ' +\
         #       ' '.join([self.intermediate_bam_file_view(p) for p in res]) + ' | samtools view -b - > ' + final_path_unsorted + '"'
-        cmd ="samtools merge -f -h {} {} ".format(header_path, final_path) + ' '.join([p for p in res])
+        cmd ="samtools merge -c -p -f -h {} {} ".format(header_path, final_path) + ' '.join([p for p in res])
         # cmd = '/bin/bash -c "samtools cat -h <({})'.format(get_header_command(self.bam_path)) + ' ' + \
         #       ' '.join(
         #           [p for p in res]) + ' > ' + final_path + '"'
