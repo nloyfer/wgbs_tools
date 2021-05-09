@@ -40,6 +40,7 @@ public:
     std::string chrom_sz_path;
     std::string chr;
     std::string mbias_path;
+    int min_cpg = 0;
     std::unordered_map<int, int> dict;
     std::string genome_ref;
     reads_stats readsStats;
@@ -58,8 +59,8 @@ public:
 
     mbias_ss mbias[2];
 
-    patter(std::string refpath, std::string cspath, bool bp, bool in_unq, std::string mb): 
-        ref_path(refpath), chrom_sz_path(cspath), blueprint(bp), unq(in_unq), mbias_path(mb) {}
+    patter(std::string refpath, std::string cspath, bool bp, bool in_unq, std::string mb, int min_cpg):
+            ref_path(refpath), chrom_sz_path(cspath), blueprint(bp), unq(in_unq), mbias_path(mb), min_cpg(min_cpg) {}
 
     void load_genome_ref();
     int find_cpg_inds_offset();
