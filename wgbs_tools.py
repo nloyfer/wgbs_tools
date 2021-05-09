@@ -16,6 +16,7 @@ from merge import main as merge_main
 from index_wgbs import main as index_main
 from vis import main as vis_main
 from pat2beta import main as pat2beta_main
+# from pat2pairs import main as pat2pairs_main
 from cmp_betas import main as compare_beta_main
 from beta_cov import main as beta_cov_main
 from bed2beta import main as bed2beta_main
@@ -32,6 +33,7 @@ from frag_len import main as frag_len_main
 from convert import main as convert_main
 from segment_betas import main as segment_beta_main
 from homog import main as homog_main
+# from dmb import main as dmb_main
 
 """
 Dependencies:
@@ -63,6 +65,7 @@ callbacks = [
     ('bam2pat', bam2pat_main),
     ('index', index_main),
     ('pat2beta', pat2beta_main),
+    # ('pat2pairs', pat2pairs_main),
     ('bed2beta', bed2beta_main),
     ('mix_pat', mix_pat_main),
     ('merge', merge_main),
@@ -72,7 +75,8 @@ callbacks = [
     # less important
     ('compare_betas', compare_beta_main),
     ('homog', homog_main),
-    ('addMD2Bam', bamAddMethylData_main),
+    # ('dmb', dmb_main),
+    ('bam_cpg_counts', bamAddMethylData_main),
     ('frag_len', frag_len_main),
 ]
 callbacks = OrderedDict(callbacks)
