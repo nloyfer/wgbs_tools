@@ -284,6 +284,14 @@ class Bam2Pat:
 def parse_bam2pat_args(parser):
     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
     parser.add_argument('--unq', action='store_true', help='generage unq format as well')
+    parser.add_argument('-T', '--temp_dir', help='passed to unix sort. Useful in case bam file is very large')
+    lists = parser.add_mutually_exclusive_group()
+    lists.add_argument('--blacklist', help='bed file. Ignore reads overlapping this bed file',
+                        nargs='?', const=True, default=False)
+    lists.add_argument('-L', '--whitelist', help='bed file. Consider only reads overlapping this bed file',
+                        nargs='?', const=True, default=False)
+    parser.add_argument('--blueprint', '-bp', action='store_true',
+            help='filter bad BS conversion reads if <90 percent of CHs are converted')
 
 
 def add_args():
@@ -293,20 +301,12 @@ def add_args():
     parser.add_argument('--out_dir', '-o', default='.')
     parser.add_argument('--debug', '-d', action='store_true')
     parser.add_argument('--verbose', '-v', action='store_true')
-    parser.add_argument('--blueprint', '-bp', action='store_true',
-            help='filter bad BS conversion reads if <90 percent of CHs are converted')
     parser.add_argument('-F', '--exclude_flags', type=int,
                         help='flags to exclude from bam file (samtools view parameter) ' \
                              '[{}]'.format(FLAGS_FILTER), default=FLAGS_FILTER)
     parser.add_argument('-q', '--mapq', type=int,
                         help='Minimal mapping quality (samtools view parameter) [{}]'.format(MAPQ),
                         default=MAPQ)
-    parser.add_argument('-T', '--temp_dir', help='passed to unix sort. Useful in case bam file is very large')
-    lists = parser.add_mutually_exclusive_group()
-    lists.add_argument('--blacklist', help='bed file. Ignore reads overlapping this bed file',
-                        nargs='?', const=True, default=False)
-    lists.add_argument('-L', '--whitelist', help='bed file. Consider only reads overlapping this bed file',
-                        nargs='?', const=True, default=False)
     add_multi_thread_args(parser)
 
     return parser
