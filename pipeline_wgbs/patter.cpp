@@ -810,9 +810,6 @@ void patter::action_sam(std::string samFilePath) {
 void patter::proc_pair_sam_lines(std::string &line1, std::string &line2) {
     std::vector<std::string> tokens1 = line2tokens(line1);
     std::vector<std::string> tokens2 = line2tokens(line2);
-    if (tokens2[0] == "NB501025:572:HCNJWAFX2:4:21609:16436:9924"){
-        int x = 0;
-    }
     print_progress();
     readsStats.nr_pairs++;
     procPairAddMethylData(tokens1, tokens2, line1, line2);
