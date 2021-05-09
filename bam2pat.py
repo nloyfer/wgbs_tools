@@ -299,6 +299,8 @@ def add_args():
     parser.add_argument('bam_path')
     add_GR_args(parser)
     parser.add_argument('--out_dir', '-o', default='.')
+    parser.add_argument('--min_cpg', type=int, default=1,
+                        help='Reads covering less than MIN_CPG sites are removed [1]')
     parser.add_argument('--debug', '-d', action='store_true')
     parser.add_argument('--verbose', '-v', action='store_true')
     parser.add_argument('-F', '--exclude_flags', type=int,
