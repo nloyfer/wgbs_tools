@@ -43,7 +43,7 @@ def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end,
     if paired_end:
         # change reads order, s.t paired reads will appear in adjacent lines
         cmd += "{} | ".format(match_maker_tool)
-    cmd += "{} {} {} --bam | cat {} - > {}".format(patter_tool, genome.genome_path,
+    cmd += "{} {} {} --bam | cat {} - | samtools view -b - > {}".format(patter_tool, genome.genome_path,
                                                                             genome.chrom_cpg_sizes,
                                                                             header_path, unsorted_bam)
 
