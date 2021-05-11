@@ -44,8 +44,8 @@ def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end,
         # change reads order, s.t paired reads will appear in adjacent lines
         cmd += f'{match_maker_tool} | '
     cmd += f'{patter_tool} {genome.genome_path} {genome.chrom_cpg_sizes} --bam '
-    if min_cpg > 1:
-        cmd += """ | awk '{for (i=12;i<=NF;i++) {if (substr($i, 0, 5)=="YI:Z:"){split(substr($i,6), a, ","); if(a[1]+a[2]>@TH){print}}}}'""".replace('@TH', str(min_cpg))
+    if min_cpg is not None:
+        cmd += f'--min_cpg {str(min_cpg)}'
     cmd += f' | cat {header_path} - | samtools view -b - > {unsorted_bam}'
 
     sort_cmd = f'samtools sort -o {out_path} -T {out_directory} {unsorted_bam}'  # TODO: use temp directory, as in bam2pat
@@ -123,7 +123,6 @@ class BamMethylData:
             if not chroms:
                 eprint('Failed retrieving valid chromosome names')
                 raise IllegalArgumentError('Failed')
-
             return chroms
 
     def is_pair_end(self):
