@@ -13,16 +13,33 @@ import re
 
 FULL_CIRCLE = '\u25CF'
 DASH = '\u2014'
+BORDER = '|'
 str2int = {c: i for i, c in enumerate([''] + list(' .CTUXM'))}
 int2str = {v: k for k, v in str2int.items()}
 
 num2color_dict = {
-    'C': '01;31',  # red
+    'C': '01;31',   # red
     'T': '01;32',   # green
-    'X': '01;33',
-    'M': '01;31',
-    'U': '01;32',
+    'X': '01;33',   # yellow
+    'M': '01;31',   # red
+    'U': '01;32',   # green
 }
+
+
+def table2text(table):
+    """ join table to text.
+        add strikethrough to borders if they cross a read """
+    lines = []
+    for line in table:
+        nline = ''
+        for i, ch in enumerate(line):
+            nline += ch
+            # add strikethrough to the borders
+            if (len(line) - 1 > i > 0) and (ch == BORDER) \
+                and (set((line[i - 1], line[i + 1])) <= set('CT.')):
+                nline += '\u0336'
+        lines.append(nline)
+    return '\n'.join(lines)
 
 
 class PatVis:
@@ -53,12 +70,11 @@ class PatVis:
             ctable = np.concatenate([ctable, charar], axis=1)
 
         # insert the borders:
-        table = np.insert(ctable, borders, '|', axis=1)
-        txt = '\n'.join(''.join(line) for line in table)
+        txt = table2text(np.insert(ctable, borders, BORDER, axis=1))
 
         # insert the borders to the markers line:
         markers_arr = np.array(list(markers.ljust( ctable.shape[1])))[:, None]
-        rmark = ''.join(np.insert(markers_arr, borders, '|'))
+        rmark = ''.join(np.insert(markers_arr, borders, BORDER))
         return txt, rmark
 
     def print_results(self):
@@ -92,9 +108,9 @@ class PatVis:
         if not self.args.no_color:
             txt = color_text(txt, num2color_dict)
         if not self.args.text:
-            txt = re.sub('[CTUXM]', FULL_CIRCLE, txt)
-            txt = re.sub('\.', DASH, txt)
-            txt = txt.replace(FULL_CIRCLE, FULL_CIRCLE + '\u0336')   # strikethrough
+            txt = re.sub('[CTUXM]', FULL_CIRCLE, txt)               # letters -> circles
+            txt = re.sub('\.', DASH, txt)                           # dots -> dashes
+            txt = txt.replace(FULL_CIRCLE, FULL_CIRCLE + '\u0336')  # strikethrough
         print(markers)
         print(txt)
 
