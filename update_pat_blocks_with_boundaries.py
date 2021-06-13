@@ -39,6 +39,8 @@ def block_boundary_iterator(block_file, boundary_file, out_file):
                                                                                 cur_start_boundary, prev_start_boundary)
                     prev_end_boundary, cur_end_boundary = find_new_boundary(end_boundaries, block_end,
                                                                             cur_end_boundary, prev_end_boundary)
+                    # if prev_end_boundary == prev_start_boundary:
+                    #     actual_end_boundary += prev_end_boundary + 2
                     to_print = "{}\t{}\t{}\n".format(block_tokens[0], prev_start_boundary, prev_end_boundary)
                     to_print_list.append(to_print)
                     if len(to_print_list) > 1000:
