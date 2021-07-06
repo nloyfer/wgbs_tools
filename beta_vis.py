@@ -7,8 +7,8 @@ from genomic_region import GenomicRegion
 import os.path as op
 import numpy as np
 
-FULL_CIRCLE = '\u25A0'
-# FULL_CIRCLE = '\u2588'
+FULL_SQUARE = '\u25A0'
+# FULL_SQUARE = '\u2588'
 MISSING_VAL_SIGN = ' '
 NR_CHARS_PER_FNAME = 50
 MISSING_VAL = '.'
@@ -81,7 +81,7 @@ class BetaVis:
         if not self.args.no_color:
             line = color_text(line, self.num2color_dict, scheme=self.args.color_scheme)
             if self.args.heatmap:
-                line = re.sub('m[0-9]', 'm' + FULL_CIRCLE * 1, line)
+                line = re.sub('m[0-9]', 'm' + FULL_SQUARE * 1, line)
                 line = re.sub('\.', MISSING_VAL_SIGN, line)
         return line
 
@@ -157,7 +157,7 @@ def generate_colors_dict(scheme=16):
 
 
 def main(args):
-    validate_file_list(args.input_files, '.beta')
+    validate_file_list(args.input_files) #, '.beta')
     try:
         BetaVis(args)
     except BrokenPipeError:
