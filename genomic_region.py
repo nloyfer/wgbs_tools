@@ -9,7 +9,7 @@ import os.path as op
 
 def index2chrom(site, genome):
     chrs_sz = genome.get_chrom_cpg_size_table()
-    return chrs_sz['chr'].loc[np.searchsorted(np.cumsum(chrs_sz['size']), site)]
+    return chrs_sz['chr'].iloc[np.searchsorted(np.cumsum(chrs_sz['size'].values), site)]
 
 
 class GenomicRegion:
