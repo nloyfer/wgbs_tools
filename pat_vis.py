@@ -110,7 +110,9 @@ class PatVis:
         if not self.args.text:
             txt = re.sub('[CTUXM]', FULL_CIRCLE, txt)               # letters -> circles
             txt = re.sub('\.', DASH, txt)                           # dots -> dashes
-            txt = txt.replace(FULL_CIRCLE, FULL_CIRCLE + '\u0336')  # strikethrough
+            if self.args.strike:
+                txt = txt.replace(FULL_CIRCLE, FULL_CIRCLE + '\u0336')  # strikethrough
+                # txt = txt.replace(FULL_CIRCLE, '\u0336' + FULL_CIRCLE)  # strikethrough
         print(markers)
         print(txt)
 
