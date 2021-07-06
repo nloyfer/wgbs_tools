@@ -162,7 +162,11 @@ class GenomicRegion:
         chrom = index2chrom(index, self.genome)
         # find locus:
         cmd = f'tabix {self.genome.revdict_path} {chrom}:{index}-{index} | cut -f2'
-        loc = int(subprocess.check_output(cmd, shell=True).decode().strip())
+        try:
+            loc = int(subprocess.check_output(cmd, shell=True).decode().strip())
+        except ValueError as e:
+            msg = f'Failed retrieving locus for site {index} with command:\n{cmd}\n{e}'
+            raise IllegalArgumentError(msg)
         return chrom, loc
 
     def __str__(self):
