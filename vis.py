@@ -27,6 +27,8 @@ def pat_args(parser):
                              ' fully unmethylated, or otherwise as X. ')
     parser.add_argument('--text', action='store_true',
             help='Pat vis: output colored text instead of shapes')
+    parser.add_argument('--strike', action='store_true',
+            help='Pat vis: add strikethrough to reads')
 
 def beta_args(parser):
     # parser.add_argument('-d', '--dists', action='store_true',
