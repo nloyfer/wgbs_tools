@@ -171,11 +171,14 @@ def add_GR_args(parser, required=False, bed_file=False, no_anno=False):
 
 
 def add_multi_thread_args(parser):
-    cpu_environ_var = 'SLURM_JOB_CPUS_PER_NODE'
-    if cpu_environ_var in os.environ.keys():
-        def_cpus = os.environ[cpu_environ_var]
-    else:
-        def_cpus = multiprocessing.cpu_count()
+    try:
+        cpu_env = 'SLURM_JOB_CPUS_PER_NODE'
+        if cpu_env in os.environ.keys():
+            def_cpus = int(os.environ[cpu_env])
+        else:
+            def_cpus = multiprocessing.cpu_count()
+    except:
+        def_cpus = 8
     parser.add_argument('-@', '--threads', type=int, default=def_cpus,
                         help='Number of threads to use (default: all available CPUs)')
 
