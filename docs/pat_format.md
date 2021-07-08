@@ -19,7 +19,7 @@ A pat files contains &ge;4 columns:<br/>
 The pat file is sorted by this column. In [hg19](https://genome.ucsc.edu/cgi-bin/hgGateway?db=hg19 "hg19 in UCSC"), `NR_SITES == 28,217,448`. Run `wgbstools convert -s CpG_i-CpG_j` to translate the CpG indexes to genomic loci.
 
 * **methylation pattern**: a string representing the methylation pattern of all consecutive CpG sites in the current read. 
-Each site is represented by a single character: 
+Each site is represented by a single character: <br\>
 | symbol  | meaning  |
 |---|---|
 | `C`  | Methylated CpG  |
