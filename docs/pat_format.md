@@ -21,6 +21,8 @@ The rest of the nucleotides, and therefore the genomic distances between adjacen
 chr1	46	CCTC	2
 chr1	47	CC...TC	1
 chr1	47	T	13
+chr2	2300000 C	4
+chr10	14633440 TTC	1
 ```
 The first read covers 4 CpG sites: CpG47 (methylated), CpG48 (methylated), CpG49 (*unmethylated*), and CpG50 (methylated). 
 There are 2 reads with this exact pattern, starting at the same site.
