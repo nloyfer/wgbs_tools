@@ -29,6 +29,11 @@ Each site is represented by a single character: <br/>
 * **count**: The number of times a read with these exact values (chrom, CpG index and methylation pattern) occurred.
 * Additional columns are optional. 
 
+| symbol  | meaning  |
+|---|---|
+| `C`  | Methylated CpG  |
+| `T`  | Unmethylated CpG  |
+| `.`  | CpG with an unknown status  |
 
 ### From bam to pat
 A pat file can be thought of as a compact methylation-oriented representation of a bam file. 
