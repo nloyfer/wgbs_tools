@@ -20,6 +20,7 @@ The pat file is sorted by this column. In [hg19](https://genome.ucsc.edu/cgi-bin
 
 * **methylation pattern**: a string representing the methylation pattern of all consecutive CpG sites in the current read. 
 Each site is represented by a single character: <br/>
+
 | symbol  | meaning  |
 |---|---|
 | `C`  | Methylated CpG  |
