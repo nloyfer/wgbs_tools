@@ -17,12 +17,12 @@ CpGi's beta value is obtained by dividing *#meth* / *#coverage*.
 >>> np.mean(content[:, 1])   # print average coverage
 94.841405643770472
 ```
-##### Fast Random Access:
+##### Fast Random Access with python:
 ```python
-# reading only sites CpGi to CpGj (inclusive):
+# reading only sites CpGi to CpGj (non-inclusive):
 with open(PATH, 'rb') as f:
     f.seek((i - 1) * 2)
-    res = np.fromfile(f, dtype=np.uint8, count=((j - i + 1) * 2)).reshape((-1, 2))
+    res = np.fromfile(f, dtype=np.uint8, count=((j - i) * 2)).reshape((-1, 2))
 ```
 
 ### matlab
@@ -40,5 +40,5 @@ fid=fopen(PATH,'r'); content=fread(fid); fclose(fid); A=reshape(content,2,[])';
 
 :exclamation:**Note**: this uint8 format limits values to range [0,255]. 
 In case a CpG site appears over 255 times in the raw data (e.g. bam), its representation is normalized to this range. 
-For example, if site CpG100 appeared 510 times, from which 100 times it was methylated, the 100'th row will be (50, 255).
-We find it negligible for most cases, but if you find it important, use the lbeta format (`wgbstools pat2beta --lbeta ARGS...`)
+For example, if site CpG100 appeared 510 times, from which 100 times it was methylated, the 100'th row will be (50, 255).<br/>
+We find it negligible for most cases, but if you find it important, use the `lbeta` format (`wgbstools pat2beta --lbeta ARGS...`)
