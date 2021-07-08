@@ -56,10 +56,11 @@ Once you have `pat` and `beta` files, you can use wgbstools to visualize them. F
 wgbstools vis Sigmoid_Colon_STL003.pat.gz -r chr3:119528843-119529245
 ```
 <!--![alt text](docs/img/colon.pat.png "pat vis example" =100x100)-->
-<img src="docs/img/colon.pat.png" width="600" height="500" />
+<img src="docs/img/colon.pat.png" width="500" height="400" />
 
 ```bash
 wgbstools vis *.beta -r chr3:119528843-119529245 --heatmap
 ```
-![alt text](docs/img/colon.beta.png "beta vis example")
+<!--![alt text](docs/img/colon.beta.png "beta vis example")-->
+<img src="docs/img/colon.beta.png" width="500" height="800" />
 
