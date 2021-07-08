@@ -1,15 +1,15 @@
 # wgbstools - suite for DNA methylation sequencing data conversion, visualization, and analysis
 wgbstools is an extensive computational suite tailored for bisulfite sequencing data. 
-It allows fast access and ultra-compact representation of high-throughput data and fast access,
+It allows fast access and ultra-compact representation of high-throughput data,
 as well as machine learning and statistical analysis, and informative visualizations, 
 from fragment-level to locus-specific representations.
 
 It converts data from standard formats (e.g., bam, bed) into tailored compact yet useful and intuitive formats ([pat](docs/pat_format.md), [beta](docs/beta_format.md)).
 These can be visualized in terminal, or analyzed in different ways - subsample, merge, slice, mix, segment and more.
-&ge;
+
 ![alt text](docs/img/wgbstools_overview.png "wgbstools overview")
 
-#### Quick start
+## Quick start
 First make sure you have a reference genome FASTA (e.g `hg19.fa`).
 The FASTA must not be compressed (gzipped).
 For exapmle, download it with:
@@ -32,12 +32,13 @@ wgbstools init_genome /path/to/genome.fa GENOME_NAME
 ```
 
 #### Dependencies
-- samtools
-- bedtools (for some features)
 - python 3+
+- samtools
+#### Dependencies for some features:
+- bedtools
 
 
-Now you can convert `pat.gz` and `beta` files out of `bam` files:
+Now you can generate `pat.gz` and `beta` files out of `bam` files:
 ```bash
 wgbstools bam2pat BAM_PATH
 ```
