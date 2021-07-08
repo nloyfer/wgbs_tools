@@ -43,6 +43,6 @@ When 2+ reads cover the exact same CpG sites and present identical methylation p
 
 #### compressing and indexing
 The pat file is compressed using [bgzip](http://www.htslib.org/doc/bgzip.html) and indexed using [tabix](http://www.htslib.org/doc/tabix.html) (with a `*.csi` file). 
-This compression is compatible with gzip, and with the indexing allows for a *fast random access* (see [view](docs/view.md) command).
+This compression is compatible with gzip, and with the indexing allows for a *fast random access* (try `wgbstools view`).
 
 
