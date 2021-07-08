@@ -61,3 +61,4 @@ wgbstools vis Sigmoid_Colon_STL003.pat.gz -r chr3:119528843-119529245
 wgbstools vis *.beta -r chr3:119528843-119529245
 ```
 ![alt text](docs/img/colon.beta.png "beta vis example")
+
