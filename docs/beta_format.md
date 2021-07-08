@@ -35,7 +35,7 @@ fid=fopen(PATH,'r'); content=fread(fid); fclose(fid); A=reshape(content,2,[])';
 ```R
 > fname <- PATH
 > N <- file.info(fname)$size
-> content <- matrix(readBin(fname, "integer", N, size=1, signed=FALSE), N / 2, 2, byrow=TRUE)
+> content <- matrix(readBin(fname, "integer", N, size = 1, signed = FALSE), N / 2, 2, byrow=TRUE)
 ```
 
 :exclamation:**Note**: this uint8 format limits values to range [0,255]. 

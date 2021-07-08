@@ -6,7 +6,7 @@ from fragment-level to locus-specific representations.
 
 It converts data from standard formats (e.g., bam, bed) into tailored compact yet useful and intuitive formats ([pat](docs/pat_format.md), [beta](docs/beta_format.md)).
 These can be visualized in terminal, or analyzed in different ways - subsample, merge, slice, mix, segment and more.
-
+&ge;
 ![alt text](docs/img/wgbstools_overview.png "wgbstools overview")
 
 #### Quick start
