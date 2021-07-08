@@ -16,7 +16,8 @@ A pat files contains &ge;4 columns:<br/>
 
 * **chrom**: a string (E.g., `chr1`, `chr2`, ..., `chrX`, `chrY`, `chrM`).
 * **CpG index**: integer in range `[1,NR_SITES]`. The index of the first site occurring on the current read.
-The pat file is sorted by this column. In [hg19](https://genome.ucsc.edu/cgi-bin/hgGateway?db=hg19 "hg19 in UCSC"), `NR_SITES == 28,217,448`. Run `wgbstools convert -s CpG_i-CpG_j` to translate the CpG indexes to genomic loci.
+The pat file is sorted by this column. <br/>
+In [hg19](https://genome.ucsc.edu/cgi-bin/hgGateway?db=hg19 "hg19 in UCSC"), `NR_SITES == 28,217,448`. Run `wgbstools convert -s CpG_i-CpG_j` to translate the CpG indexes to genomic loci.
 
 * **methylation pattern**: a string representing the methylation pattern of all consecutive CpG sites in the current read. 
 Each site is represented by a single character: <br/>
@@ -26,6 +27,7 @@ Each site is represented by a single character: <br/>
 | `C`  | Methylated CpG  |
 | `T`  | Unmethylated CpG  |
 | `.`  | CpG with an unknown status  |
+
 
 * **count**: The number of times a read with these exact values (chrom, CpG index and methylation pattern) occurred.
 * Additional columns are optional. 
