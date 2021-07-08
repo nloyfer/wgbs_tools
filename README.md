@@ -10,27 +10,30 @@ These can be visualized in terminal, or analyzed in different ways - subsample, 
 ![alt text](docs/img/wgbstools_overview.png "wgbstools overview")
 
 ## Quick start
-First make sure you have a reference genome FASTA (e.g `hg19.fa`).
-The FASTA must not be compressed (gzipped).
-For exapmle, download it with:
+### Installation
 
 ```bash
-curl https://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/hg19.fa.gz -o hg19.fa.gz
-gunzip hg19.fa.gz
-```
-
-```bash
-# Download the repository
+# Clone
 git clone https://github.com/nloyfer/wgbs_tools.git
 cd wgbs_tools
 
-# compile the cpp files:
+# compile
 python setup.py
+```
+
+### Genome configuration
+Reference genome/s must be configured. Make sure you have a reference genome FASTA (e.g `hg19.fa`).
+The FASTA must not be compressed (gzipped).
+For exapmle, download the hg19 genome from the UCSC genome browser:
+```bash
+# download a genome FASTA, if you don't have one
+curl https://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/hg19.fa.gz -o hg19.fa.gz
+gunzip hg19.fa.gz
 
 # Setup reference genome GENOME_NAME (e.g hg19).
 wgbstools init_genome /path/to/genome.fa GENOME_NAME
+# E.g, wgbstools init_genome ./hg19.fa.gz hg19
 ```
-
 #### Dependencies
 - python 3+
 - samtools
@@ -38,18 +41,21 @@ wgbstools init_genome /path/to/genome.fa GENOME_NAME
 - bedtools
 
 
+### Usage examples
 Now you can generate `pat.gz` and `beta` files out of `bam` files:
 ```bash
-wgbstools bam2pat BAM_PATH
+wgbstools bam2pat Sigmoid_Colon_STL003.bam
+# output:
+# Sigmoid_Colon_STL003.pat.gz
+# Sigmoid_Colon_STL003.beta
 ```
 
-#### Usage examples
 Once you have `pat` and `beta` files, you can use wgbstools to visualize them. For example:
 
 ```bash
 wgbstools vis Sigmoid_Colon_STL003.pat.gz -r chr3:119528843-119529245
 ```
-![alt text](docs/img/pat_vis.png "pat vis example")
+![alt text](docs/img/colon.pat.png "pat vis example")
 
 ```bash
 wgbstools vis *.beta -r chr3:119528843-119529245
