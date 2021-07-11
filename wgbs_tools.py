@@ -89,6 +89,7 @@ callbacks = OrderedDict(callbacks)
 # bam2pat: Add reports to log file / stderr. e.g: % success, # sites covered, # reads extracted etc.
 # convert: translate region <-> sites - optional parsable format  
 # Change wgbs_tools.py to new name, update the print_help method.
+# beta_to_450K: use formal annotations (now refering to cbio)
 
 
 def print_help(short=False):
