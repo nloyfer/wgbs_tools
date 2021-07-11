@@ -848,37 +848,38 @@ Params parse_params(InputParser &input){
 
 int main( int argc, char *argv[])
 {
-//    InputParser input(argc, argv);
-//    if (argc < 6){
-//        std::cerr << "Usage: segment PAT_PATH [PAT_PATH...] -s START -n NR_SITES ";
-//        std::cerr << " [-m max_cpg] [-ps PSEUDO_COUNT]" << std::endl;
-//        return -1;
-//    }
+    InputParser input(argc, argv);
+    if (argc < 6){
+        std::cerr << "Usage: segment PAT_PATH [PAT_PATH...] -s START -n NR_SITES ";
+        std::cerr << " [-m max_cpg] [-ps PSEUDO_COUNT]" << std::endl;
+        return -1;
+    }
 
-//    struct Params pams = parse_params(input);
-    struct Params pams = Params();
+    struct Params pams = parse_params(input);
+//    struct Params pams = Params();
 
     // parse beta files paths
     std::vector<std::string> beta_paths;
-//    for (int i = 1; i < argc; i++) {
-//        std::string s(argv[i]);
-//
-//        if ((s.length() >= 6) && !(s.compare(s.length() - 4, 4, ".pat"))) {
-//            beta_paths.emplace_back(s);
-//        }
-//    }
-    beta_paths.emplace_back("/cs/cbio/jon/check_prostate.tsv");
+    for (int i = 1; i < argc; i++) {
+        std::string s(argv[i]);
+
+        if ((s.length() >= 6) && !(s.compare(s.length() - 4, 4, ".pat"))) {
+            beta_paths.emplace_back(s);
+        }
+    }
+//    beta_paths.emplace_back("/cs/cbio/jon/check_prostate.tsv");
 
     try {
 //        int start = 6072452;//std::stoi(argv[1]);
 //        int end = 6231195;//std::stoi(argv[2]);
-        pams.start = 11160512; //6192452;
-        pams.nr_sites = 60000000;
-        pams.bimodal_win_threshold = 0.20;
-        pams.min_bimodal_window_len = 50;
-        pams.min_cpg_sites_per_read = 3;
-        pams.read_homog_cutoff = 0.75;
-        pams.min_reads_per_window = 5;
+
+//        pams.start = 11160512; //6192452;
+//        pams.nr_sites = 60000000;
+//        pams.bimodal_win_threshold = 0.20;
+//        pams.min_bimodal_window_len = 50;
+//        pams.min_cpg_sites_per_read = 3;
+//        pams.read_homog_cutoff = 0.75;
+//        pams.min_reads_per_window = 5;
 
         PatSegmentor *p = new PatSegmentor(pams);
 //        p->scan_for_bimodal(beta_paths.front());

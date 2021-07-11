@@ -266,7 +266,6 @@ def break_to_chunks(start, end, step):
 #
 #         params = [(in_files, chrom, si, ni, pcount, max_block_size)
 #                   for si, ni in zip(skip_list, nsites_list)]
-#         chunks_list = chunks_list + params
 #
 #     p = Pool(num_threads)
 #     arr = p.starmap(segment_process, chunks_list)

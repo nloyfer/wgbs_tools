@@ -216,6 +216,26 @@ class SegmentByChunks:
 
         dump_table(df, self.args.out_path)
 
+    def dump_cpg_counts(self, blocks_list):
+        if blocks_list is None:
+            eprint('Empty blocks array')
+            return
+
+        flat_list = [item.split("\t") for item in blocks_list]
+        # chr_arr = np.array([chrome for chrome, _, _ in flat_list])
+        end_arr = np.array([int(el[0]) for el in flat_list])
+        start_arr = end_arr
+        u_arr = np.array([int(el[1]) for el in flat_list])
+        x_arr = np.array([int(el[2]) for el in flat_list])
+        m_arr = np.array([int(el[3]) for el in flat_list])
+        end_arr = end_arr + 1
+        df = pd.DataFrame({'startCpG': start_arr, 'endCpG': end_arr})
+        df = insert_genomic_loci(df, self.gr)
+        df['u'] = u_arr
+        df['x'] = x_arr
+        df['m'] = m_arr
+        dump_table(df, self.args.out_path)
+
 
 def np2pd(arr):
     return pd.DataFrame({'startCpG': arr[:-1], 'endCpG': arr[1:]})
