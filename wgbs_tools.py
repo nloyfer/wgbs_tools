@@ -83,6 +83,9 @@ callbacks = OrderedDict(callbacks)
 
 # todo:
 # tests
+# auto download genome (hg19, mm9)
+# move all of the *py files to src directory
+# pip install?
 # bam2pat: Add reports to log file / stderr. e.g: % success, # sites covered, # reads extracted etc.
 # convert: translate region <-> sites - optional parsable format  
 # Change wgbs_tools.py to new name, update the print_help method.
@@ -100,6 +103,14 @@ def print_help(short=False):
     eprint(msg)
 
 
+def print_closest(command):
+    eprint('Close possible commands:')
+    from difflib import get_close_matches
+    for c in get_close_matches(command, callbacks.keys()):
+        r = f'\033[01;32m{c}\033[00m'
+        eprint(r)
+
+
 def main():
     if len(sys.argv) < 2 or (len(sys.argv) == 2 and sys.argv[1] in ('-h', '--help')):
         print_help()
@@ -109,6 +120,7 @@ def main():
         command = sys.argv[1]
         if command not in callbacks.keys():
             eprint('Invalid command:', command)
+            print_closest(command)
             print_help(short=True)
             return 1
 
