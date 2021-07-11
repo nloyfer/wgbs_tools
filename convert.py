@@ -19,8 +19,10 @@ def parse_args():
     add_GR_args(parser, bed_file=True, no_anno=True)
     parser.add_argument('--out_path', '-o', help='Output path for bed file [stdout]')
     parser.add_argument('-d', '--debug', action='store_true')
-    parser.add_argument('--drop_empty', action='store_true', help='Drop empty regions (without CpGs)')
-    parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing files if existed')
+    parser.add_argument('--drop_empty', action='store_true',
+                        help='Drop empty regions (without CpGs)')
+    parser.add_argument('-f', '--force', action='store_true',
+                        help='Overwrite existing files if existed')
     add_multi_thread_args(parser)
     args = parser.parse_args()
     return args
@@ -44,8 +46,8 @@ def chr_thread(df, chrom, cf, genome):
     s = s.sort_values(by=['chr', 'start'])
 
     # ends:
-    e = pd.merge_asof(df[['chr', 'end']].sort_values('end'), rf, by='chr', left_on='end', right_on='start',
-                      direction='forward')
+    e = pd.merge_asof(df[['chr', 'end']].sort_values('end'), rf,
+            by='chr', left_on='end', right_on='start', direction='forward')
     e = e.sort_values(by=['chr', 'start'])
     e.loc[e['idx'].isna(), 'idx'] = cf[cf.chr == chrom]['size'].values[0] + 1
 
