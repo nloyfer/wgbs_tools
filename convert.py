@@ -19,6 +19,8 @@ def parse_args():
     add_GR_args(parser, bed_file=True, no_anno=True)
     parser.add_argument('--out_path', '-o', help='Output path for bed file [stdout]')
     parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('-p', '--parsable', action='store_true',
+                        help='Output a parsing friendly format (only work with -r/-s flags)')
     parser.add_argument('--drop_empty', action='store_true',
                         help='Drop empty regions (without CpGs)')
     parser.add_argument('-f', '--force', action='store_true',
@@ -137,6 +139,11 @@ def convert_bed_file(args):
         print(f'Invalid input file.\n{e}')
         return
 
+def convert_single_region(args):
+    gr = GenomicRegion(args)
+    if not args.parsable:
+        return gr
+    return gr.region_str if args.sites else '{}-{}'.format(*gr.sites)
 
 def main():
     """
@@ -147,7 +154,7 @@ def main():
     if args.bed_file:
         convert_bed_file(args)
     else:
-        print(GenomicRegion(args))
+        print(convert_single_region(args))
 
 
 if __name__ == '__main__':
