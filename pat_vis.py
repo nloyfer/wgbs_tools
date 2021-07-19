@@ -2,7 +2,7 @@
 
 import numpy as np
 from utils_wgbs import MAX_PAT_LEN, validate_file_list, splitextgz, IllegalArgumentError, \
-                       color_text, load_borders
+                       color_text, load_borders, drop_dup_keep_order
 from genomic_region import GenomicRegion
 from view import ViewPat
 import os.path as op
@@ -218,8 +218,7 @@ def main(args):
     validate_file_list(args.input_files, '.pat.gz')
 
     # drop duplicated files, while keeping original order
-    seen = set()
-    input_files = [x for x in args.input_files if not (x in seen or seen.add(x))]
+    input_files = drop_dup_keep_order(args.input_files)
 
     gr = GenomicRegion(args)
     print(gr)

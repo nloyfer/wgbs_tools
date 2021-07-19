@@ -13,7 +13,7 @@ from dmb import load_gfile_helper, match_prefix_to_bin
 from multiprocessing import Pool
 from beta_to_blocks import collapse_process, load_blocks_file
 from utils_wgbs import validate_single_file, validate_file_list, eprint, \
-                       IllegalArgumentError, beta2vec, add_multi_thread_args
+                       IllegalArgumentError, beta2vec, add_multi_thread_args, drop_dup_keep_order
 
 
 
@@ -63,18 +63,44 @@ def groups_load_wrap(groups_file, betas):
     else:
         # otherwise, generate dummy group file for all binary files in input_dir
         # first drop duplicated files, while keeping original order
-        seen = set()
-        betas = [x for x in betas.copy() if not (x in seen or seen.add(x))]
+        betas = drop_dup_keep_order(betas.copy())
         fnames = [op.splitext(op.basename(b))[0] for b in betas]
         gf = pd.DataFrame(columns=['fname'], data=fnames)
         gf['group'] = gf['fname']
     gf['full_path'] = match_prefix_to_bin(gf['fname'], betas, '.beta')
     return gf
 
-def cwrap(b, df, verbose):
+
+def cwrap(beta_path, blocks_df, verbose):
     if verbose:
-        eprint('[wt table]', op.splitext(op.basename(b))[0])
-    return collapse_process(b, df)
+        eprint('[wt table]', op.splitext(op.basename(beta_path))[0])
+    return collapse_process(beta_path, blocks_df)
+
+
+def betas2table(betas, blocks, groups_file, min_cov, threads=8, verbose=False):
+    validate_single_file(blocks)
+
+    gf = groups_load_wrap(groups_file, betas)
+    blocks_df = load_blocks_file(blocks)
+    if verbose:
+        eprint(f'[wt table] reducing to {blocks_df.shape[0]:,} blocks')
+    p = Pool(threads)
+    # params = [(b, blocks_df, verbose) for b in sorted(gf['full_path'].unique())]
+    params = [(b, blocks_df, verbose) for b in drop_dup_keep_order(gf['full_path'])]
+    arr = p.starmap(cwrap, params)
+    p.close()
+    p.join()
+
+    dicts = [d for d in arr if d is not None]
+    dres = {k: beta2vec(v, min_cov) for d in dicts for k, v in d.items()}
+    # groups = sorted(gf['group'].unique())
+    groups = drop_dup_keep_order(gf['group'])
+    with np.warnings.catch_warnings():
+        np.warnings.filterwarnings('ignore', r'Mean of empty slice')
+        for group in groups:
+            blocks_df[group] = np.nanmean(np.concatenate([dres[k][None, :] for k in gf['fname'][gf['group'] == group]]), axis=0).T
+    return blocks_df
+
 
 def main():
     """
@@ -82,26 +108,9 @@ def main():
     Optionally collapse samples with groups file
     """
     args = parse_args()
-    validate_single_file(args.blocks)
 
-    gf = groups_load_wrap(args.groups_file, args.betas)
-    df = load_blocks_file(args.blocks)
-    if args.verbose:
-        eprint(f'[wt table] reducing to {df.shape[0]:,} blocks')
-    p = Pool(args.threads)
-    params = [(b, df, args.verbose) for b in sorted(gf['full_path'].unique())]
-    arr = p.starmap(cwrap, params)
-    p.close()
-    p.join()
-
-    dicts = [d for d in arr if d is not None]
-    dres = {k: beta2vec(v, args.min_cov) for d in dicts for k, v in d.items()}
-    groups = sorted(gf['group'].unique())
-    with np.warnings.catch_warnings():
-        np.warnings.filterwarnings('ignore', r'Mean of empty slice')
-        for group in groups:
-            df[group] = np.nanmean(np.concatenate([dres[k][None, :] for k in gf['fname'][gf['group'] == group]]), axis=0).T
-
+    df = betas2table(args.betas, args.blocks, args.groups_file,
+                     args.min_cov, args.threads, args.verbose)
     dump(args.output, df, args.verbose)
 
 

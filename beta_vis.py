@@ -2,7 +2,7 @@
 
 import re
 from utils_wgbs import load_borders, load_beta_data, validate_file_list, color_text, \
-        beta2vec, catch_BrokenPipeError
+        beta2vec, catch_BrokenPipeError, drop_dup_keep_order
 from genomic_region import GenomicRegion
 import os.path as op
 import numpy as np
@@ -27,8 +27,7 @@ class BetaVis:
         self.distances = None
 
         # drop duplicated files, while keeping original order
-        seen = set()
-        self.files = [x for x in args.input_files if not (x in seen or seen.add(x))]
+        self.files = drop_dup_keep_order(args.input_files)
 
         # load raw data:
         self.dsets = self.load_data()
