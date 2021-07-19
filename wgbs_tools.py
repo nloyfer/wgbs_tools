@@ -93,15 +93,16 @@ callbacks = OrderedDict(callbacks)
 
 
 def print_help(short=False):
-    msg = 'Usage: wgbs_tools.py COMMAND [OPTIONS]\n\nOptional commands:\n'
+    msg = '\nUsage: wgbs_tools.py COMMAND [OPTIONS]\n\nOptional commands:\n'
     for key in callbacks.keys():
         docs = callbacks[key].__doc__
         msg += '\n- ' + key
         if docs and not short:
             msg += docs
     if short:
-        msg += '\nUse [-h] or COMMAND -h flag for additional information'
+        msg += '\nUse [-h] or COMMAND -h flag for more information'
     eprint(msg)
+    return 1
 
 
 def print_closest(command):
@@ -114,13 +115,12 @@ def print_closest(command):
 
 def main():
     if len(sys.argv) < 2 or (len(sys.argv) == 2 and sys.argv[1] in ('-h', '--help')):
-        print_help()
-        return
+        return print_help()
 
     try:
         command = sys.argv[1]
         if command not in callbacks.keys():
-            eprint('Invalid command:', command)
+            eprint('Invalid command:', f'\033[01;31m{command}\033[00m')
             print_closest(command)
             print_help(short=True)
             return 1
@@ -129,7 +129,7 @@ def main():
             callbacks[command]()
 
     except IllegalArgumentError as e:
-        eprint('Invalid input argument\n{}'.format(e))
+        eprint(f'Invalid input argument\n{e}')
         return 1
 
 
