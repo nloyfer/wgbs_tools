@@ -110,6 +110,9 @@ class BedFileWrap:
             yield (r[0], r[1])
 
 
+def drop_dup_keep_order(lst):
+    seen = set()
+    return [x for x in lst if not (x in seen or seen.add(x))]
 
 
 def validate_dir(directory):
