@@ -161,22 +161,21 @@ def view_pat_mult_proc(input_file, strict, sub_sample,
     reads = []
     cgrs = []
     for i in range(i, min(len(grs), i + step)):
-        gr = GenomicRegion(region=grs[i], genome_name=genome)
-        if awk:
-            try:
+        try:
+            gr = GenomicRegion(region=grs[i], genome_name=genome)
+            if awk:
                 cmd = ViewPat(input_file, sys.stdout, gr,
                         strict, sub_sample, None, min_len, strip).compose_awk_cmd()
                 x = subprocess.check_output(cmd, shell=True)
                 if x:
                     x = x.decode()
-            except IllegalArgumentError as e:
-                gr = grs[i] + ' - No CpGs'
-                x = ''
-            # print('x', cmd, x)
-        else:
-            df = ViewPat(input_file, sys.stdout, gr, strict, sub_sample,
-                    None, min_len, strip).perform_view(dump=False)
-            x = df.to_csv(sep='\t', index=None, header=None)
+            else:
+                df = ViewPat(input_file, sys.stdout, gr, strict, sub_sample,
+                        None, min_len, strip).perform_view(dump=False)
+                x = df.to_csv(sep='\t', index=None, header=None)
+        except IllegalArgumentError as e:
+            gr = grs[i] + ' - No CpGs'
+            x = ''
         reads.append(x)
         cgrs.append(gr)
     return reads, cgrs
@@ -216,39 +215,11 @@ def view_pat_bed_multiprocess(args, bed_wrapper):
 
 
 
-
-def view_pat_bed_multiprocess2(args, bed_wrapper):
-    if not bed_wrapper:
-        raise IllegalArgumentError('bed file is None')
-
-    regions_lst = list(bed_wrapper.fast_iter_regions())
-    n = len(regions_lst)
-    step = max(1, n // args.threads)
-
-    processes = []
-    with Pool() as p:
-        for i in range(0, n, step):
-            params = (args.input_file, args.strict, args.sub_sample,
-                    args.min_len, regions_lst, i, step,
-                    args.awk_engine, args.strip, args.genome)
-            processes.append(p.apply_async(view_pat_mult_proc, params))
-        p.close()
-        p.join()
-    # res = [sec.decode() for pr in processes for sec in pr.get()]
-    for pr in processes:
-        for reads, regions in zip(*pr.get()):
-            if args.print_region:
-                args.out_path.write(str(regions) + '\n')
-            if not reads: # if the current region has no CpGs
-                continue
-            args.out_path.write(reads)
-
-
-#################
-#               #
-#  Loading unq  #
-#               #
-#################
+##########################
+#                        #
+#  Loading unq - legacy  #
+#                        #
+##########################
 
 
 class ViewUnq:
