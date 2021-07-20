@@ -25,6 +25,16 @@ def b2b_log(*args, **kwargs):
 
 def is_block_file_nice(df):
 
+    # no missing values / empty blocks (NAs)
+    if df[['startCpG', 'endCpG']].isna().values.sum() > 0:
+        msg = 'Some blocks are empty (NA)'
+        return False, msg
+
+    # no empty blocks (startCpG==endCpG)
+    if not (df['endCpG'] - df['startCpG'] > 0).all():
+        msg = 'Some blocks are empty (startCpG==endCpG)'
+        return False, msg
+
     # startCpG and endCpG is monotonically increasing
     if not pd.Index(df['startCpG']).is_monotonic:
         msg = 'startCpG is not monotonically increasing'
@@ -36,11 +46,6 @@ def is_block_file_nice(df):
     # no duplicated blocks
     if (df.shape[0] != df.drop_duplicates().shape[0]):
         msg = 'Some blocks are duplicated'
-        return False, msg
-
-    # no empty blocks
-    if not (df['endCpG'] - df['startCpG'] > 0).all():
-        msg = 'Some blocks are empty (no CpGs)'
         return False, msg
 
     # no overlaps between blocks
@@ -66,11 +71,14 @@ def load_blocks_file(blocks_path, nrows=None):
         raise IllegalArgumentError(msg)
 
     # load 
-    df = pd.read_csv(blocks_path, sep='\t', usecols=range(len(names)),
+    # dtypes = {'chr':str, 'start', 'end', 'startCpG', 'endCpG'}
+    dtypes = {'startCpG':'Int64', 'endCpG':'Int64'}
+    df = pd.read_csv(blocks_path, sep='\t', usecols=range(len(names)), dtype=dtypes,
                      header=header, names=names, nrows=None, comment='#')
 
     # blocks start before they end - invalid file
-    if not ((df['endCpG'] -  df['startCpG']) >= 0).all():
+    dfnona = df.dropna()    # allow blocks with missing values
+    if not ((dfnona['endCpG'] -  dfnona['startCpG']) >= 0).all():
         raise IllegalArgumentError(f'Invalid CpG columns in blocks file {blocks_path}')
 
     return df
@@ -83,7 +91,7 @@ def load_blocks_file(blocks_path, nrows=None):
 ######################################################
 
 def fast_method(data, df):
-    block_bins = np.unique(np.concatenate([df['startCpG'], df['endCpG'], [1, data.shape[0] + 1]]))
+    block_bins = np.unique(np.concatenate([df['startCpG'], df['endCpG'], [1, data.shape[0] + 1]])).astype(int)
     block_bins.sort()
     filtered_indices = np.isin(block_bins, np.concatenate([df['startCpG'], [df['endCpG'].iloc[-1]]]))
 
@@ -95,9 +103,11 @@ def fast_method(data, df):
 
 def slow_method(data, df):
     reduced_data = np.zeros((df.shape[0], 2), dtype=int)
-    for i, row in df.iterrows():
-        startCpG = row[3]
-        endCpG = row[4]
+    for i, row in df.iloc[:, 3:5].iterrows():
+        startCpG, endCpG = row.astype('Int64')
+        if pd.isna(startCpG):
+            reduced_data[i, :] = [0, 0]
+            continue
         reduced_data[i, :] = np.sum(data[startCpG - 1:endCpG - 1, :], axis=0)
     return reduced_data
 
