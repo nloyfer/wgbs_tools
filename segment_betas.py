@@ -14,7 +14,7 @@ import subprocess
 import multiprocessing
 
 
-CHUNK_MAX_SIZE = 60000
+DEF_CHUNK = 60000
 
 def break_to_chunks_helper(start, end, step):
     res = []
@@ -60,6 +60,11 @@ class SegmentByChunks:
                           'genome': self.gr.genome
                           }
         self.args = args
+        if args.chunk_size < max_cpg:
+            msg = '[wt segment] WARNING: chunk_size is small compared to max_cpg and/or max_bp.\n' \
+                  '                      It may cause wt segment to fail. It\'s best setting\n' \
+                  '                      chunk_size > min{max_cpg, max_bp/2}'
+            eprint(msg)
 
     def break_to_chunks(self):
         """ Break range of sites to chunks of size 'step', while keeping chromosomes separated """
@@ -86,7 +91,6 @@ class SegmentByChunks:
         p.close()
         p.join()
 
-        eprint('merging chunks...')
         df = self.merge_df_list(arr)
         self.dump_result(df)
 
@@ -109,7 +113,7 @@ class SegmentByChunks:
             return
 
         df = pd.DataFrame({'startCpG': df[:-1], 'endCpG': df[1:]})
-        # eprint(f'found {df.shape[0]} blocks')
+        eprint(f'[wt segment] found {df.shape[0]} blocks')
         df = insert_genomic_loci(df, self.gr)
         df.to_csv(self.args.out_path, sep='\t', header=None, index=None)
 
@@ -144,8 +148,9 @@ def stitch_2_dfs(b1, b2, params):
                 patch2_size = increase_patch(patch2_size, n2)
 
     # Failed: could not stich the two chuncks
-    eprint('ERROR: no overlaps at all!!', is_overlap(b1, patch), is_overlap(patch, b2))
-    raise IllegalArgumentError('Stitching Failed! Try running with bigger chunk size')
+    # eprint('ERROR: no overlaps at all!!', is_overlap(b1, patch), is_overlap(patch, b2))
+    msg = '[wt segment] Patch stitching Failed! Try increasing chunk size (--chunk_size flag)'
+    raise IllegalArgumentError(msg)
 
 
 def is_overlap(b1, b2):
@@ -189,13 +194,13 @@ def insert_genomic_loci(df, gr):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=main.__doc__)
     add_GR_args(parser)
     betas_or_file = parser.add_mutually_exclusive_group(required=True)
     betas_or_file.add_argument('--betas', nargs='+')
     betas_or_file.add_argument('--beta_file', '-F')
-    parser.add_argument('-c', '--chunk_size', type=int, default=CHUNK_MAX_SIZE,
-                        help='Chunk size. Default {} sites'.format(CHUNK_MAX_SIZE))
+    parser.add_argument('-c', '--chunk_size', type=int, default=DEF_CHUNK,
+                        help=f'Chunk size. Default {DEF_CHUNK} sites')
     parser.add_argument('-p', '--pcount', type=float, default=15,
                         help='Pseudo counts of C\'s and T\'s in each block. Default 15')
     parser.add_argument('--max_cpg', type=int, default=1000,
@@ -209,17 +214,30 @@ def parse_args():
 
 
 def parse_betas_input(args):
+    """
+    parse user input to get the list of beta files to segment
+    Either args.betas is a list of beta files,
+    or args.beta_file is a text file in which each line is a beta file
+    return: list of beta files
+    """
     if args.betas:
         betas = args.betas
     elif args.beta_file:
         validate_single_file(args.beta_file)
         with open(args.beta_file, 'r') as f:
             betas = [b.strip() for b in f.readlines() if b.strip() and not b.startswith('#')]
+        if not betas:
+            raise IllegalArgumentError(f'no beta files found in file {args.beta_file}')
     validate_file_list(betas)
     return betas
 
 
 def main():
+    """
+    Segment the genome, or a subset region, to homogenously methylated blocks.
+    Input: one or more beta files to segment
+    Output: blocks file (BED format + startCpG, endCpG columns)
+    """
     args = parse_args()
     betas = parse_betas_input(args)
     SegmentByChunks(args, betas).run()
