@@ -2,7 +2,7 @@
 
 import argparse
 from utils_wgbs import add_GR_args, eprint, GenomeRefPaths, delete_or_skip, \
-                       load_dict_section, add_multi_thread_args
+                       load_dict_section, add_multi_thread_args, IllegalArgumentError
 from genomic_region import GenomicRegion
 import pandas as pd
 import numpy as np
@@ -36,11 +36,36 @@ def load_bed(bed_path, nrows=None):
     return df
 
 
-def chr_thread(df, chrom, cf, genome):
-    # eprint(chrom)
+def slow_conversion(df, genome):
+    df = df.iloc[:, :3]
+    startCpGs = []
+    endCpGs = []
+    for ind, row in df.iterrows():
+        try:
+            sites = GenomicRegion(region='{}:{}-{}'.format(*row)).sites
+        except IllegalArgumentError as e:
+            sites = (np.nan, np.nan)
+        startCpGs.append(sites[0])
+        endCpGs.append(sites[1])
+    df['startCpG'] = pd.Series(startCpGs, dtype='Int64').values
+    df['endCpG'] = pd.Series(endCpGs, dtype='Int64').values
+    return df
+
+def chr_thread(df, cf, genome):
+    chrom = df['chr'].values[0]
 
     # we don't need duplicates here (they'll be back later)
     df.drop_duplicates(subset=COORDS_COLS, inplace=True)
+
+    # there must not be overlaps between blocks
+    # if so, fall back to region-by-region conversion
+    tf = df.sort_values(by='start')
+    if not (tf['start'][1:].values - tf['end'][:tf.shape[0] - 1].values  >= 0).all():
+        if df.shape[0] > 30:
+            eprint(f'[wt convert] [{chrom}] WARNING: ' \
+                    'Found overlaps in the input bed file. Conversion may be slow.')
+        return slow_conversion(df, genome)
+
     rf = load_dict_section(chrom, genome).sort_values('start')
 
     # starts:
@@ -52,6 +77,7 @@ def chr_thread(df, chrom, cf, genome):
             by='chr', left_on='end', right_on='start', direction='forward')
     e = e.sort_values(by=['chr', 'start'])
     e.loc[e['idx'].isna(), 'idx'] = cf[cf.chr == chrom]['size'].values[0] + 1
+    e.loc[(e.end == e.start).values, 'idx'] =  e.loc[(e.end == e.start).values, 'idx'] + 1
 
     # astype 'Int64' and not Int to avoid implicit casting to float in case there are NaNs
     s['idx2'] = e['idx'].astype('Int64')
@@ -74,7 +100,7 @@ def add_cpgs_to_bed(bed_file, genome, drop_empty, threads, add_anno):
     cf['size'] = np.cumsum(cf['size'])
 
     chroms = sorted(set(cf.chr) & set(df.chr))
-    params = [(df[df.chr == chrom].copy(), chrom, cf, genome) for chrom in chroms]
+    params = [(df[df.chr == chrom].copy(), cf, genome) for chrom in chroms]
     p = Pool(threads)
     arr = p.starmap(chr_thread, params)
     p.close()
@@ -88,7 +114,7 @@ def add_cpgs_to_bed(bed_file, genome, drop_empty, threads, add_anno):
 
     # add annotations:
     if add_anno:
-        annodf = get_anno(bed_file, genome)
+        annodf = get_anno(r, bed_file, genome)
         if annodf is not None:
             r = r.merge(annodf, how='left', on=COORDS_COLS)
 
@@ -99,12 +125,31 @@ def add_cpgs_to_bed(bed_file, genome, drop_empty, threads, add_anno):
     return r
 
 
-def get_anno(bed_path, genome):
+def is_block_file_nice(df):
+
+    # no duplicated blocks
+    if (df.shape[0] != df.drop_duplicates().shape[0]):
+        msg = 'Some blocks are duplicated'
+        return False, msg
+
+    # no overlaps between blocks
+    if not (df['startCpG'][1:].values - df['endCpG'][:df.shape[0] - 1].values  >= 0).all():
+        msg = 'Some blocks overlap'
+        return False, msg
+
+    return True, ''
+
+def get_anno(df, bed_path, genome):
     anno_path = GenomeRefPaths(genome).annotations
     if anno_path is None:
         return
+    isnice, msg = is_block_file_nice(df)
+    if not isnice:
+        eprint(f'[wt convert] WARNING: No annotations added. '  \
+                f'Incompatible input BED file ({bed_path}): {msg}')
+        return
     read = 'gunzip -cd' if bed_path.endswith('.gz') else 'cat'
-    cmd = f'{read} {bed_path} | cut -f1-3 | '
+    cmd = f'{read} {bed_path} | cut -f1-3 | sort -k1,1 -k2,2n | '
     cmd += f'bedtools intersect -wao -a - -b {anno_path} '
     cmd += '| bedtools merge -c 7,8 -o distinct,distinct '
     txt = subprocess.check_output(cmd, shell=True).decode()
@@ -133,7 +178,7 @@ def convert_bed_file(args):
                 drop_empty=args.drop_empty,
                 threads=args.threads,
                 add_anno=not args.no_anno)
-        r.to_csv(out_path, sep='\t', header=None, index=None, na_rep='NaN')
+        r.to_csv(out_path, sep='\t', header=None, index=None, na_rep='NA')
 
     except pd.errors.ParserError as e:
         print(f'Invalid input file.\n{e}')
