@@ -181,10 +181,18 @@ def view_pat_mult_proc(input_file, strict, sub_sample,
     return reads, cgrs
 
 
+def is_bed_disjoint(b):
+    cmd = f"""/bin/bash -c 'diff {b} <(bedtools intersect -a {b} -b {b} -wa)' > /dev/null """
+    if subprocess.call(cmd, shell=True):
+        eprint(f'[wt view] WARNING: bed file {b} regions are not disjoint.\n' \
+                '                   Reads covering overlapping regions will be duplicated.\n' \
+                '                   Use cview to avoid read duplication.')
+
 
 def view_pat_bed_multiprocess(args, bed_wrapper):
     if not bed_wrapper:
         raise IllegalArgumentError('bed file is None')
+    is_bed_disjoint(args.bed_file)
 
     full_regions_lst = list(bed_wrapper.fast_iter_regions())
     bigstep = 100
