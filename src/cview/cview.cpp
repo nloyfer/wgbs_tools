@@ -84,6 +84,8 @@ int Cview::read_blocks() {
             abort();
         }
 
+        // skip blocks not covering any CpGs
+        if ((tokens[0] == "NA") || (tokens[0] == "NaN")) { continue; }
         cur_start = std::stoi(tokens[0]);
         cur_end = std::stoi(tokens[1]);
 
