@@ -7,6 +7,7 @@ import sys
 from utils_wgbs import IllegalArgumentError, eprint, segment_tool, add_GR_args, \
                        load_dict_section, validate_file_list , validate_single_file, \
                        add_multi_thread_args, GenomeRefPaths
+from convert import add_bed_to_cpgs
 from genomic_region import GenomicRegion, index2chrom
 from multiprocessing import Pool
 import argparse
@@ -61,15 +62,18 @@ class SegmentByChunks:
                           'genome': self.genome
                           }
         self.args = args
-        if args.chunk_size < max_cpg:
+
+    def break_to_chunks(self):
+        """ Break range of sites to chunks of size 'step',
+            while keeping chromosomes separated """
+        # print a warning in case chunk size is too small
+        step = self.args.chunk_size
+        if step < self.args.max_cpg:
             msg = '[wt segment] WARNING: chunk_size is small compared to max_cpg and/or max_bp.\n' \
                   '                      It may cause wt segment to fail. It\'s best setting\n' \
                   '                      chunk_size > min{max_cpg, max_bp/2}'
             eprint(msg)
 
-    def break_to_chunks(self):
-        """ Break range of sites to chunks of size 'step', while keeping chromosomes separated """
-        step = self.args.chunk_size
         if not self.gr.is_whole():
             start, end = self.gr.sites
             return break_to_chunks_helper(start, end, step)
@@ -114,10 +118,16 @@ class SegmentByChunks:
             return
 
         df = pd.DataFrame({'startCpG': df[:-1], 'endCpG': df[1:]})
-        eprint(f'[wt segment] found {df.shape[0]} blocks')
-        df = insert_genomic_loci(df, self.gr)
+        eprint(f'[wt segment] found {df.shape[0]:,} blocks')
+        df = add_bed_to_cpgs(df, self.genome.genome, self.args.threads)
         df.to_csv(self.args.out_path, sep='\t', header=None, index=None)
 
+
+#############################################################
+#                                                           #
+#           Chunk stiching logic                            #
+#                                                           #
+#############################################################
 
 def stitch_2_dfs(b1, b2, params):
 
@@ -150,7 +160,8 @@ def stitch_2_dfs(b1, b2, params):
 
     # Failed: could not stich the two chuncks
     # eprint('ERROR: no overlaps at all!!', is_overlap(b1, patch), is_overlap(patch, b2))
-    msg = '[wt segment] Patch stitching Failed! Try increasing chunk size (--chunk_size flag)'
+    msg = '[wt segment] Patch stitching Failed! ' \
+          'Try increasing chunk size (--chunk_size flag)'
     raise IllegalArgumentError(msg)
 
 
@@ -176,23 +187,11 @@ def increase_patch(pre_size, maxval):
     return int(min(pre_size * 2, maxval))
 
 
-def insert_genomic_loci(df, gr):
-    region = None if gr.is_whole() else gr.region_str
-    # laod reference dict:
-    dict_df = load_dict_section(region, gr.genome_name)
-
-    # merge startCpG
-    df = df.merge(dict_df, left_on=['startCpG'], right_on=['idx'])
-
-    # merge endCpG
-    dict_df = dict_df.rename(index=str, columns={'idx': 'endCpG', 'start': 'end'})
-    df['endCpG'] = df['endCpG'] - 1
-    df = df.merge(dict_df[['endCpG', 'end']], on=['endCpG'])
-    df['end'] = df['end'] + 1
-    df['endCpG'] = df['endCpG'] + 1
-
-    return df[['chr', 'start', 'end', 'startCpG', 'endCpG']]
-
+#############################################################
+#                                                           #
+#                       Main                                #
+#                                                           #
+#############################################################
 
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
