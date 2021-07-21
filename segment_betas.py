@@ -6,7 +6,7 @@ import pandas as pd
 import sys
 from utils_wgbs import IllegalArgumentError, eprint, segment_tool, add_GR_args, \
                        load_dict_section, validate_file_list , validate_single_file, \
-                       add_multi_thread_args
+                       add_multi_thread_args, GenomeRefPaths
 from genomic_region import GenomicRegion, index2chrom
 from multiprocessing import Pool
 import argparse
@@ -48,16 +48,17 @@ def segment_process(params):
 
 class SegmentByChunks:
     def __init__(self, args, betas):
-        self.gr = GenomicRegion(args)
+        self.gr = GenomicRegion(args)       # TODO: support -L (e.g. for MCC-seq or TWIST array)
         self.betas = betas
         max_cpg = min(args.max_cpg, args.max_bp // 2)
         assert (max_cpg > 1)
+        self.genome = GenomeRefPaths(args.genome)
         self.param_dict = {'betas': betas,
                           'pcount': args.pcount,
                           'max_cpg': max_cpg,
                           'max_bp': args.max_bp,
-                          'revdict': self.gr.genome.revdict_path,
-                          'genome': self.gr.genome
+                          'revdict': self.genome.revdict_path,
+                          'genome': self.genome
                           }
         self.args = args
         if args.chunk_size < max_cpg:
@@ -74,7 +75,7 @@ class SegmentByChunks:
             return break_to_chunks_helper(start, end, step)
         else:
             res = []
-            cf = self.gr.genome.get_chrom_cpg_size_table()
+            cf = self.genome.get_chrom_cpg_size_table()
             cf['borders'] = np.cumsum(cf['size'])
             for _, row in cf.iterrows():
                 chrom, size, border = row
