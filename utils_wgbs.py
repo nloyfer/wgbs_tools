@@ -171,6 +171,7 @@ def add_GR_args(parser, required=False, bed_file=False, no_anno=False):
     parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
     if no_anno:
         parser.add_argument('--no_anno', help='Do not print genomic annotations', action='store_true')
+    return region_or_sites
 
 
 def add_multi_thread_args(parser):
@@ -348,7 +349,7 @@ def delete_or_skip(output_file, force):
     :return: False iff file should be skipped
     """
     # if file already exists, delete it or skip it
-    if output_file is None:
+    if output_file is None or output_file == sys.stdout:
         return True
     if op.isfile(output_file):
         if force:
