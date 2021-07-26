@@ -5,10 +5,11 @@ import numpy as np
 import pandas as pd
 import sys
 from utils_wgbs import IllegalArgumentError, eprint, segment_tool, add_GR_args, \
-                       load_dict_section, validate_file_list , validate_single_file, \
+                       validate_file_list, validate_single_file, \
                        add_multi_thread_args, GenomeRefPaths
-from convert import add_bed_to_cpgs
+from convert import add_bed_to_cpgs, is_block_file_nice
 from genomic_region import GenomicRegion, index2chrom
+from beta_to_blocks import load_blocks_file
 from multiprocessing import Pool
 import argparse
 import subprocess
@@ -17,19 +18,12 @@ import multiprocessing
 
 DEF_CHUNK = 60000
 
-def break_to_chunks_helper(start, end, step):
-    res = []
-    while start + step < end:
-        res.append((start, start + step))
-        start = start + step
-    res.append((start, end))
-    return res
 
 
 def segment_process(params):
     sites = params['sites']
     start, end = sites
-    assert end - start >= 1, f'trying to segment an empty interval {sites}'
+    assert end - start > 0, f'trying to segment an empty interval {sites}'
     if end - start == 1:
         return np.array([start, end])
     try:
@@ -39,6 +33,7 @@ def segment_process(params):
         cmd += f' -ps {params["pcount"]} -max_bp {params["max_bp"]} '
         chrom = index2chrom(start, params["genome"])
         cmd = f'tabix {params["revdict"]} {chrom}:{start}-{end - 1} | cut -f2 |' + cmd
+        # eprint(cmd)
         brd_str = subprocess.check_output(cmd, shell=True).decode().split()
         return np.array(list(map(int, brd_str))) + start
 
@@ -49,7 +44,6 @@ def segment_process(params):
 
 class SegmentByChunks:
     def __init__(self, args, betas):
-        self.gr = GenomicRegion(args)       # TODO: support -L (e.g. for MCC-seq or TWIST array)
         self.betas = betas
         max_cpg = min(args.max_cpg, args.max_bp // 2)
         assert (max_cpg > 1)
@@ -74,30 +68,53 @@ class SegmentByChunks:
                   '                      chunk_size > min{max_cpg, max_bp/2}'
             eprint(msg)
 
-        if not self.gr.is_whole():
-            start, end = self.gr.sites
-            return break_to_chunks_helper(start, end, step)
+        if self.args.bed_file:
+            df = load_blocks_file(self.args.bed_file)[['startCpG', 'endCpG']].dropna()
+            is_nice, msg = is_block_file_nice(df)
+            if not is_nice:
+                msg = '[wt segment] ERROR: invalid bed file.\n' \
+                      f'                    {msg}\n' \
+                      f'                    Try: sort -k1,1 -k2,2n {self.args.bed_file} | ' \
+                      'bedtools merge -i - | wgbstools convert -p -L -'
+                eprint(msg)
+                raise IllegalArgumentError('Invalid bed file')
+
         else:
-            res = []
-            cf = self.genome.get_chrom_cpg_size_table()
-            cf['borders'] = np.cumsum(cf['size'])
-            for _, row in cf.iterrows():
-                chrom, size, border = row
-                r = break_to_chunks_helper(border - size + 1, border + 1, step)
-                res += r
-        return res
+            gr = GenomicRegion(self.args)
+            if gr.is_whole():
+                cf = self.genome.get_chrom_cpg_size_table()
+                cf['endCpG'] = np.cumsum(cf['size']) + 1
+                cf['startCpG'] = cf['endCpG'] - cf['size']
+                df = cf[['startCpG', 'endCpG']]
+            else:
+                df = pd.DataFrame(columns=['startCpG', 'endCpG'], data=[gr.sites])
+
+        rf = pd.DataFrame()
+        for _, row in df.iterrows():
+            start, end = row
+            bords = list(range(start, end, step)) + [end]
+            r = pd.DataFrame({'tag': f'{start}-{end}',
+                              'start': bords[:-1],
+                              'end': bords[1:]
+                             })
+            rf = pd.concat([rf, r]).reset_index(drop=True)
+        return rf
 
     def run(self):
         chunks = self.break_to_chunks()
-        # print(np.array(chunks))
         p = Pool(self.args.threads)
-        params = [(dict(self.param_dict, **{'sites': s}),) for s in chunks]
+        params = [(dict(self.param_dict, **{'sites': (s[1], s[2])}),) for _, s in chunks.iterrows()]
         arr = p.starmap(segment_process, params)
         p.close()
         p.join()
 
-        df = self.merge_df_list(arr)
-        self.dump_result(df)
+        df = pd.DataFrame()
+        for tag in chunks['tag'].unique():
+            inds = chunks[chunks.tag==tag].index.values
+            carr = [arr[i] for i in range(len(arr)) if i in inds]
+            merged = self.merge_df_list(carr)
+            df = pd.concat([df, pd.DataFrame({'startCpG': merged[:-1], 'endCpG': merged[1:]})])
+        self.dump_result(df.reset_index(drop=True))
 
     def merge_df_list(self, dflist):
 
@@ -113,11 +130,10 @@ class SegmentByChunks:
         return dflist[0]
 
     def dump_result(self, df):
-        if df is None:
+        if df.empty:
             eprint('Empty blocks array')
             return
 
-        df = pd.DataFrame({'startCpG': df[:-1], 'endCpG': df[1:]})
         eprint(f'[wt segment] found {df.shape[0]:,} blocks')
         df = add_bed_to_cpgs(df, self.genome.genome, self.args.threads)
         df.to_csv(self.args.out_path, sep='\t', header=None, index=None)
@@ -133,7 +149,9 @@ def stitch_2_dfs(b1, b2, params):
 
     # if b1 and b2 are the edges of different chromosomes, simply concatenate them
     if index2chrom(b1[-1] - 1, params['genome']) != index2chrom(b2[0], params['genome']):
-        return np.concatenate([b1[:-1], b2])
+        msg = '[wt segment] Patch stitching Failed! ' \
+              '             cross-chromosomes patches encuontered'
+        raise IllegalArgumentError(msg)
 
     n1 = b1[-1] - b1[0]
     n2 = b2[-1] - b2[0]
@@ -142,30 +160,29 @@ def stitch_2_dfs(b1, b2, params):
     patch = np.array([], dtype=int)
     while patch1_size <= n1 and patch2_size <= n2:
         # calculate blocks for patch:
-        start = b1[-1] - patch1_size - 1
+        start = b1[-1] - patch1_size #- 1
         end = b1[-1] + patch2_size
         cparams = dict(params, **{'sites': (start, end)})
         patch = segment_process(cparams)
 
         # find the overlaps
-        if is_overlap(b1, patch) and is_overlap(patch, b2):
+        if is_2_overlap(b1, patch) and is_2_overlap(patch, b2):
             # successful stitch with patches 
             return merge2(merge2(b1, patch), b2)
         else:
             # failed stitch - increase patch sizes
-            if not is_overlap(b1, patch):
+            if not is_2_overlap(b1, patch):
                 patch1_size = increase_patch(patch1_size, n1)
-            if not is_overlap(patch, b2):
+            if not is_2_overlap(patch, b2):
                 patch2_size = increase_patch(patch2_size, n2)
 
     # Failed: could not stich the two chuncks
-    # eprint('ERROR: no overlaps at all!!', is_overlap(b1, patch), is_overlap(patch, b2))
     msg = '[wt segment] Patch stitching Failed! ' \
-          'Try increasing chunk size (--chunk_size flag)'
+          '             Try increasing chunk size (--chunk_size flag)'
     raise IllegalArgumentError(msg)
 
 
-def is_overlap(b1, b2):
+def is_2_overlap(b1, b2):
     return np.sum(find_dups(b1, b2))
 
 
@@ -180,8 +197,6 @@ def merge2(b1, b2):
 
 
 def increase_patch(pre_size, maxval):
-    # TODO: limit patch to not cross chromosomes.
-    # Currently the c++ tool will throw exception if it happens.
     if pre_size == maxval:
         return maxval + 1  # too large, so the while loop will break
     return int(min(pre_size * 2, maxval))
@@ -195,7 +210,7 @@ def increase_patch(pre_size, maxval):
 
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
-    add_GR_args(parser)
+    add_GR_args(parser, bed_file=True)
     betas_or_file = parser.add_mutually_exclusive_group(required=True)
     betas_or_file.add_argument('--betas', nargs='+')
     betas_or_file.add_argument('--beta_file', '-F')
