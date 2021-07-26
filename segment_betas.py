@@ -70,6 +70,7 @@ class SegmentByChunks:
 
         if self.args.bed_file:
             df = load_blocks_file(self.args.bed_file)[['startCpG', 'endCpG']].dropna()
+            # make sure bed file has no overlaps or duplicated regions
             is_nice, msg = is_block_file_nice(df)
             if not is_nice:
                 msg = '[wt segment] ERROR: invalid bed file.\n' \
@@ -79,16 +80,20 @@ class SegmentByChunks:
                 eprint(msg)
                 raise IllegalArgumentError('Invalid bed file')
 
-        else:
+        else:   # No bed file provided
             gr = GenomicRegion(self.args)
+            # whole genome - make a dummy "bed file" of the full chromosomes
             if gr.is_whole():
                 cf = self.genome.get_chrom_cpg_size_table()
                 cf['endCpG'] = np.cumsum(cf['size']) + 1
                 cf['startCpG'] = cf['endCpG'] - cf['size']
                 df = cf[['startCpG', 'endCpG']]
+            # one region
             else:
                 df = pd.DataFrame(columns=['startCpG', 'endCpG'], data=[gr.sites])
 
+        # build a DataFrame of chunks, with a "tag"/label field, 
+        # so we know which chunks to merge later on.
         rf = pd.DataFrame()
         for _, row in df.iterrows():
             start, end = row
@@ -101,13 +106,17 @@ class SegmentByChunks:
         return rf
 
     def run(self):
+        # break input region/s to small chunks
         chunks = self.break_to_chunks()
+        # segment each chunk separately in a single thread
         p = Pool(self.args.threads)
         params = [(dict(self.param_dict, **{'sites': (s[1], s[2])}),) for _, s in chunks.iterrows()]
         arr = p.starmap(segment_process, params)
         p.close()
         p.join()
 
+        # merge chunks from the same "tag" group 
+        # (i.e. the same chromosome, or the same region of the provided bed file)
         df = pd.DataFrame()
         for tag in chunks['tag'].unique():
             inds = chunks[chunks.tag==tag].index.values
@@ -117,6 +126,7 @@ class SegmentByChunks:
         self.dump_result(df.reset_index(drop=True))
 
     def merge_df_list(self, dflist):
+        # Given a set of chunks to merge, recursively pairwise stich them.
 
         while len(dflist) > 1:
             p = Pool(self.args.threads)
@@ -135,6 +145,7 @@ class SegmentByChunks:
             return
 
         eprint(f'[wt segment] found {df.shape[0]:,} blocks')
+        # add genomic loci and dump/print
         df = add_bed_to_cpgs(df, self.genome.genome, self.args.threads)
         df.to_csv(self.args.out_path, sep='\t', header=None, index=None)
 
@@ -147,10 +158,10 @@ class SegmentByChunks:
 
 def stitch_2_dfs(b1, b2, params):
 
-    # if b1 and b2 are the edges of different chromosomes, simply concatenate them
-    if index2chrom(b1[-1] - 1, params['genome']) != index2chrom(b2[0], params['genome']):
+    # if b2 is not the direct extension of b2, we have a problem
+    if b1[-1] != b2[0]:
         msg = '[wt segment] Patch stitching Failed! ' \
-              '             cross-chromosomes patches encuontered'
+              '             patches are not supposed to be merged'
         raise IllegalArgumentError(msg)
 
     n1 = b1[-1] - b1[0]
