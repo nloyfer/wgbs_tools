@@ -11,7 +11,7 @@ import os
 from tqdm import tqdm
 from dmb import load_gfile_helper, match_prefix_to_bin
 from multiprocessing import Pool
-from beta_to_blocks import collapse_process, load_blocks_file
+from beta_to_blocks import collapse_process, load_blocks_file, is_block_file_nice
 from utils_wgbs import validate_single_file, validate_file_list, eprint, \
                        IllegalArgumentError, beta2vec, add_multi_thread_args, drop_dup_keep_order
 
@@ -71,10 +71,10 @@ def groups_load_wrap(groups_file, betas):
     return gf
 
 
-def cwrap(beta_path, blocks_df, verbose):
+def cwrap(beta_path, blocks_df, is_nice, verbose):
     if verbose:
         eprint('[wt table]', op.splitext(op.basename(beta_path))[0])
-    return collapse_process(beta_path, blocks_df)
+    return collapse_process(beta_path, blocks_df, is_nice)
 
 
 def betas2table(betas, blocks, groups_file, min_cov, threads=8, verbose=False):
@@ -82,11 +82,12 @@ def betas2table(betas, blocks, groups_file, min_cov, threads=8, verbose=False):
 
     gf = groups_load_wrap(groups_file, betas)
     blocks_df = load_blocks_file(blocks)
+    is_nice, _ = is_block_file_nice(blocks_df)
     if verbose:
         eprint(f'[wt table] reducing to {blocks_df.shape[0]:,} blocks')
     p = Pool(threads)
     # params = [(b, blocks_df, verbose) for b in sorted(gf['full_path'].unique())]
-    params = [(b, blocks_df, verbose) for b in drop_dup_keep_order(gf['full_path'])]
+    params = [(b, blocks_df, is_nice, verbose) for b in drop_dup_keep_order(gf['full_path'])]
     arr = p.starmap(cwrap, params)
     p.close()
     p.join()

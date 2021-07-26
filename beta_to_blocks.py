@@ -13,7 +13,6 @@ from utils_wgbs import load_beta_data, trim_to_uint8, GenomeRefPaths, \
                         IllegalArgumentError, add_multi_thread_args, \
                         splitextgz
 
-
 def b2b_log(*args, **kwargs):
     print('[ wt beta_to_blocks ]', *args, file=sys.stderr, **kwargs)
 
@@ -91,7 +90,7 @@ def load_blocks_file(blocks_path, nrows=None):
 ######################################################
 
 def fast_method(data, df):
-    block_bins = np.unique(np.concatenate([df['startCpG'], df['endCpG'], [1, data.shape[0] + 1]])).astype(int)
+    block_bins = np.unique(np.concatenate([df['startCpG'], df['endCpG'], [1, data.shape[0] + 1]]))
     block_bins.sort()
     filtered_indices = np.isin(block_bins, np.concatenate([df['startCpG'], [df['endCpG'].iloc[-1]]]))
 
@@ -112,15 +111,19 @@ def slow_method(data, df):
     return reduced_data
 
 
-def reduce_data(beta_path, df):
-    method = fast_method if is_block_file_nice(df)[0] else slow_method
+def reduce_data(beta_path, df, is_nice):
+    if is_nice:
+        method = fast_method
+        df = df[['startCpG', 'endCpG']].astype(int)
+    else:
+        method = slow_method
     return method(load_beta_data(beta_path), df)
 
 
-def collapse_process(beta_path, df, lbeta=False, out_dir=None, bedGraph=False):
+def collapse_process(beta_path, df, is_nice, lbeta=False, out_dir=None, bedGraph=False):
     try:
         # load beta file:
-        reduced_data = reduce_data(beta_path, df)
+        reduced_data = reduce_data(beta_path, df, is_nice)
         return dump(df, reduced_data, beta_path, lbeta, out_dir, bedGraph)
 
     except Exception as e:
@@ -186,7 +189,7 @@ def main():
     if not is_nice:
         b2b_log(msg)
     p = Pool(args.threads)
-    params = [(b, df, args.lbeta, args.out_dir, args.bedGraph)
+    params = [(b, df, is_nice, args.lbeta, args.out_dir, args.bedGraph)
               for b in files]
     arr = p.starmap(collapse_process, params)
     p.close()
