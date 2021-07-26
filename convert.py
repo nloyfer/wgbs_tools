@@ -48,7 +48,7 @@ def convert_bed_file(args):
     Output:
     chr    start    end    startCpG    endCpG   [...]
     """
-    out_path = sys.stdout if args.out_path is None else args.outpath
+    out_path = sys.stdout if args.out_path is None else args.out_path
     if not delete_or_skip(out_path, args.force):
         return
     # add CpG columns
@@ -59,14 +59,18 @@ def convert_bed_file(args):
             genome=args.genome,
             drop_empty=args.drop_empty,
             threads=args.threads,
-            add_anno=not args.no_anno)
+            add_anno=(not args.parsable) and (not args.no_anno))
     r.to_csv(out_path, sep='\t', header=None, index=None, na_rep='NA')
 
 
 def load_bed(bed_path, nrows=None):
-    df = pd.read_csv(bed_path, sep='\t', header=None, nrows=nrows, comment='#')
-    df.columns = COORDS_COLS3 + list(df.columns)[3:]
-    return df
+    try:
+        df = pd.read_csv(bed_path, sep='\t', header=None, nrows=nrows, comment='#')
+        df.columns = COORDS_COLS3 + list(df.columns)[3:]
+        return df
+    except pd.errors.EmptyDataError as e:
+        eprint(f'[wt convert] ERROR: empty bed file')
+        raise IllegalArgumentError('Invalid bed file')
 
 
 def slow_conversion(df, genome):
@@ -173,14 +177,13 @@ def convert_site_file(args):
     Output:
     chr    start    end    startCpG    [endCpG]
     """
-    out_path = sys.stdout if args.out_path is None else args.outpath
+    out_path = sys.stdout if args.out_path is None else args.out_path
     if not delete_or_skip(out_path, args.force):
         return
     # add loci columns
     r = add_bed_to_cpgs(cpgs=load_site_file(args.site_file),
                         genome=args.genome,
                         threads=args.threads)
-                        # add_anno=not args.no_anno)
     r.to_csv(out_path, sep='\t', header=None, index=None, na_rep='NA')
 
 
