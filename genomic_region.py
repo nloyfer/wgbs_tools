@@ -138,7 +138,7 @@ class GenomicRegion:
             site1 = int(sites_str)
             site2 = site1 + 1
         else:
-            raise IllegalArgumentError(f'sites must be of format: ([\d])-([\d]).\nGot: {sites_str}')
+            raise IllegalArgumentError(f'sites must be of format: "start-end" or "site" .\nGot: {sites_str}')
         # validate sites are in range:
         if not self.genome.nr_sites + 1 >= site2 > site1 >= 1:
             msg = 'sites violate the constraints: '
@@ -180,5 +180,6 @@ class GenomicRegion:
         return res
 
     def is_whole(self):
-        """ True iff no filters (-r, -s) were applied. i.e, this gr is the whole genome."""
+        """ True iff no filters (-r, -s) were applied.
+            i.e, this gr is the whole genome."""
         return self.sites is None
