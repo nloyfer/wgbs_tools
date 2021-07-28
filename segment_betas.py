@@ -76,9 +76,14 @@ class SegmentByChunks:
                 msg = '[wt segment] ERROR: invalid bed file.\n' \
                       f'                    {msg}\n' \
                       f'                    Try: sort -k1,1 -k2,2n {self.args.bed_file} | ' \
-                      'bedtools merge -i - | wgbstools convert -p -L -'
+                      'bedtools merge -i - | wgbstools convert --drop_empty -p -L -'
                 eprint(msg)
                 raise IllegalArgumentError('Invalid bed file')
+            if df.shape[0] > 2*1e4:
+                msg = '[wt segment] WARNING: bed file contains many regions.\n' \
+                      '                      Segmentation will take a long time.\n' \
+                      f'                      Consider running w/o -L flag and intersect the results\n'
+                eprint(msg)
 
         else:   # No bed file provided
             gr = GenomicRegion(self.args)
@@ -95,22 +100,23 @@ class SegmentByChunks:
         # build a DataFrame of chunks, with a "tag"/label field, 
         # so we know which chunks to merge later on.
         rf = pd.DataFrame()
-        for _, row in df.iterrows():
+        tags = []
+        starts = []
+        ends = []
+        for ind, row in df.iterrows():
             start, end = row
             bords = list(range(start, end, step)) + [end]
-            r = pd.DataFrame({'tag': f'{start}-{end}',
-                              'start': bords[:-1],
-                              'end': bords[1:]
-                             })
-            rf = pd.concat([rf, r]).reset_index(drop=True)
-        return rf
+            tags += [f'{start}-{end}'] * (len(bords) -1)
+            starts += bords[:-1]
+            ends += bords[1:]
+        return tags, starts, ends
 
     def run(self):
         # break input region/s to small chunks
-        chunks = self.break_to_chunks()
+        tags, starts, ends = self.break_to_chunks()
         # segment each chunk separately in a single thread
         p = Pool(self.args.threads)
-        params = [(dict(self.param_dict, **{'sites': (s[1], s[2])}),) for _, s in chunks.iterrows()]
+        params = [(dict(self.param_dict, **{'sites': (s, e)}),) for s, e in zip(starts, ends)]
         arr = p.starmap(segment_process, params)
         p.close()
         p.join()
@@ -118,9 +124,8 @@ class SegmentByChunks:
         # merge chunks from the same "tag" group 
         # (i.e. the same chromosome, or the same region of the provided bed file)
         df = pd.DataFrame()
-        for tag in chunks['tag'].unique():
-            inds = chunks[chunks.tag==tag].index.values
-            carr = [arr[i] for i in range(len(arr)) if i in inds]
+        for tag in set(tags):
+            carr = [arr[i] for i in range(len(arr)) if tags[i] == tag]
             merged = self.merge_df_list(carr)
             df = pd.concat([df, pd.DataFrame({'startCpG': merged[:-1], 'endCpG': merged[1:]})])
         self.dump_result(df.reset_index(drop=True))
@@ -145,7 +150,8 @@ class SegmentByChunks:
             return
 
         eprint(f'[wt segment] found {df.shape[0]:,} blocks')
-        # add genomic loci and dump/print
+        # sort by startCpG, add genomic loci and dump/print
+        df.sort_values(by=['startCpG'], inplace=True)
         df = add_bed_to_cpgs(df, self.genome.genome, self.args.threads)
         df.to_csv(self.args.out_path, sep='\t', header=None, index=None)
 
