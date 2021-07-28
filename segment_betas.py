@@ -13,11 +13,9 @@ from beta_to_blocks import load_blocks_file
 from multiprocessing import Pool
 import argparse
 import subprocess
-import multiprocessing
 
 
 DEF_CHUNK = 60000
-
 
 
 def segment_process(params):
@@ -33,7 +31,6 @@ def segment_process(params):
         cmd += f' -ps {params["pcount"]} -max_bp {params["max_bp"]} '
         chrom = index2chrom(start, params["genome"])
         cmd = f'tabix {params["revdict"]} {chrom}:{start}-{end - 1} | cut -f2 |' + cmd
-        # eprint(cmd)
         brd_str = subprocess.check_output(cmd, shell=True).decode().split()
         return np.array(list(map(int, brd_str))) + start
 
