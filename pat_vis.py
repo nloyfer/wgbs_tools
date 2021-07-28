@@ -56,12 +56,15 @@ class PatVis:
 
     def insert_borders(self, markers):
         ctable = self.fullres['table']
+        start = self.fullres['start']
 
-        borders = load_borders(self.blocks_path, self.gr, self.args.genome)
+        # load borders from file
+        # build gr to span the whole table
+        bsites = '{}-{}'.format(start, start + ctable.shape[1])
+        table_gr = GenomicRegion(sites=bsites, genome_name=self.gr.genome_name)
+        borders = load_borders(self.blocks_path, table_gr, self.args.genome)
         if not borders.size:
             return self.fullres['text'], markers
-        # shift the blocks to the right in case there are trailing read heads
-        borders += markers.find('+')
         # pad right columns with space, if there are missing sites before the last border/s
         missing_width = borders[-1] - ctable.shape[1]
         if missing_width > 0:
