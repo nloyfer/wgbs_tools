@@ -146,9 +146,14 @@ class SegmentByChunks:
             eprint('Empty blocks array')
             return
 
-        eprint(f'[wt segment] found {df.shape[0]:,} blocks')
         # sort by startCpG, add genomic loci and dump/print
+        nr_blocks = df.shape[0]
         df.sort_values(by=['startCpG'], inplace=True)
+        df = df[df.endCpG - df.startCpG > self.args.min_cpg - 1].reset_index(drop=True)
+        nr_blocks_filt = df.shape[0]
+        nr_dropped = nr_blocks - nr_blocks_filt
+        eprint(f'[wt segment] found {nr_blocks_filt:,} blocks\n' \
+               f'             (dropped {nr_dropped:,} short blocks)')
         df = add_bed_to_cpgs(df, self.genome.genome, self.args.threads)
         df.to_csv(self.args.out_path, sep='\t', header=None, index=None)
 
@@ -232,10 +237,14 @@ def parse_args():
                         help=f'Chunk size. Default {DEF_CHUNK} sites')
     parser.add_argument('-p', '--pcount', type=float, default=15,
                         help='Pseudo counts of C\'s and T\'s in each block. Default 15')
+    parser.add_argument('--min_cpg', type=int, default=1,
+                        help='Minimal block size (in #sites) to output. Shorter blocks will simply be ' \
+                             'ommited from output (equivalent to set min_cpg to 1 and then filter output by ' \
+                             'length). Default is 3')
     parser.add_argument('--max_cpg', type=int, default=1000,
-                        help='Maximal allowed blocks size (in #sites). Default is 1000')
+                        help='Maximal allowed block size (in #sites). Default is 1000')
     parser.add_argument('--max_bp', type=int, default=2000,
-                        help='Maximal allowed blocks size (in bp). Default is 2000')
+                        help='Maximal allowed block size (in bp). Default is 2000')
     parser.add_argument('-o', '--out_path', default=sys.stdout,
                         help='output path [stdout]')
     add_multi_thread_args(parser)
