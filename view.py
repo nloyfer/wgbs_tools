@@ -14,8 +14,6 @@ import pandas as pd
 from multiprocessing import Pool
 import multiprocessing
 
-UNQ_COLS = ['chr', 'start', 'len', 'pat', 'count']
-INF_UNQ_COLS = ['chr', 'idx', 'start', 'len', 'pat', 'count']
 PAT_COLS = ('chr', 'start', 'pat', 'count')
 
 
@@ -222,71 +220,6 @@ def view_pat_bed_multiprocess(args, bed_wrapper):
                 args.out_path.write(reads)
 
 
-
-##########################
-#                        #
-#  Loading unq - legacy  #
-#                        #
-##########################
-
-
-class ViewUnq:
-    def __init__(self, unq_path, opath, gr, inflate):
-        self.unq_path = unq_path
-        self.opath = opath
-        self.gr = gr
-        self.inflate = inflate
-
-    def build_cmd_unq(self):
-        if not self.gr.chrom:
-            return f'gunzip -cd {self.unq_path}'
-
-        start, end = self.gr.bp_tuple
-        cmd = f'tabix {self.unq_path} '
-        cmd += '{}:{}-{} '.format(self.gr.chrom, max(1, int(start) - MAX_READ_LEN), end)
-        cmd += ' | awk \'{if (($2 + $3) > %s) {print;}}\'' % start
-        return cmd
-
-    def load_sec_str(self):
-        """ Read a section from unq file using tabix, direct it to opath """
-        subprocess.call(self.build_cmd_unq(), shell=True, stdout=self.opath)
-
-    def load_sec_df(self):
-        """ Load a section from unq file using tabix into a DataFrame"""
-        return read_shell(self.build_cmd_unq(), names=UNQ_COLS)
-
-    def inflate_df(self, df):
-        if df.empty:
-            return
-        # load relevant section from the dictionary:
-        first_loc = df['start'].iloc[0]
-        last_loc = df['start'].iloc[df.shape[0] - 1] + df['len'].iloc[df.shape[0] - 1]
-        dict_region = '{}:{}-{}'.format(df['chr'].iloc[0], first_loc, last_loc)
-        rf = load_dict_section(dict_region)
-
-        # merge df with dictionary:
-        res = pd.merge_asof(df, rf, by='chr', on='start', direction='forward')
-
-        # dump
-        res[INF_UNQ_COLS].to_csv(self.opath, sep='\t', index=None, header=None)
-
-    def inflate_full_unq(self):
-        chunksize = 10 ** 5
-        for chunk in pd.read_csv(self.unq_path, sep='\t',
-                chunksize=chunksize, header=None, names=UNQ_COLS):
-            for chrom in chunk['chr'].unique():
-                self.inflate_df(chunk[chunk['chr'] == chrom])
-
-    def view(self):
-        if not self.inflate:
-            return self.load_sec_str()
-
-        if not self.gr.chrom:
-            self.inflate_full_unq()
-        else:
-            self.inflate_df(self.load_sec_df())
-
-
 ####################
 #                  #
 #  Loading beta    #
@@ -327,8 +260,6 @@ def parse_args():
     parser.add_argument('--strip', action='store_true',
                         help='pat: Remove trailing dots (from beginning/end of reads).\n'
                                    'Not supported with awk_engine')
-    parser.add_argument('--inflate', action='store_true',
-                        help='unq: add CpG-Index column to the output')
     parser.add_argument('--awk_engine', action='store_true',
                         help='pat: use awk engine instead of python.\n'
                              'Its saves RAM when dealing with large regions.')
@@ -344,7 +275,7 @@ def parse_args():
 
 def main():
     """
-    View the content of input file (pat/unq/beta) as plain text.
+    View the content of input file (pat/beta) as plain text.
     Possible filter by genomic region or sites range
     Output to stdout as default
     """
@@ -375,10 +306,6 @@ def main():
                         args.strict, args.sub_sample,
                         bed_wrapper, args.min_len, args.strip)
                 vp.view_pat(args.awk_engine)
-        elif input_file.endswith('.unq.gz'):
-            grs = bed_wrapper.iter_grs() if bed_wrapper else [gr]
-            for gr in grs:
-                ViewUnq(input_file, args.out_path, gr, args.inflate).view()
         else:
             raise IllegalArgumentError('Unknown input format:', input_file)
 
