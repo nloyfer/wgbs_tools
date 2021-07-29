@@ -16,7 +16,6 @@ from pat2beta import pat2beta
 from genomic_region import GenomicRegion
 
 PAT_SUFF = '.pat'
-UNQ_SUFF = '.unq'
 
 # Minimal Mapping Quality to consider.
 # 10 means include only reads w.p. >= 0.9 to be mapped correctly.
@@ -52,46 +51,14 @@ def pat(out_path, debug, temp_dir):
 
         mult_safe_remove([out_path])
 
-        return pat_path, None
-    except IllegalArgumentError as e:
-        return None
-
-def pat_unq(out_path, debug, unq, temp_dir):
-    try:
-        # sort
-        cmd = f'sort {out_path} -k2,2n -k3,3 -o {out_path}'
-        if temp_dir:
-            cmd += f' -T {temp_dir} '
-        subprocess_wrap(cmd, debug)
-
-        # break output file into pat and unq:
-        # pat file:
-        pat_path = out_path + PAT_SUFF
-        cmd = 'awk \'BEGIN{OFS="\t"}{print $1,$2,$3,1}\' ' + f'{out_path} | {collapse_pat_script} - > {pat_path}'
-        subprocess_wrap(cmd, debug)
-
-        # unq file:
-        unq_path = out_path + UNQ_SUFF
-        if unq:
-            cmd = "sort {} -k4,4n -k3,3 -o {}".format(out_path, out_path)
-            if temp_dir:
-                cmd += ' -T {} '.format(temp_dir)
-            subprocess_wrap(cmd, debug)
-            cmd = 'awk \'{print $1,$4,$5,$3}\' ' + out_path + ' | uniq -c | awk \'{OFS="\\t"; print $2,$3,$4,$5,$1}\' > ' + \
-                  unq_path
-            subprocess_wrap(cmd, debug)
-
-        mult_safe_remove([out_path])
-
-        return pat_path, unq_path
+        return pat_path
     except IllegalArgumentError as e:
         return None
 
 
 def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
-             unq, blueprint, temp_dir, blacklist, whitelist, verbose):
-    """ Convert a temp single chromosome file, extracted from a bam file,
-        into two output files: pat and unq."""
+             blueprint, temp_dir, blacklist, whitelist, verbose):
+    """ Convert a temp single chromosome file, extracted from a bam file, into pat """
 
     # Run patter tool on a single chromosome. out_path will have the following fields:
     # chr   CpG   Pattern   begin_loc   length(bp)
@@ -119,8 +86,6 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
         return '', ''
 
     cmd += f' | {patter_tool} {genome.genome_path} {genome.chrom_cpg_sizes} '
-    if unq:
-        cmd += ' --unq '
     if blueprint:
         cmd += ' --blueprint '
     cmd += f' > {out_path}'
@@ -128,10 +93,7 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
         print(cmd)
     subprocess_wrap(cmd, debug)
 
-    if unq:
-        return pat_unq(out_path, debug, unq, temp_dir)
-    else:
-        return pat(out_path, debug, temp_dir)
+    return pat(out_path, debug, temp_dir)
 
 
 class Bam2Pat:
@@ -193,10 +155,10 @@ class Bam2Pat:
                 return []
             nofilt_chroms = output.decode()[:-1].split('\n')
             filt_chroms = [c for c in nofilt_chroms if 'chr' in c]
-            if not filt_chroms:
-                filt_chroms = [c for c in nofilt_chroms if c in CHROMS]
-            else:
+            if filt_chroms:
                 filt_chroms = [c for c in filt_chroms if re.match(r'^chr([\d]+|[XYM])$', c)]
+            else:
+                filt_chroms = [c for c in nofilt_chroms if c in CHROMS]
             chroms = list(sorted(filt_chroms, key=chromosome_order))
             if not chroms:
                 eprint('[bam2pat] Failed retrieving valid chromosome names')
@@ -223,7 +185,7 @@ class Bam2Pat:
 
     def start_threads(self):
         """ Parse each chromosome file in a different process,
-            and concatenate outputs to pat and unq files """
+            and concatenate outputs to pat files """
 
         blist, wlist = self.set_lists()
         name = op.join(self.out_dir, op.basename(self.bam_path)[:-4])
@@ -241,41 +203,36 @@ class Bam2Pat:
                 out_path = f'{tmp_prefix}.{c}.out'
                 params = (self.bam_path, out_path, c, self.gr.genome,
                           self.is_pair_end(), self.args.exclude_flags,
-                          self.args.mapq, self.debug, self.args.unq, self.args.blueprint,
+                          self.args.mapq, self.debug, self.args.blueprint,
                           self.args.temp_dir, blist, wlist, self.verbose)
                 processes.append(p.apply_async(proc_chr, params))
             if not processes:
                 raise IllegalArgumentError('Empty bam file')
             p.close()
             p.join()
-        res = [pr.get() for pr in processes]  # [(pat_path, unq_path) for each chromosome]
+        res = [pr.get() for pr in processes]  # [pat_path for each chromosome]
         if None in res:
             eprint('[bam2pat] threads failed')
             return
-        if not ''.join(p for p, u in res):
+        if not ''.join(res):
             eprint('[bam2pat] No reads found in bam file. No pat file is generated')
             return
 
         # Concatenate chromosome files
         prefix = op.join(self.args.out_dir, name)
         pat_path = prefix + PAT_SUFF
-        unq_path = prefix + UNQ_SUFF
-        os.system('cat ' + ' '.join([p for p, u in res]) + ' > ' + pat_path)  # pat
-        if self.args.unq:
-            os.system('cat ' + ' '.join([u for p, u in res]) + ' > ' + unq_path)  # unq
+        os.system('cat ' + ' '.join(res) + ' > ' + pat_path)  # pat
 
         # remove all small files
-        mult_safe_remove([x[0] for x in res])
-        if self.args.unq:
-            mult_safe_remove([x[1] for x in res])
+        mult_safe_remove(res)
 
-        # generate beta file and bgzip the pat, unq files:
+        # generate beta file and bgzip the pat file
         eprint('[bam2pat] bgzipping and indexing:')
-        for f in (pat_path, unq_path):
-            if not op.isfile(f):
-                continue
-            subprocess.call(f'bgzip -f@ 14 {f} && tabix -fCb 2 -e 2 {f}.gz', shell=True)
-            eprint(f'[bam2pat] generated {f}.gz')
+        if not op.isfile(pat_path):
+            eprint(f'[bam2pat] failed to generate {pat_path}.gz')
+            return
+        subprocess.call(f'bgzip -f@ 14 {pat_path} && tabix -fCb 2 -e 2 {pat_path}.gz', shell=True)
+        eprint(f'[bam2pat] generated {pat_path}.gz')
 
         beta_path = pat2beta(f'{pat_path}.gz', self.out_dir, args=self.args)
         eprint(f'[bam2pat] generated {beta_path}')
@@ -283,7 +240,6 @@ class Bam2Pat:
 
 def parse_bam2pat_args(parser):
     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
-    parser.add_argument('--unq', action='store_true', help='generage unq format as well')
     parser.add_argument('-T', '--temp_dir', help='passed to unix sort. Useful in case bam file is very large')
     lists = parser.add_mutually_exclusive_group()
     lists.add_argument('--blacklist', help='bed file. Ignore reads overlapping this bed file',
@@ -300,14 +256,14 @@ def add_args():
     add_GR_args(parser)
     parser.add_argument('--out_dir', '-o', default='.')
     parser.add_argument('--min_cpg', type=int, default=1,
-                        help='Reads covering less than MIN_CPG sites are removed [1]')
+                help='Reads covering less than MIN_CPG sites are removed [1]')  # todo: implement
     parser.add_argument('--debug', '-d', action='store_true')
     parser.add_argument('--verbose', '-v', action='store_true')
     parser.add_argument('-F', '--exclude_flags', type=int,
                         help='flags to exclude from bam file (samtools view parameter) ' \
-                             '[{}]'.format(FLAGS_FILTER), default=FLAGS_FILTER)
+                             f'[{FLAGS_FILTER}]', default=FLAGS_FILTER)
     parser.add_argument('-q', '--mapq', type=int,
-                        help='Minimal mapping quality (samtools view parameter) [{}]'.format(MAPQ),
+                        help=f'Minimal mapping quality (samtools view parameter) [{MAPQ}]',
                         default=MAPQ)
     add_multi_thread_args(parser)
 
@@ -322,7 +278,7 @@ def parse_args(parser):
 
 def main():
     """
-    Run the WGBS pipeline to generate pat, unq, beta files out of an input bam file
+    Run the WGBS pipeline to generate pat & beta files out of an input bam file
     """
     parser = add_args()
     args = parse_args(parser)
