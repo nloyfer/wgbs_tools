@@ -28,15 +28,16 @@ def parse_args():
     parser.add_argument('--verbose', '-v', action='store_true')
     parser.add_argument('-c', '--min_cov', type=int, default=4, help='Minimal coverage to be considered,'
                                                                  'In both groups. [4]')
+    parser.add_argument('--digits', type=int, default=2, help='float percision (number of digits) [2]')
     add_multi_thread_args(parser)
     args = parser.parse_args()
     return args
 
 
-def dump(outpath, df, verbose):
+def dump(outpath, df, digits, verbose):
     if outpath is None:
         df.to_csv(sys.stdout, na_rep='NA',
-                  float_format="%.2f",
+                  float_format=f"%.{digits}f",
                   index=None, sep='\t')
         return
 
@@ -49,7 +50,7 @@ def dump(outpath, df, verbose):
         eixs = tqdm(enumerate(ixs), total=len(ixs))
     for ix, subset in eixs:
         df.loc[subset].to_csv(outpath, na_rep='NA',
-                              float_format="%.2f",
+                              float_format=f"%.{digits}f",
                               index=None, sep='\t',
                               mode=mode, header=header)
         header = None
@@ -112,7 +113,7 @@ def main():
 
     df = betas2table(args.betas, args.blocks, args.groups_file,
                      args.min_cov, args.threads, args.verbose)
-    dump(args.output, df, args.verbose)
+    dump(args.output, df, args.digits, args.verbose)
 
 
 if __name__ == '__main__':
