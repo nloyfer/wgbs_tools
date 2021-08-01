@@ -83,7 +83,7 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
         eprint(f'[bam2pat] Skipping region {region}, no reads found')
         if verbose:
             eprint('[bam2pat] ' + validation_cmd)
-        return '', ''
+        return ''
 
     cmd += f' | {patter_tool} {genome.genome_path} {genome.chrom_cpg_sizes} '
     if blueprint:
