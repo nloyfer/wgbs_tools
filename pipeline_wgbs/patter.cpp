@@ -191,8 +191,8 @@ int patter::locus2CpGIndex(int locus) {
     if (search != dict.end()) {
         start_site = search->second;
     } else {
-        // This is an internal error - should never happen.
-        throw std::logic_error("Internal Error. Unknown CpG locus: " + std::to_string(locus));
+        // Should never happen. Probably means a reference mismatch
+        throw std::logic_error("Reference Error. Unknown CpG locus: " + std::to_string(locus));
     }
     return start_site;
 }
