@@ -10,7 +10,7 @@ import datetime
 import multiprocessing
 from multiprocessing import Pool
 from utils_wgbs import IllegalArgumentError, patter_tool, match_maker_tool, add_GR_args, eprint
-from bam2pat import add_args, subprocess_wrap, CHROMS
+from bam2pat import add_args, subprocess_wrap, CHROMS, validate_bam
 from init_genome_ref_wgbs import chromosome_order
 from genomic_region import GenomicRegion
 
@@ -81,21 +81,7 @@ class BamMethylData:
     def validate_input(self):
 
         # validate bam path:
-        print('bam:', self.bam_path)
-        if not (op.isfile(self.bam_path) and self.bam_path.endswith('.bam')):
-            raise IllegalArgumentError('Invalid bam: {}'.format(self.bam_path))
-
-        # check if bam is sorted by coordinate:
-        peek_cmd = 'samtools view -H {} | head -1'.format(self.bam_path)
-        if 'coordinate' not in subprocess.check_output(peek_cmd, shell=True).decode():
-            raise IllegalArgumentError('bam file must be sorted by coordinate')
-
-        # check if bam is indexed:
-        if not (op.isfile(self.bam_path + '.bai')):
-            print('bai file was not found! Generating...')
-            r = subprocess.call(['samtools', 'index', self.bam_path])
-            if r:
-                raise IllegalArgumentError('Failed indexing bam: {}'.format(self.bam_path))
+        validate_bam(self.bam_path)
 
         # validate output dir:
         if not (op.isdir(self.out_dir)):
