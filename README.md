@@ -22,18 +22,19 @@ python setup.py
 ```
 
 ### Genome configuration
-Reference genome/s must be configured. Make sure you have a reference genome FASTA (e.g `hg19.fa`).
-The FASTA must not be compressed (gzipped).
-For exapmle, download the hg19 genome from the UCSC genome browser:
+Reference genome/s must be configured. 
 ```bash
-# download a genome FASTA, if you don't have one
-curl https://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/hg19.fa.gz -o hg19.fa.gz
-gunzip hg19.fa.gz
-
-# Setup reference genome GENOME_NAME (e.g hg19).
-wgbstools init_genome /path/to/genome.fa GENOME_NAME
-# E.g, wgbstools init_genome ./hg19.fa hg19
+wgbstools init_genome GENOME_NAME
+# E.g, 
+wgbstools init_genome hg19
+wgbstools init_genome mm9
 ```
+`wgbstools` download the reference FASTA file from the [UCSC website](https://hgdownload.soe.ucsc.edu/downloads.html).
+If you prefer using your own reference FASTA, specify the path to the FASTA:
+```bash
+wgbstools init_genome /path/to/genome.fa GENOME_NAME
+```
+
 #### Dependencies
 - python 3+
 - samtools
