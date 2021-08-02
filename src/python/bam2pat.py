@@ -9,13 +9,13 @@ import shutil
 import uuid
 import re
 from multiprocessing import Pool
-from src.python.utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args, eprint, \
+from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args, eprint, \
         add_multi_thread_args, mult_safe_remove, collapse_pat_script, GenomeRefPaths, \
         validate_single_file, delete_or_skip
-from src.python.init_genome_ref_wgbs import chromosome_order
-from src.python.pat2beta import pat2beta
-from src.python.index_wgbs import Indxer
-from src.python.genomic_region import GenomicRegion
+from init_genome_ref_wgbs import chromosome_order
+from pat2beta import pat2beta
+from index_wgbs import Indxer
+from genomic_region import GenomicRegion
 
 PAT_SUFF = '.pat'
 

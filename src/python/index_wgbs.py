@@ -5,7 +5,7 @@ import os.path as op
 import sys
 import subprocess
 import multiprocessing
-from src.python.utils_wgbs import delete_or_skip, splitextgz, IllegalArgumentError, eprint, add_multi_thread_args
+from utils_wgbs import delete_or_skip, splitextgz, IllegalArgumentError, eprint, add_multi_thread_args
 
 # TODO: use inheritence
 # TODO: drop tsv

@@ -9,30 +9,30 @@ if 'DISPLAY' not in os.environ.keys():
     matplotlib.use('Agg')
 from collections import OrderedDict
 from unittest.mock import patch
-from src.python.utils_wgbs import IllegalArgumentError, eprint
-from src.python.view import main as view_main
-from src.python.cview import main as cview_main
-from src.python.merge import main as merge_main
-from src.python.index_wgbs import main as index_main
-from src.python.vis import main as vis_main
-from src.python.pat2beta import main as pat2beta_main
+from utils_wgbs import IllegalArgumentError, eprint
+from view import main as view_main
+from cview import main as cview_main
+from merge import main as merge_main
+from index_wgbs import main as index_main
+from vis import main as vis_main
+from pat2beta import main as pat2beta_main
 # from pat2pairs import main as pat2pairs_main
-from src.python.cmp_betas import main as compare_beta_main
-from src.python.beta_cov import main as beta_cov_main
-from src.python.bed2beta import main as bed2beta_main
-from src.python.beta2bed import main as beta2bed_main
-from src.python.beta2bw import main as beta2bw_main
-from src.python.beta_to_450k import main as beta_to_450k_main
-from src.python.beta_to_blocks import main as beta_to_blocks_main
-from src.python.betas_to_table import main as betas_to_table_main
-from src.python.bam2pat import main as bam2pat_main
-from src.python.bamAddMethylData import main as bamAddMethylData_main
-from src.python.mix_pat import main as mix_pat_main
-from src.python.init_genome_ref_wgbs import main as init_genome_main
-from src.python.frag_len import main as frag_len_main
-from src.python.convert import main as convert_main
-from src.python.segment_betas import main as segment_beta_main
-from src.python.homog import main as homog_main
+from cmp_betas import main as compare_beta_main
+from beta_cov import main as beta_cov_main
+from bed2beta import main as bed2beta_main
+from beta2bed import main as beta2bed_main
+from beta2bw import main as beta2bw_main
+from beta_to_450k import main as beta_to_450k_main
+from beta_to_blocks import main as beta_to_blocks_main
+from betas_to_table import main as betas_to_table_main
+from bam2pat import main as bam2pat_main
+from bamAddMethylData import main as bamAddMethylData_main
+from mix_pat import main as mix_pat_main
+from init_genome_ref_wgbs import main as init_genome_main
+from frag_len import main as frag_len_main
+from convert import main as convert_main
+from segment_betas import main as segment_beta_main
+from homog import main as homog_main
 # from dmb import main as dmb_main
 
 """

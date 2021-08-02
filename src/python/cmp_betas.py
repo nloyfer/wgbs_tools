@@ -3,8 +3,8 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
-from src.python.utils_wgbs import load_beta_data, validate_file_list, add_GR_args
-from src.python.genomic_region import GenomicRegion
+from utils_wgbs import load_beta_data, validate_file_list, add_GR_args
+from genomic_region import GenomicRegion
 import os.path as op
 from itertools import combinations
 

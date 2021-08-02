@@ -3,9 +3,9 @@
 import numpy as np
 import os.path as op
 import argparse
-from src.python.utils_wgbs import load_beta_data, add_GR_args, BedFileWrap, eprint
+from utils_wgbs import load_beta_data, add_GR_args, BedFileWrap, eprint
 import multiprocessing
-from src.python.genomic_region import GenomicRegion
+from genomic_region import GenomicRegion
 
 
 def plot_hist(names, covs):

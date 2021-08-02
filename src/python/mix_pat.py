@@ -6,12 +6,12 @@ import pandas as pd
 import os.path as op
 from multiprocessing import Pool
 import multiprocessing
-from src.python.utils_wgbs import validate_file_list, IllegalArgumentError, splitextgz, add_GR_args, delete_or_skip, \
+from utils_wgbs import validate_file_list, IllegalArgumentError, splitextgz, add_GR_args, delete_or_skip, \
         BedFileWrap, eprint, validate_dir, add_multi_thread_args
-from src.python.genomic_region import GenomicRegion
-from src.python.merge import MergePats
-from src.python.pat2beta import pat2beta
-from src.python.beta_cov import beta_cov, beta_cov_by_bed
+from genomic_region import GenomicRegion
+from merge import MergePats
+from pat2beta import pat2beta
+from beta_cov import beta_cov, beta_cov_by_bed
 
 
 class Mixer:

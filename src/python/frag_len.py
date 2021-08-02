@@ -8,8 +8,8 @@ import pandas as pd
 from multiprocessing import Pool
 import sys
 import os.path as op
-from src.python.utils_wgbs import validate_file_list, add_GR_args, MAX_READ_LEN, splitextgz, BedFileWrap, eprint
-from src.python.genomic_region import GenomicRegion
+from utils_wgbs import validate_file_list, add_GR_args, MAX_READ_LEN, splitextgz, BedFileWrap, eprint
+from genomic_region import GenomicRegion
 
 
 def awk_wrap(awk_cmd):

@@ -1,9 +1,9 @@
 #!/usr/bin/python3 -u
 
 import re
-from src.python.utils_wgbs import load_borders, load_beta_data, validate_file_list, color_text, \
+from utils_wgbs import load_borders, load_beta_data, validate_file_list, color_text, \
         beta2vec, catch_BrokenPipeError, drop_dup_keep_order
-from src.python.genomic_region import GenomicRegion
+from genomic_region import GenomicRegion
 import os.path as op
 import numpy as np
 

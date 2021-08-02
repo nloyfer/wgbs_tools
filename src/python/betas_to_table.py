@@ -10,9 +10,9 @@ import math
 import os
 from tqdm import tqdm  # todo: drop if not installed
 from multiprocessing import Pool
-from src.python.dmb import load_gfile_helper, match_prefix_to_bin
-from src.python.beta_to_blocks import collapse_process, load_blocks_file, is_block_file_nice
-from src.python.utils_wgbs import validate_single_file, validate_file_list, eprint, \
+from dmb import load_gfile_helper, match_prefix_to_bin
+from beta_to_blocks import collapse_process, load_blocks_file, is_block_file_nice
+from utils_wgbs import validate_single_file, validate_file_list, eprint, \
                        IllegalArgumentError, beta2vec, add_multi_thread_args, drop_dup_keep_order
 
 

@@ -9,10 +9,10 @@ import re
 import datetime
 import multiprocessing
 from multiprocessing import Pool
-from src.python.utils_wgbs import IllegalArgumentError, patter_tool, match_maker_tool, add_GR_args, eprint
-from src.python.bam2pat import add_args, subprocess_wrap, CHROMS, validate_bam
-from src.python.init_genome_ref_wgbs import chromosome_order
-from src.python.genomic_region import GenomicRegion
+from utils_wgbs import IllegalArgumentError, patter_tool, match_maker_tool, add_GR_args, eprint
+from bam2pat import add_args, subprocess_wrap, CHROMS, validate_bam
+from init_genome_ref_wgbs import chromosome_order
+from genomic_region import GenomicRegion
 
 
 BAM_SUFF = '.counts.bam'

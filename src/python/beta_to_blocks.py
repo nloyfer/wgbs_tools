@@ -8,7 +8,7 @@ import pandas as pd
 import multiprocessing
 from multiprocessing import Pool
 import sys
-from src.python.utils_wgbs import load_beta_data, trim_to_uint8, GenomeRefPaths, \
+from utils_wgbs import load_beta_data, trim_to_uint8, GenomeRefPaths, \
                         IllegalArgumentError, add_multi_thread_args, \
                         splitextgz, validate_file_list
 

@@ -15,7 +15,7 @@ path = Path(op.realpath(__file__))
 DIR = str(path.parent)
 # DIR = op.dirname(os.path.realpath(__file__)) + '/'
 
-SRC_DIR = op.join(path.parent, 'src/')
+SRC_DIR = op.join(path.parent.parent.parent, 'src/')
 pat_sampler = SRC_DIR + 'pat_sampler/pat_sampler'
 PAT2BETA_TOOL = SRC_DIR + 'pat2beta/stdin2beta'
 collapse_pat_script = SRC_DIR + 'collapse_pat.pl'

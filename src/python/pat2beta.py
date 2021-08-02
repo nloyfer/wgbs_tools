@@ -7,7 +7,7 @@ from multiprocessing import Pool
 import multiprocessing
 import numpy as np
 import os
-from src.python.utils_wgbs import validate_single_file, PAT2BETA_TOOL, delete_or_skip, splitextgz, IllegalArgumentError, \
+from utils_wgbs import validate_single_file, PAT2BETA_TOOL, delete_or_skip, splitextgz, IllegalArgumentError, \
     GenomeRefPaths, trim_to_uint8, add_multi_thread_args
 
 

@@ -1,11 +1,11 @@
 #!/usr/bin/python3 -u
 
 import argparse
-from src.python.utils_wgbs import MAX_PAT_LEN, pat_sampler, validate_single_file, \
+from utils_wgbs import MAX_PAT_LEN, pat_sampler, validate_single_file, \
     add_GR_args, IllegalArgumentError, eprint, cview_tool, splitextgz, \
     collapse_pat_script, cview_extend_blocks_script
-from src.python.genomic_region import GenomicRegion
-from src.python.beta_to_blocks import load_blocks_file
+from genomic_region import GenomicRegion
+from beta_to_blocks import load_blocks_file
 import subprocess
 import os.path as op
 

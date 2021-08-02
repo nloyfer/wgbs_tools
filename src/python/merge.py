@@ -6,8 +6,8 @@ import numpy as np
 import os.path as op
 import sys
 import os
-from src.python.index_wgbs import Indxer
-from src.python.utils_wgbs import validate_file_list, splitextgz, delete_or_skip, trim_to_uint8, load_beta_data, \
+from index_wgbs import Indxer
+from utils_wgbs import validate_file_list, splitextgz, delete_or_skip, trim_to_uint8, load_beta_data, \
         collapse_pat_script, IllegalArgumentError, main_script, eprint, add_GR_args
 
 

@@ -5,10 +5,10 @@ import os.path as op
 import sys
 import argparse
 import re
-from src.python.utils_wgbs import MAX_PAT_LEN, validate_file_list, splitextgz, IllegalArgumentError, \
+from utils_wgbs import MAX_PAT_LEN, validate_file_list, splitextgz, IllegalArgumentError, \
                        color_text, load_borders, drop_dup_keep_order
-from src.python.genomic_region import GenomicRegion
-from src.python.view import ViewPat
+from genomic_region import GenomicRegion
+from view import ViewPat
 
 
 FULL_CIRCLE = '\u25CF'

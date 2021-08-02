@@ -1,8 +1,8 @@
 #!/usr/bin/python3 -u
 
 import argparse
-from src.python.utils_wgbs import validate_file_list, add_GR_args
-from src.python.beta2bw import BetaToBigWig
+from utils_wgbs import validate_file_list, add_GR_args
+from beta2bw import BetaToBigWig
 
 
 def parse_args():
