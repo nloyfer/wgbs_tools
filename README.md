@@ -32,7 +32,7 @@ gunzip hg19.fa.gz
 
 # Setup reference genome GENOME_NAME (e.g hg19).
 wgbstools init_genome /path/to/genome.fa GENOME_NAME
-# E.g, wgbstools init_genome ./hg19.fa.gz hg19
+# E.g, wgbstools init_genome ./hg19.fa hg19
 ```
 #### Dependencies
 - python 3+
