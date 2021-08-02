@@ -11,7 +11,7 @@ from itertools import groupby
 import subprocess
 from multiprocessing import Pool
 import multiprocessing
-from utils_wgbs import validate_single_file, eprint, IllegalArgumentError, DIR, add_multi_thread_args
+from utils_wgbs import validate_single_file, eprint, IllegalArgumentError, add_multi_thread_args
 
 
 class InitGenome:
@@ -28,7 +28,8 @@ class InitGenome:
         self.fai_df = self.load_fai()
 
     def setup_dir(self):
-        out_dir = op.join(op.join(op.join(DIR, 'references')), self.name)
+        path = Path(op.realpath(__file__))
+        out_dir = op.join(op.join(path.parent.parent.parent, 'references'), self.name)
         # abort if files exists and --force was not specified
         if op.isdir(out_dir):
             if not self.force:
