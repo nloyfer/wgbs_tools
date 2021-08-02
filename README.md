@@ -22,15 +22,15 @@ python setup.py
 ```
 
 ### Genome configuration
-First reference genome/s must be configured. 
+At least one reference genome/s must be configured (takes a few minutes).
 ```bash
 wgbstools init_genome GENOME_NAME
 # E.g, 
 wgbstools init_genome hg19
 wgbstools init_genome mm9
 ```
-`wgbstools` downloads the reference FASTA file from the [UCSC website](https://hgdownload.soe.ucsc.edu/downloads.html).
-If you prefer using your own reference FASTA, specify the path to the FASTA:
+`wgbstools` downloads the requested reference FASTA file from the [UCSC website](https://hgdownload.soe.ucsc.edu/downloads.html).
+If you prefer using your own reference FASTA, specify the path to the FASTA as follows.
 ```bash
 wgbstools init_genome GENOME_NAME --fasta_path /path/to/genome.fa
 ```
