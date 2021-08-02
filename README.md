@@ -22,7 +22,7 @@ python setup.py
 ```
 
 ### Genome configuration
-At least one reference genome/s must be configured (takes a few minutes).
+At least one reference genome must be configured (takes a few minutes).
 ```bash
 wgbstools init_genome GENOME_NAME
 # E.g, 
