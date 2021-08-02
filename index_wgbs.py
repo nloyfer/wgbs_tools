@@ -7,6 +7,8 @@ import subprocess
 from utils_wgbs import delete_or_skip, splitextgz, IllegalArgumentError, eprint, add_multi_thread_args
 import multiprocessing
 
+# TODO: use inheritence
+# TODO: drop tsv
 class Pat:
     def __init__(self, input_file):
         self.input_file = input_file
