@@ -34,18 +34,19 @@ class InitGenome:
 
         # no FASTA path provided. Attempt to download one
         ref_path = op.join(self.out_dir, f'{self.name}.fa.gz')
-        url = f'curl https://hgdownload.soe.ucsc.edu/goldenPath/{n}/bigZips/{n}.fa.gz -o {ref_path}'.format(n=self.name)
+        url = f'https://hgdownload.soe.ucsc.edu/goldenPath/{self.name}/bigZips/{self.name}.fa.gz'
+        cmd = f'curl {url} -o {ref_path}'
         eprint(f'[wt init] No reference FASTA provided. Attempting to download from\n\t{url}')
-        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
         output, error = p.communicate()
         if p.returncode:
             eprint(f'[wt init] Failed downloading reference for genome {self.name}: %d\n%s\n%s' % (p.returncode, output.decode(), error.decode()))
             eprint(f'[wt init] Try downloading yourself and use --fasta_name flag, or check the "name" parameter')
             raise IllegalArgumentError(f'[wt init] No reference FASTA found')
+        eprint(f'[wt init] successfully downloaded FASTA. Now gunzip and bgzip it...')
         cmd = f'gunzip {ref_path} && bgzip -@ {self.args.threads} {ref_path[:-3]}'
         subprocess.check_call(cmd, shell=True)
-        return ref_path
-
+        self.ref_path = ref_path
 
     def setup_dir(self):
         path = Path(op.realpath(__file__))
