@@ -18,14 +18,34 @@ from utils_wgbs import validate_single_file, eprint, IllegalArgumentError, add_m
 class InitGenome:
     def __init__(self, args):
         self.args = args
-        self.ref_path = args.genome_ref
+        self.ref_path = args.fasta_path
         self.force = args.force
         self.name = args.name
 
         # validate input files
-        validate_single_file(self.ref_path)
         self.out_dir = self.setup_dir()
+        self.get_fasta()
         self.fai_df = self.load_fai()
+
+    def get_fasta(self):
+        if self.ref_path is not None:
+            validate_single_file(self.ref_path)
+            return
+
+        # no FASTA path provided. Attempt to download one
+        ref_path = op.join(self.out_dir, f'{self.name}.fa.gz')
+        url = f'curl https://hgdownload.soe.ucsc.edu/goldenPath/{n}/bigZips/{n}.fa.gz -o {ref_path}'.format(n=self.name)
+        eprint(f'[wt init] No reference FASTA provided. Attempting to download from\n\t{url}')
+        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output, error = p.communicate()
+        if p.returncode:
+            eprint(f'[wt init] Failed downloading reference for genome {self.name}: %d\n%s\n%s' % (p.returncode, output.decode(), error.decode()))
+            eprint(f'[wt init] Try downloading yourself and use --fasta_name flag, or check the "name" parameter')
+            raise IllegalArgumentError(f'[wt init] No reference FASTA found')
+        cmd = f'gunzip {ref_path} && bgzip -@ {self.args.threads} {ref_path[:-3]}'
+        subprocess.check_call(cmd, shell=True)
+        return ref_path
+
 
     def setup_dir(self):
         path = Path(op.realpath(__file__))
@@ -50,14 +70,18 @@ class InitGenome:
         if not op.isfile(fai_path):
             eprint(f'[wt init] fai file not found. Attempting to index {self.ref_path}')
             cmd = f'samtools faidx {self.ref_path}'
-            output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT).decode()
-            if self.ref_path.endswith('.gz') and 'please use bgzip' in output:
-                msg = f'[wt init] Seems like your reference FASTA cannot be indexed with samtools faidx.\n' \
-                        ' Try one of the following:\n' \
-                        ' 1. decompress it (gunzip {self.ref_path}) and try again' \
-                        ' 2. change the compression to bgzip:\n' \
-                        'gzip {self.ref_path} && bgzip {self.ref_path[:-3]}'
-                eprint(msg)
+            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output, error = p.communicate()
+            # if failed to generate fai, print informative message and abort
+            if p.returncode:
+                eprint("[wt init] Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
+                if self.ref_path.endswith('.gz') and 'please use bgzip' in error.decode():
+                    msg = f'[wt init] Seems like your reference FASTA cannot be indexed with samtools faidx.\n' \
+                            f'     Try one of the following:\n' \
+                            f'     1. decompress it (gunzip {self.ref_path}) and try again\n' \
+                            f'     2. change the compression to bgzip:\n' \
+                            f'        gunzip {self.ref_path} && bgzip {self.ref_path[:-3]}'
+                    eprint(msg)
                 raise IllegalArgumentError('[wt init] Invalid reference FASTA')
             if op.isfile(fai_path):
                 eprint(f'[wt init] Generated index file: {fai_path}')
@@ -193,10 +217,11 @@ def is_valid_chrome(chrome):
 
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
-    parser.add_argument('genome_ref', help='path to a genome FASTA file')
     parser.add_argument('name', help='name of the genome (e.g. hg19, mm9...).\n'
                                      'A directory of this name will be created '
                                      'in references/')
+    parser.add_argument('--fasta_path', help='path to a reference genome FASTA file.\n' \
+                        ' If none provided, wgbstools will attempt to download one from UCSC')
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing files if existed')
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('--no_sort', action='store_true',
