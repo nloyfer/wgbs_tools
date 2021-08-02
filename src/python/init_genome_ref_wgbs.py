@@ -23,8 +23,7 @@ class InitGenome:
         self.name = args.name
 
         # validate input files
-        validate_single_file(self.ref_path, '.fa')  # todo: support bgzipped reference FASTA
-                                                    # It's half implemented - only patter does not support it
+        validate_single_file(self.ref_path)
         self.out_dir = self.setup_dir()
         self.fai_df = self.load_fai()
 
@@ -66,8 +65,8 @@ class InitGenome:
                 raise IllegalArgumentError('[wt init] Failed to generate index file (fai)')
 
         # Link fa + fai to the output dir
-        # fasta_name = 'genome.fa' + '.gz' if self.ref_path.endswith('.gz') else ''
-        fasta_name = 'genome.fa'
+        fasta_name = 'genome.fa' + ('.gz' if self.ref_path.endswith('.gz') else '')
+        # fasta_name = 'genome.fa'
         self.link_file(self.ref_path, fasta_name)
         self.link_file(fai_path, fasta_name + '.fai')
 
@@ -214,8 +213,8 @@ def main():
     Init genome reference.
     Note: we currently support only chromosomes starting with "chr". I.e. "chr1" and not "1".
     """
+    #TODO: support chromosomes not starting with "chr"!
     args = parse_args()
-
     InitGenome(args).run()
 
 
