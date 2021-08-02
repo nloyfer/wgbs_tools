@@ -1,9 +1,9 @@
 #!/usr/bin/python3 -u
 
 import argparse
-from utils_wgbs import add_GR_args, eprint, GenomeRefPaths, delete_or_skip, \
+from src.python.utils_wgbs import add_GR_args, eprint, GenomeRefPaths, delete_or_skip, \
                        load_dict_section, add_multi_thread_args, IllegalArgumentError
-from genomic_region import GenomicRegion
+from src.python.genomic_region import GenomicRegion
 import pandas as pd
 import numpy as np
 from multiprocessing import Pool

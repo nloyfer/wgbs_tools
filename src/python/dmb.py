@@ -8,8 +8,8 @@ import os.path as op
 import pandas as pd
 import math
 import os
-from tqdm import tqdm
-from utils_wgbs import load_beta_data2, validate_single_file, eprint, \
+from tqdm import tqdm # todo: only if installed
+from src.python.utils_wgbs import load_beta_data2, validate_single_file, eprint, \
                        IllegalArgumentError, GenomeRefPaths
 
 DEBUG_NR = 100000

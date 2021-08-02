@@ -4,15 +4,15 @@ import os.path as op
 import numpy as np
 import pandas as pd
 import sys
-from utils_wgbs import IllegalArgumentError, eprint, segment_tool, add_GR_args, \
-                       validate_file_list, validate_single_file, \
-                       add_multi_thread_args, GenomeRefPaths
-from convert import add_bed_to_cpgs, is_block_file_nice
-from genomic_region import GenomicRegion, index2chrom
-from beta_to_blocks import load_blocks_file
 from multiprocessing import Pool
 import argparse
 import subprocess
+from src.python.utils_wgbs import IllegalArgumentError, eprint, segment_tool, add_GR_args, \
+                       validate_file_list, validate_single_file, \
+                       add_multi_thread_args, GenomeRefPaths
+from src.python.convert import add_bed_to_cpgs, is_block_file_nice
+from src.python.genomic_region import GenomicRegion, index2chrom
+from src.python.beta_to_blocks import load_blocks_file
 
 
 DEF_CHUNK = 60000

@@ -1,7 +1,6 @@
 #!/usr/bin/python3 -u
 
 import argparse
-from utils_wgbs import validate_single_file, eprint, IllegalArgumentError, DIR, add_multi_thread_args
 import re
 import shutil
 import numpy as np
@@ -12,6 +11,7 @@ from itertools import groupby
 import subprocess
 from multiprocessing import Pool
 import multiprocessing
+from src.python.utils_wgbs import validate_single_file, eprint, IllegalArgumentError, DIR, add_multi_thread_args
 
 
 class InitGenome:

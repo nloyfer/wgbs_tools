@@ -5,14 +5,13 @@ import os
 import numpy as np
 import os.path as op
 import pandas as pd
-from utils_wgbs import validate_file_list
 from multiprocessing import Pool
 import sys
 import subprocess
 from io import StringIO
-from beta_to_blocks import load_blocks_file, is_block_file_nice
-from utils_wgbs import IllegalArgumentError, add_multi_thread_args, \
-        homog_tool, main_script, splitextgz, GenomeRefPaths
+from src.python.beta_to_blocks import load_blocks_file, is_block_file_nice
+from src.python.utils_wgbs import IllegalArgumentError, add_multi_thread_args, \
+        homog_tool, main_script, splitextgz, GenomeRefPaths, validate_file_list
 
 
 def homog_log(*args, **kwargs):

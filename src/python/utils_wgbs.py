@@ -7,11 +7,15 @@ import pandas as pd
 from io import StringIO
 import multiprocessing
 import sys
+from pathlib import Path
+
 
 HG19_NR_SITES = 28217448  # total number of CpG sites in hg19 (fixed)
-DIR = op.dirname(os.path.realpath(__file__)) + '/'
+path = Path(op.realpath(__file__))
+DIR = str(path.parent)
+# DIR = op.dirname(os.path.realpath(__file__)) + '/'
 
-SRC_DIR = DIR + 'src/'
+SRC_DIR = op.join(path.parent, 'src/')
 pat_sampler = SRC_DIR + 'pat_sampler/pat_sampler'
 PAT2BETA_TOOL = SRC_DIR + 'pat2beta/stdin2beta'
 collapse_pat_script = SRC_DIR + 'collapse_pat.pl'
@@ -26,7 +30,7 @@ patter_tool = SRC_DIR + 'pipeline_wgbs/patter'
 MAX_PAT_LEN = 150  # maximal read length in sites
 MAX_READ_LEN = 1000  # maximal read length in bp
 
-main_script = DIR + 'wgbs_tools.py'
+main_script = op.join(DIR, 'wgbs_tools.py')
 
 
 class IllegalArgumentError(ValueError):
@@ -67,7 +71,8 @@ class GenomeRefPaths:
     def build_dir(self):
         if not self.genome:
             self.genome = 'hg19'
-        refdir = op.join(op.join(op.dirname(os.path.realpath(__file__)), 'references'), self.genome)
+        path = Path(op.realpath(__file__))
+        refdir = op.join(op.join(path.parent.parent.parent, 'references'), self.genome)
         if not op.isdir(refdir):
             raise IllegalArgumentError(f'Invalid reference name: {self.genome}')
         return refdir

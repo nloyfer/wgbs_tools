@@ -1,10 +1,10 @@
 import re
 import subprocess
-from utils_wgbs import IllegalArgumentError, GenomeRefPaths, eprint
 import sys
 import numpy as np
 import pandas as pd
 import os.path as op
+from src.python.utils_wgbs import IllegalArgumentError, GenomeRefPaths, eprint
 
 
 def index2chrom(site, genome):

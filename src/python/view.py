@@ -1,10 +1,6 @@
 #!/usr/bin/python3 -u
 
 import argparse
-from utils_wgbs import load_beta_data2, MAX_PAT_LEN, MAX_READ_LEN, pat_sampler, validate_single_file, \
-    add_GR_args, IllegalArgumentError, BedFileWrap, load_dict_section, read_shell, eprint, \
-    add_multi_thread_args, catch_BrokenPipeError
-from genomic_region import GenomicRegion
 import subprocess
 import numpy as np
 import sys
@@ -13,6 +9,10 @@ import os.path as op
 import pandas as pd
 from multiprocessing import Pool
 import multiprocessing
+from src.python.utils_wgbs import load_beta_data2, MAX_PAT_LEN, MAX_READ_LEN, pat_sampler, validate_single_file, \
+    add_GR_args, IllegalArgumentError, BedFileWrap, load_dict_section, read_shell, eprint, \
+    add_multi_thread_args, catch_BrokenPipeError
+from src.python.genomic_region import GenomicRegion
 
 PAT_COLS = ('chr', 'start', 'pat', 'count')
 

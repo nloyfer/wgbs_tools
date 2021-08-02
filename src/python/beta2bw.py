@@ -4,9 +4,9 @@ import argparse
 import os.path as op
 import sys
 import subprocess
-from utils_wgbs import delete_or_skip, load_beta_data2, validate_file_list, GenomeRefPaths, beta2vec, \
+from src.python.utils_wgbs import delete_or_skip, load_beta_data2, validate_file_list, GenomeRefPaths, beta2vec, \
     eprint, add_GR_args, IllegalArgumentError, load_dict_section, BedFileWrap
-from genomic_region import GenomicRegion
+from src.python.genomic_region import GenomicRegion
 import os
 import numpy as np
 

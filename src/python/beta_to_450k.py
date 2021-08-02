@@ -5,7 +5,7 @@ import sys
 import numpy as np
 import os.path as op
 import pandas as pd
-from utils_wgbs import validate_single_file, validate_file_list, load_beta_data, \
+from src.python.utils_wgbs import validate_single_file, validate_file_list, load_beta_data, \
                        beta2vec, IllegalArgumentError, eprint
 from multiprocessing import Pool, cpu_count
 
