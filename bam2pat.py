@@ -10,9 +10,11 @@ import uuid
 import re
 from multiprocessing import Pool
 from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args, eprint, \
-        add_multi_thread_args, mult_safe_remove, collapse_pat_script, GenomeRefPaths, validate_single_file
+        add_multi_thread_args, mult_safe_remove, collapse_pat_script, GenomeRefPaths, \
+        validate_single_file, delete_or_skip
 from init_genome_ref_wgbs import chromosome_order
 from pat2beta import pat2beta
+from index_wgbs import Indxer
 from genomic_region import GenomicRegion
 
 PAT_SUFF = '.pat'
@@ -80,9 +82,9 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
     # first, if there are no reads in current region, return
     validation_cmd = cmd + ' | head -1'
     if not subprocess.check_output(validation_cmd, shell=True, stderr=subprocess.PIPE).decode().strip():
-        eprint(f'[bam2pat] Skipping region {region}, no reads found')
+        eprint(f'[wt bam2pat] Skipping region {region}, no reads found')
         if verbose:
-            eprint('[bam2pat] ' + validation_cmd)
+            eprint('[wt bam2pat] ' + validation_cmd)
         return ''
 
     cmd += f' | {patter_tool} {genome.genome_path} {genome.chrom_cpg_sizes} '
@@ -96,50 +98,51 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
     return pat(out_path, debug, temp_dir)
 
 
+def validate_bam(bam):
+
+    # validate bam path:
+    eprint('[wt bam2pat] bam:', bam)
+    if not (op.isfile(bam) and bam.endswith('.bam')):
+        eprint(f'[wt bam2pat] Invalid bam: {bam}')
+        return False
+
+    # check if bam is sorted by coordinate:
+    peek_cmd = f'samtools view -H {bam} | head -1'
+    so = subprocess.PIPE
+    if 'coordinate' not in subprocess.check_output(peek_cmd, shell=True).decode():
+        eprint('bam file must be sorted by coordinate')
+        return False
+
+    # check if bam is indexed:
+    if not (op.isfile(bam + '.bai')):
+        eprint('[wt bam2pat] bai file was not found! Generating...')
+        r = subprocess.call(['samtools', 'index', bam])
+        if r:
+            eprint(f'Failed indexing bam: {bam}')
+            return False
+    return True
+
+
+def is_pair_end(bam):
+    first_line = subprocess.check_output(f'samtools view {bam} | head -1', shell=True)
+    return int(first_line.decode().split('\t')[1]) & 1
+
+
 class Bam2Pat:
-    def __init__(self, args):
+    def __init__(self, args, bam):
         self.args = args
         self.tmp_dir = None
         self.verbose = args.verbose
         self.out_dir = args.out_dir
-        self.bam_path = args.bam_path
+        self.bam_path = bam
         self.debug = args.debug
         self.gr = GenomicRegion(args)
-        self.validate_input()
         self.start_threads()
         self.cleanup()
 
     def cleanup(self):
         if self.tmp_dir is not None:
             shutil.rmtree(self.tmp_dir)
-
-    def validate_input(self):
-
-        # validate bam path:
-        eprint('[bam2pat] bam:', self.bam_path)
-        if not (op.isfile(self.bam_path) and self.bam_path.endswith('.bam')):
-            raise IllegalArgumentError('[bam2pat] Invalid bam: {}'.format(self.bam_path))
-
-        # check if bam is sorted by coordinate:
-        peek_cmd = f'samtools view -H {self.bam_path} | head -1'
-        so = subprocess.PIPE
-        if 'coordinate' not in subprocess.check_output(peek_cmd, shell=True).decode():
-            raise IllegalArgumentError('bam file must be sorted by coordinate')
-
-        # check if bam is indexed:
-        if not (op.isfile(self.bam_path + '.bai')):
-            eprint('[bam2pat] bai file was not found! Generating...')
-            r = subprocess.call(['samtools', 'index', self.bam_path])
-            if r:
-                raise IllegalArgumentError(f'Failed indexing bam: {self.bam_path}')
-
-        # validate output dir:
-        if not (op.isdir(self.out_dir)):
-            raise IllegalArgumentError(f'Invalid output dir: {self.out_dir}')
-
-    def is_pair_end(self):
-        first_line = subprocess.check_output(f'samtools view {self.bam_path} | head -1', shell=True)
-        return int(first_line.decode().split('\t')[1]) & 1
 
     def set_regions(self):
         if self.gr.region_str:
@@ -150,8 +153,8 @@ class Bam2Pat:
             output, error = p.communicate()
             if p.returncode or not output:
                 eprint(cmd)
-                eprint("[bam2pat] Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
-                eprint('[bam2pat] falied to find chromosomes')
+                eprint("[wt bam2pat] Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
+                eprint('[wt bam2pat] falied to find chromosomes')
                 return []
             nofilt_chroms = output.decode()[:-1].split('\n')
             filt_chroms = [c for c in nofilt_chroms if 'chr' in c]
@@ -161,7 +164,7 @@ class Bam2Pat:
                 filt_chroms = [c for c in nofilt_chroms if c in CHROMS]
             chroms = list(sorted(filt_chroms, key=chromosome_order))
             if not chroms:
-                eprint('[bam2pat] Failed retrieving valid chromosome names')
+                eprint('[wt bam2pat] Failed retrieving valid chromosome names')
                 raise IllegalArgumentError('Failed')
 
             return chroms
@@ -202,7 +205,7 @@ class Bam2Pat:
             for c in self.set_regions():
                 out_path = f'{tmp_prefix}.{c}.out'
                 params = (self.bam_path, out_path, c, self.gr.genome,
-                          self.is_pair_end(), self.args.exclude_flags,
+                          is_pair_end(self.bam_path), self.args.exclude_flags,
                           self.args.mapq, self.debug, self.args.blueprint,
                           self.args.temp_dir, blist, wlist, self.verbose)
                 processes.append(p.apply_async(proc_chr, params))
@@ -212,10 +215,10 @@ class Bam2Pat:
             p.join()
         res = [pr.get() for pr in processes]  # [pat_path for each chromosome]
         if None in res:
-            eprint('[bam2pat] threads failed')
+            eprint('[wt bam2pat] threads failed')
             return
         if not ''.join(res):
-            eprint('[bam2pat] No reads found in bam file. No pat file is generated')
+            eprint('[wt bam2pat] No reads found in bam file. No pat file is generated')
             return
 
         # Concatenate chromosome files
@@ -227,15 +230,16 @@ class Bam2Pat:
         mult_safe_remove(res)
 
         # generate beta file and bgzip the pat file
-        eprint('[bam2pat] bgzipping and indexing:')
+        eprint('[wt bam2pat] bgzipping and indexing:')
         if not op.isfile(pat_path):
-            eprint(f'[bam2pat] failed to generate {pat_path}.gz')
+            eprint(f'[wt bam2pat] failed to generate {pat_path}.gz')
             return
-        subprocess.call(f'bgzip -f@ 14 {pat_path} && tabix -fCb 2 -e 2 {pat_path}.gz', shell=True)
-        eprint(f'[bam2pat] generated {pat_path}.gz')
+
+        Indxer(pat_path).run()
+        eprint(f'[wt bam2pat] generated {pat_path}.gz')
 
         beta_path = pat2beta(f'{pat_path}.gz', self.out_dir, args=self.args)
-        eprint(f'[bam2pat] generated {beta_path}')
+        eprint(f'[wt bam2pat] generated {beta_path}')
 
 
 def parse_bam2pat_args(parser):
@@ -252,12 +256,13 @@ def parse_bam2pat_args(parser):
 
 def add_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
-    parser.add_argument('bam_path')
+    parser.add_argument('bam', nargs='+')
     add_GR_args(parser)
     parser.add_argument('--out_dir', '-o', default='.')
     parser.add_argument('--min_cpg', type=int, default=1,
                 help='Reads covering less than MIN_CPG sites are removed [1]')  # todo: implement
     parser.add_argument('--debug', '-d', action='store_true')
+    parser.add_argument('--force', '-f', action='store_true', help='overwrite existing files if exists')
     parser.add_argument('--verbose', '-v', action='store_true')
     parser.add_argument('-F', '--exclude_flags', type=int,
                         help='flags to exclude from bam file (samtools view parameter) ' \
@@ -282,7 +287,17 @@ def main():
     """
     parser = add_args()
     args = parse_args(parser)
-    Bam2Pat(args)
+    # validate output dir:
+    if not op.isdir(args.out_dir):
+        raise IllegalArgumentError(f'Invalid output dir: {args.out_dir}')
+    for bam in args.bam:
+        if not validate_bam(bam):
+            eprint(f'[wt bam2pat] Skipping {bam}')
+            continue
+        pat = op.join(args.out_dir, op.basename(bam)[:-4] + '.pat.gz')
+        if not delete_or_skip(pat, args.force):
+            continue
+        Bam2Pat(args, bam)
 
 
 if __name__ == '__main__':
