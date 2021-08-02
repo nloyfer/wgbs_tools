@@ -20,8 +20,8 @@ cview_tool = SRC_DIR + 'cview/cview'
 cview_extend_blocks_script = SRC_DIR + 'cview/extend_blocks.sh'
 homog_tool = SRC_DIR + 'homog/homog'
 
-match_maker_tool = DIR + 'pipeline_wgbs/match_maker'
-patter_tool = DIR + 'pipeline_wgbs/patter'
+match_maker_tool = SRC_DIR + 'pipeline_wgbs/match_maker'
+patter_tool = SRC_DIR + 'pipeline_wgbs/patter'
 
 MAX_PAT_LEN = 150  # maximal read length in sites
 MAX_READ_LEN = 1000  # maximal read length in bp
@@ -261,7 +261,7 @@ def load_borders(bpath, gr, genome):
         from index_wgbs import Indxer
         Indxer(bpath).run()
 
-    df = read_shell(f'tabix {bpath} {gr.region_str}', usecols=[3, 4]) # load borders section
+    df = read_shell(f'tabix {bpath} {gr.region_str}', usecols=[3, 4])     # load borders section
     borders = np.sort(np.unique(df.values.flatten())) - gr.sites[0]       # sort, unique, shift
     return borders[np.logical_and(borders >= 0, gr.nr_sites >= borders)]  # return only blocks in range
 
@@ -270,7 +270,7 @@ def validate_file_list(files, force_suff=None, min_len=1):
     """
     Make sure all files exist, and end with the same suffix.
     If force_suff is given (e.g. "beta"), make sure all files ends with it
-    If files are pat.gz or unq.gz, make sure their corresponding csi files exist.
+    If files are pat.gz make sure their corresponding csi files exist.
     Make sure list has at least min_len items
     :param files: List of paths of files
     :param force_suff: None or an extension (e.g 'pat.gz', '.beta')
@@ -299,8 +299,8 @@ def validate_single_file(fpath, suff=None):
     Make sure input fpath is valid:
         - fpath exists
         - has the correct suffix
-        - has an index fpath, (for unq/pat). If not, attempt to create one.
-    :param suff: 'beta', 'pat.gz' or 'unq.gz'
+        - has an index fpath, (for pat). If not, attempt to create one.
+    :param suff: 'beta' or 'pat.gz'
     """
 
     if fpath is None:
@@ -312,7 +312,7 @@ def validate_single_file(fpath, suff=None):
     if suff is not None and not fpath.endswith(suff):
         raise IllegalArgumentError(f'file {fpath} must end with {suff}')
 
-    if fpath.endswith(('.pat.gz', '.unq.gz')) and not op.isfile(fpath + '.csi'):
+    if fpath.endswith('.pat.gz') and not op.isfile(fpath + '.csi'):
         eprint(f'No csi found for file {fpath}. Attempting to index it...')
         from index_wgbs import Indxer
         Indxer(fpath).run()
@@ -323,7 +323,7 @@ def splitextgz(input_file):
     Extracts a file name + extension. If it's gz, add it to the other extension
     Examples:
         - fname.pat  -> (fname, pat)
-        - fname.unq.gz -> (fname, unq.gz)
+        - fname.pat.gz -> (fname, pat.gz)
     """
     b, suff = op.splitext(input_file)
     if suff == '.gz':
@@ -356,7 +356,7 @@ def delete_or_skip(output_file, force):
             mult_safe_remove([output_file, output_file + '.csi'])
         else:
             msg = f'File {output_file} already exists. Skipping it.'
-            msg += 'Use [-f] flag to force overwrite.'
+            msg += ' Use [-f] flag to force overwrite.'
             eprint(msg)
             return False
     return True
