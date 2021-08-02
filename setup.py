@@ -52,11 +52,11 @@ def compile_all(args):
         compile_single(cmd, 'pat_sampler', args.verbose)
 
         # patter (bam2pat)
-        cmd = 'g++ -std=c++11 pipeline_wgbs/patter.cpp -o pipeline_wgbs/patter'
+        cmd = 'g++ -std=c++11 src/pipeline_wgbs/patter.cpp -o src/pipeline_wgbs/patter'
         compile_single(cmd, 'patter', args.verbose)
 
         # match_maker (bam2pat)
-        cmd = 'g++ -std=c++11 pipeline_wgbs/match_maker.cpp -o pipeline_wgbs/match_maker'
+        cmd = 'g++ -std=c++11 src/pipeline_wgbs/match_maker.cpp -o src/pipeline_wgbs/match_maker'
         compile_single(cmd, 'match_maker', args.verbose)
 
         # segmentor (segment)
