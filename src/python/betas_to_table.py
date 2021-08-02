@@ -8,7 +8,6 @@ import os.path as op
 import pandas as pd
 import math
 import os
-from tqdm import tqdm  # todo: drop if not installed
 from multiprocessing import Pool
 from dmb import load_gfile_helper, match_prefix_to_bin
 from beta_to_blocks import collapse_process, load_blocks_file, is_block_file_nice
@@ -47,6 +46,7 @@ def dump(outpath, df, digits, verbose):
     eixs = enumerate(ixs)
     if verbose:
         eprint(f'[wt table] dumping table with shape {df.shape} to {outpath}')
+        from tqdm import tqdm  # todo: drop if not installed
         eixs = tqdm(enumerate(ixs), total=len(ixs))
     for ix, subset in eixs:
         df.loc[subset].to_csv(outpath, na_rep='NA',

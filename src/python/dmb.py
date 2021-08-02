@@ -8,7 +8,6 @@ import os.path as op
 import pandas as pd
 import math
 import os
-from tqdm import tqdm # todo: only if installed
 from utils_wgbs import load_beta_data2, validate_single_file, eprint, \
                        IllegalArgumentError, GenomeRefPaths
 
@@ -116,6 +115,7 @@ class MarkersFinder:
         if self.hyper:
             dfM = np.zeros((self.nr_blocks, self.gf_nodup.shape[0]), dtype=np.float16)
 
+        from tqdm import tqdm # todo: only if installed
         for ind, row in tqdm(self.gf_nodup.iterrows(), total=self.gf_nodup.shape[0]):
             data = np.fromfile(row['full_path'], dtype).reshape((-1, nr_cols))[self.keepinds, :]
             if self.hypo:
