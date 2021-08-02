@@ -10,7 +10,7 @@ import datetime
 import multiprocessing
 from multiprocessing import Pool
 from utils_wgbs import IllegalArgumentError, patter_tool, match_maker_tool, add_GR_args, eprint
-from bam2pat import add_args, subprocess_wrap, CHROMS, validate_bam
+from bam2pat import add_args, subprocess_wrap, CHROMS, validate_bam, is_pair_end
 from init_genome_ref_wgbs import chromosome_order
 from genomic_region import GenomicRegion
 
@@ -43,7 +43,7 @@ def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end,
     if paired_end:
         # change reads order, s.t paired reads will appear in adjacent lines
         cmd += f'{match_maker_tool} | '
-    cmd += f'{patter_tool} {genome.genome_path} {genome.chrom_cpg_sizes} --bam '
+    cmd += f'{patter_tool.replace("patter", "bpatter")} {genome.genome_path} {genome.chrom_cpg_sizes} --bam '
     if min_cpg is not None:
         cmd += f'--min_cpg {str(min_cpg)}'
     cmd += f' | cat {header_path} - | samtools view -b - > {unsorted_bam}'
@@ -70,10 +70,10 @@ def proc_header(input_path, out_path, debug):
 
 
 class BamMethylData:
-    def __init__(self, args):
+    def __init__(self, args, bam_path):
         self.args = args
         self.out_dir = args.out_dir
-        self.bam_path = args.bam_path
+        self.bam_path = bam_path
         self.debug = args.debug
         self.gr = GenomicRegion(args)
         self.validate_input()
@@ -111,10 +111,6 @@ class BamMethylData:
                 raise IllegalArgumentError('Failed')
             return chroms
 
-    def is_pair_end(self):
-        first_line = subprocess.check_output('samtools view {} | head -1'.format(self.bam_path), shell=True)
-        return int(first_line.decode().split('\t')[1]) & 1
-
     def intermediate_bam_file_view(self, name):
         return '<(samtools view {})'.format(name)
 
@@ -133,7 +129,7 @@ class BamMethylData:
             for c in self.set_regions():
                 out_path_name = name + '_' + c
                 params = (self.bam_path, out_path_name, c, self.gr.genome,
-                        header_path, self.is_pair_end(), self.args.exclude_flags,
+                        header_path, is_pair_end(self.bam_path), self.args.exclude_flags,
                         self.args.mapq, self.debug, self.args.min_cpg)
                 processes.append(p.apply_async(proc_chr, params))
             if not processes:
@@ -152,7 +148,7 @@ class BamMethylData:
         out_directory = os.path.dirname(final_path)
         # cmd = '/bin/bash -c "cat <({})'.format(get_header_command(self.bam_path)) + ' ' +\
         #       ' '.join([self.intermediate_bam_file_view(p) for p in res]) + ' | samtools view -b - > ' + final_path_unsorted + '"'
-        cmd ="samtools merge -c -p -f -h {} {} ".format(header_path, final_path) + ' '.join([p for p in res])
+        cmd = f"samtools merge -c -p -f -h {header_path} {final_path} " + ' '.join([p for p in res])
         # cmd = '/bin/bash -c "samtools cat -h <({})'.format(get_header_command(self.bam_path)) + ' ' + \
         #       ' '.join(
         #           [p for p in res]) + ' > ' + final_path + '"'
@@ -167,7 +163,7 @@ class BamMethylData:
         # stdout, stderr = sort_process.communicate()
         # print(datetime.datetime.now().isoformat() + ": finished sort of file")
 
-        idx_command = "samtools index {}".format(final_path)
+        idx_command = f"samtools index {final_path}"
         print('starting index of output bam ' + datetime.datetime.now().isoformat())
         idx_process = subprocess.Popen(shlex.split(idx_command), stdout=subprocess.PIPE, stdin=subprocess.PIPE)
         stdout, stderr = idx_process.communicate()
@@ -184,7 +180,8 @@ def main():
     """
     parser = add_args()
     args = parser.parse_args()
-    BamMethylData(args).start_threads()
+    for bam in args.bam:
+        BamMethylData(args, bam).start_threads()
 
 
 if __name__ == '__main__':

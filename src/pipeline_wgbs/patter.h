@@ -16,7 +16,10 @@
 #include <sstream>      // std::stringstream
 #include <iomanip>      // std::setprecision
 #include <fstream>
-
+#include <string_view>
+#include <cstdio>
+#include <memory>
+#include <stdexcept>
 
 #define MAX_PAT_LEN 300
 #define MAX_READ_LEN 2000
@@ -24,6 +27,7 @@
 struct reads_stats {
     int nr_pairs = 0;
     int nr_empty = 0;
+    int nr_short = 0;
     int nr_invalid = 0;
     int nr_bad_conv = 0;
 };
@@ -36,63 +40,48 @@ struct mbias_ss {
 
 class patter {
 public:
+    /** path to reference FASTA */
     std::string ref_path;
-    std::string chrom_sz_path;
+ 
+    // Current chromosome
     std::string chr;
+
+    /** CpG-Index offset of the current chromosome.
+     * i.e., How many CpGs there are before the first CpG in the current chromosome */
+    int chrom_offset;
+
     std::string mbias_path;
     int min_cpg = 0;
     std::unordered_map<int, int> dict;
     std::string genome_ref;
     reads_stats readsStats;
-    std::string TAGNAMETYPE = "YI:Z:";
     int line_i = 0;
     clock_t tick = clock();
     bool is_paired_end = false;
     bool blueprint = false;
-    bool unq = false;
     bool first_line(std::string &line);
-
-    struct MethylData {
-        int countMethyl; int countUnmethyl;
-        int originalIndex;
-    };
 
     mbias_ss mbias[2];
 
-    patter(std::string refpath, std::string cspath, bool bp, bool in_unq, std::string mb, int min_cpg):
-            ref_path(refpath), chrom_sz_path(cspath), blueprint(bp), unq(in_unq), mbias_path(mb), min_cpg(min_cpg) {}
+    patter(std::string refpath, int coff, bool bp, std::string mb, int mc):
+            ref_path(refpath), chrom_offset(coff), blueprint(bp), mbias_path(mb), min_cpg(mc) {}
 
     void load_genome_ref();
     int find_cpg_inds_offset();
     std::vector<long> fasta_index();
-
 
     int compareSeqToRef(std::string &seq, std::string &ref, bool reversed, std::string &meth_pattern);
     void print_stats_msg();
     void dump_mbias();
     void print_progress();
     int locus2CpGIndex(int locus);
-    std::string clean_seq(std::string seq, std::string CIGAR);
+    std::string clean_CIGAR(std::string seq, std::string CIGAR);
     std::vector<std::string> samLineToPatVec(std::vector<std::string> tokens);
-    std::vector<std::string> samLineToPatVec2(std::vector<std::string> tokens);
-    void handlyMethylCountSamLine(std::string line);
-    std::string samLineToSamLineWithMethCounts(std::vector<std::string> tokens, std::string originalLine);
-    MethylData samLineToMethCounts(std::vector <std::string> tokens, std::string originalLine);
-    void action_sam(std::string samFilePath);
-    void handle_action_sam_line(std::string line_str, bool first_in_pair);
-    std::string samLineMethyldataMakeString(std::string originalLine, patter::MethylData md);
-    void proc_sam_in_stream(std::istream& in);
-    patter::MethylData merge_and_count_methyl_data(std::vector <std::string> l1, std::vector <std::string> l2);
     void proc2lines(std::vector<std::string> tokens1, std::vector<std::string> tokens2);
-    void procPairAddMethylData(std::vector<std::string> tokens1, std::vector<std::string> tokens2,
-                               std::string line1, std::string line2);
     void action();
-    void addMethylCountToSam(std::string samFilePath);
 
     void initialize_patter(std::string &line_str);
 
-    void proc_pair_sam_lines(std::string &line1,
-                             std::string &line2);
 };
 
 std::vector<std::string> line2tokens(std::string &line);

@@ -4,6 +4,7 @@
 import os
 import os.path as op
 import argparse
+import numpy as np
 import subprocess
 import shutil
 import uuid
@@ -43,6 +44,9 @@ def subprocess_wrap(cmd, debug):
 
 def pat(out_path, debug, temp_dir):
     try:
+        # if out_path is empty, return None
+        if op.getsize(out_path) == 0:
+            return
         # sort
         pat_path = out_path + PAT_SUFF
         cmd = f'sort {out_path} -k2,2n -k3,3 '
@@ -58,8 +62,8 @@ def pat(out_path, debug, temp_dir):
         return None
 
 
-def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
-             blueprint, temp_dir, blacklist, whitelist, verbose):
+def proc_chr(bam, out_path, region, genome, chr_offset, paired_end, ex_flags, mapq, debug,
+             blueprint, temp_dir, blacklist, whitelist, min_cpg, verbose):
     """ Convert a temp single chromosome file, extracted from a bam file, into pat """
 
     # Run patter tool on a single chromosome. out_path will have the following fields:
@@ -87,7 +91,11 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
             eprint('[wt bam2pat] ' + validation_cmd)
         return ''
 
-    cmd += f' | {patter_tool} {genome.genome_path} {genome.chrom_cpg_sizes} '
+    chrom = region
+    if ':' in chrom:
+        chrom = chrom[:chrom.find(':')]
+    cmd += f' | {patter_tool} {genome.genome_path} {chr_offset[chrom]} '
+    cmd += f' --min_cpg {min_cpg}'
     if blueprint:
         cmd += ' --blueprint '
     cmd += f' > {out_path}'
@@ -147,27 +155,27 @@ class Bam2Pat:
     def set_regions(self):
         if self.gr.region_str:
             return [self.gr.region_str]
-        else:
-            cmd = f'samtools idxstats {self.bam_path} | cut -f1 '
-            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            output, error = p.communicate()
-            if p.returncode or not output:
-                eprint(cmd)
-                eprint("[wt bam2pat] Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
-                eprint('[wt bam2pat] falied to find chromosomes')
-                return []
-            nofilt_chroms = output.decode()[:-1].split('\n')
-            filt_chroms = [c for c in nofilt_chroms if 'chr' in c]
-            if filt_chroms:
-                filt_chroms = [c for c in filt_chroms if re.match(r'^chr([\d]+|[XYM])$', c)]
-            else:
-                filt_chroms = [c for c in nofilt_chroms if c in CHROMS]
-            chroms = list(sorted(filt_chroms, key=chromosome_order))
-            if not chroms:
-                eprint('[wt bam2pat] Failed retrieving valid chromosome names')
-                raise IllegalArgumentError('Failed')
 
-            return chroms
+        cmd = f'samtools idxstats {self.bam_path} | cut -f1 '
+        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output, error = p.communicate()
+        if p.returncode or not output:
+            eprint("[wt bam2pat] Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
+            eprint(cmd)
+            eprint('[wt bam2pat] falied to find chromosomes')
+            return []
+        nofilt_chroms = output.decode()[:-1].split('\n')
+        filt_chroms = [c for c in nofilt_chroms if 'chr' in c]
+        if filt_chroms:
+            filt_chroms = [c for c in filt_chroms if re.match(r'^chr([\d]+|[XYM])$', c)]
+        else:
+            filt_chroms = [c for c in nofilt_chroms if c in CHROMS]
+        chroms = list(sorted(filt_chroms, key=chromosome_order))
+        if not chroms:
+            eprint('[wt bam2pat] Failed retrieving valid chromosome names')
+            raise IllegalArgumentError('Failed')
+
+        return chroms
 
     def set_lists(self):
         # black/white lists:
@@ -199,15 +207,20 @@ class Bam2Pat:
         os.mkdir(self.tmp_dir)
         tmp_prefix = op.join(self.tmp_dir, name)
 
+        # find offset per chrome - how many sites comes before this chromosome
+        cf = GenomeRefPaths(self.gr.genome_name).get_chrom_cpg_size_table()
+        cf['size'] = [0] + list(np.cumsum(cf['size']))[:-1]
+        chr_offset = cf.set_index('chr').to_dict()['size']
+
         processes = []
         nr_threads = self.args.threads  # todo smarter default!
         with Pool(nr_threads) as p:
             for c in self.set_regions():
                 out_path = f'{tmp_prefix}.{c}.out'
-                params = (self.bam_path, out_path, c, self.gr.genome,
+                params = (self.bam_path, out_path, c, self.gr.genome, chr_offset,
                           is_pair_end(self.bam_path), self.args.exclude_flags,
                           self.args.mapq, self.debug, self.args.blueprint,
-                          self.args.temp_dir, blist, wlist, self.verbose)
+                          self.args.temp_dir, blist, wlist, self.args.min_cpg, self.verbose)
                 processes.append(p.apply_async(proc_chr, params))
             if not processes:
                 raise IllegalArgumentError('Empty bam file')
