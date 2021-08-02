@@ -5,7 +5,7 @@ import sys
 import os.path as op
 import argparse
 import subprocess
-from utils_wgbs import DIR, eprint, validate_single_file, IllegalArgumentError
+from src.python.utils_wgbs import eprint, validate_single_file, IllegalArgumentError
 
 
 def parse_args():
@@ -39,7 +39,7 @@ def compile_single(cmd, name, verbose):
 def compile_all(args):
     curdir = os.getcwd()
     try:
-        os.chdir(DIR)
+        os.chdir(op.dirname(op.realpath(__file__)))
 
         # compile C++ files
 
