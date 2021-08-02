@@ -11,6 +11,7 @@ from itertools import groupby
 import subprocess
 from multiprocessing import Pool
 import multiprocessing
+from pathlib import Path
 from utils_wgbs import validate_single_file, eprint, IllegalArgumentError, add_multi_thread_args
 
 
