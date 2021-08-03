@@ -125,6 +125,7 @@ chr3  119531385  119531943  5394858   5394867  0.87               0.87          
 
 ### Visualizations
 try different forms of visualizations
+
 ```bash
 $ wgbstools vis -r chr3:119527929-119531943 -b blocks.small.bed.gz *beta
 ```
@@ -136,8 +137,10 @@ $ wgbstools vis -r chr3:119527929-119531943 -b blocks.small.bed.gz *beta --heatm
 ```
 <!--![alt text](images/wt_vis_beta_2.png "beta vis example")-->
 <img src="images/wt_vis_beta_2.png" width="1050" height="110" />
+
 ```bash
 $ wgbstools vis -r chr3:119528585-119528783 -b blocks.small.bed.gz Sigmoid_Colon_STL003.small.pat.gz --min_len 4
 ```
 <!--![alt text](images/wt_vis_pat_1.png "pat vis example")-->
 <img src="images/wt_vis_pat_1.png" width="400" height="600" />
+
