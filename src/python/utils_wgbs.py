@@ -62,10 +62,13 @@ class GenomeRefPaths:
     def join(self, fpath, validate=True):
         path = op.join(self.refdir, fpath)
         if not op.isfile(path):
-            if validate:
-                raise IllegalArgumentError('Invalid reference path: ' + path)
+            if op.isfile(path + '.gz'):
+                path += '.gz'
             else:
-                path = None
+                if validate:
+                    raise IllegalArgumentError('Invalid reference path: ' + path)
+                else:
+                    path = None
         return path
 
     def build_dir(self):
