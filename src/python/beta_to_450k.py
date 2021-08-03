@@ -6,10 +6,10 @@ import numpy as np
 import os.path as op
 import pandas as pd
 from utils_wgbs import validate_single_file, validate_file_list, load_beta_data, \
-                       beta2vec, IllegalArgumentError, eprint
+                       beta2vec, IllegalArgumentError, eprint, ilmn2cpg_dict
 from multiprocessing import Pool, cpu_count
 
-ilmn2cpg_dict = '/cs/cbio/netanel/indexes/ilmn2CpG.tsv.gz'
+# ilmn2cpg_dict = '/cs/cbio/netanel/indexes/ilmn2CpG.tsv.gz'
 # todo: generate this and put in reference directory. download from:
 # https://support.illumina.com/array/array_kits/infinium-methylationepic-beadchip-kit/downloads.html
 
@@ -90,6 +90,7 @@ def main():
     Output: a csv file with ~480K rows, for the ~480K Illumina sites,
             and with columns corresponding to the beta files.
             all values are in range [0, 1], or NA.
+            Only works for hg19.
     """
     args = parse_args()
     validate_file_list(args.input_files, '.beta')
