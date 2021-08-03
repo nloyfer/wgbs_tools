@@ -132,10 +132,10 @@ $ wgbstools vis -r chr3:119528585-119528783 -b blocks.small.bed.gz Sigmoid_Colon
 $ wgbstools view -s 5394796-5394834 Sigmoid_Colon_STL003.small.pat.gz --sub_sample .05
 ```
 <!--![alt text](images/wt_vis_beta_1.png "beta vis example")-->
-<img src="images/wt_vis_beta_1.png" width="900" height="140" />
+<img src="images/wt_vis_beta_1.png" width="1050" height="110" />
 
 ```bash
 $ wgbstools vis -r chr3:119527929-119531943 -b blocks.small.bed.gz *beta --heatmap
 ```
 <!--![alt text](images/wt_vis_beta_2.png "beta vis example")-->
-<img src="images/wt_vis_beta_2.png" width="1050" height="120" />
+<img src="images/wt_vis_beta_2.png" width="1050" height="110" />
