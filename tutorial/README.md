@@ -1,5 +1,5 @@
 # wgbstools tutorial
-## installation and configuration
+## Installation and configuration
 First install `wgbstools` and configure the `hg19` genome
 ```bash
 git clone https://github.com/nloyfer/wgbs_tools.git
@@ -13,9 +13,9 @@ It is recommended to add wgbstools to your $PATH, E.g,
 export PATH=${PATH}:$PWD
 ```
 
-## all set! Let's begin
+## All set. Let's begin
 ### Data and region
-For this short tutorial, we will use the following publicly available samples from ROADMAP:
+For this short tutorial, we will use the following publicly available samples from the [Roadmap Epigenomic Project](https://www.nature.com/articles/nature14248):
 
 | SRX  | Tissue  |  Donor |
 |---|---|---|
@@ -25,7 +25,7 @@ For this short tutorial, we will use the following publicly available samples fr
 
 ```bash
 $ cd tutorial
-$ ls -1 *bam
+$ ls -1 bams/*bam
 Lung_STL002.small.bam
 Pancreas_STL002.small.bam
 Sigmoid_Colon_STL003.small.bam
@@ -42,10 +42,37 @@ exon    NR1I2
 intron  NR1I2
 exon    NR1I2
 ```
+
 ### Generate pat & beta files
-To generage `pat` and `beta` files for each of the 3 samples, we use the `bam2pat` command.
+To generate [`pat`](docs/pat_format.md) and [`beta`](docs/beta_format.md)) files for each of the samples, we use the `bam2pat` command.
 ```bash
-$ wgbstools bam2pat *.bam -r $region
+$ wgbstools bam2pat bams/*.bam -r $region
+[wt bam2pat] bam: bams/Lung_STL002.small.bam
+[ patter ] [ chr3 ] finished 2,793 lines. 1,813 good, 980 empty, 0 invalid. (success 100%)
+[wt bam2pat] bgzipping and indexing:
+[wt bam2pat] generated ./Lung_STL002.small.pat.gz
+[wt bam2pat] generated ./Lung_STL002.small.beta
+[wt bam2pat] bam: bams/Pancreas_STL002.small.bam
+[ patter ] [ chr3 ] finished 814 lines. 516 good, 298 empty, 0 invalid. (success 100%)
+[wt bam2pat] bgzipping and indexing:
+[wt bam2pat] generated ./Pancreas_STL002.small.pat.gz
+[wt bam2pat] generated ./Pancreas_STL002.small.beta
+[wt bam2pat] bam: bams/Sigmoid_Colon_STL003.small.bam
+[ patter ] [ chr3 ] finished 2,986 lines. 1,989 good, 997 empty, 0 invalid. (success 100%)
+[wt bam2pat] bgzipping and indexing:
+[wt bam2pat] generated ./Sigmoid_Colon_STL003.small.pat.gz
+[wt bam2pat] generated ./Sigmoid_Colon_STL003.small.beta
+
+$ ls -1 *pat* *beta
+Lung_STL002.small.beta
+Lung_STL002.small.pat.gz
+Lung_STL002.small.pat.gz.csi
+Pancreas_STL002.small.beta
+Pancreas_STL002.small.pat.gz
+Pancreas_STL002.small.pat.gz.csi
+Sigmoid_Colon_STL003.small.beta
+Sigmoid_Colon_STL003.small.pat.gz
+Sigmoid_Colon_STL003.small.pat.gz.csi
 ```
 
 ### Segmentation 
@@ -53,7 +80,7 @@ Segment the region into homogenously methylated blocks
 ```bash
 $ wgbstools segment --betas *beta --min_cpg 3 --max_bp 2000 -o blocks.small.bed -r $region
 ```
-bgzip and index the output blocks, make it easier to access
+Optional: bgzip and index the output blocks, make it easier to access
 ```bash
 $ wgbstools index blocks.small.bed
 ```
