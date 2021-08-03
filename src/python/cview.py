@@ -2,7 +2,7 @@
 
 import argparse
 from utils_wgbs import MAX_PAT_LEN, pat_sampler, validate_single_file, \
-    add_GR_args, IllegalArgumentError, eprint, cview_tool, splitextgz, \
+    add_GR_args, eprint, cview_tool, \
     collapse_pat_script, cview_extend_blocks_script
 from genomic_region import GenomicRegion
 from beta_to_blocks import load_blocks_file
@@ -31,8 +31,8 @@ def view_gr(pat, args):
         cmd = f'gunzip -c {pat} '
     else:
         s, e = gr.sites
-        s = max(1, s - MAX_PAT_LEN)
-        cmd = f'tabix {pat} {gr.chrom}:{s}-{e - 1} '
+        ms = max(1, s - MAX_PAT_LEN)
+        cmd = f'tabix {pat} {gr.chrom}:{ms}-{e - 1} '
 
     view_flags = set_view_flags(args)
     cmd = f"""/bin/bash -c 'cat <(echo "{s}\t{e}") <(echo "-1") <({cmd}) | {cview_tool}'"""
@@ -42,8 +42,6 @@ def view_gr(pat, args):
     if not gr.is_whole():
         cmd += f' | sort -k2,2n -k3,3 '
     cmd += f' | {collapse_pat_script} - '
-    # eprint(cmd)
-    # cmd += f'wgbstools convert -L {bed} | cut -f4-5 | <(tabix -R - | {cview_tool}) '
     subprocess_wrap_sigpipe(cmd)
 
 
