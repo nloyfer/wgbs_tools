@@ -108,8 +108,19 @@ blocks.small.bed.gz.tbi
 
 ### collapse beta files to blocks
 Collapse the beta files to the blocks we just found:
-```bash
-$ wgbstools beta_to_table blocks.small.bed.gz --betas *beta
+
+```zsh
+$ wgbstools beta_to_table blocks.small.bed.gz --betas *beta | column -t
+chr   start      end        startCpG  endCpG   Lung_STL002.small  Pancreas_STL002.small  Sigmoid_Colon_STL003.small
+chr3  119527929  119528187  5394767   5394772  0.87               0.92                   0.96
+chr3  119528217  119528243  5394774   5394777  0.74               1.00                   0.92
+chr3  119528246  119528309  5394777   5394781  0.43               0.73                   0.80
+chr3  119528384  119528418  5394782   5394786  0.21               0.45                   0.92
+chr3  119528430  119528783  5394786   5394796  0.08               0.28                   0.76
+chr3  119528806  119529245  5394796   5394834  0.00               0.00                   0.76
+chr3  119529584  119530116  5394837   5394844  0.96               0.97                   0.96
+chr3  119530396  119530598  5394846   5394856  0.94               0.91                   0.95
+chr3  119531385  119531943  5394858   5394867  0.87               0.87                   0.96
 ```
 
 ### Visualizations
