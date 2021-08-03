@@ -15,6 +15,37 @@ from pathlib import Path
 from utils_wgbs import validate_single_file, eprint, IllegalArgumentError, add_multi_thread_args
 
 
+def generate_fai(fasta):
+    """ Generate fai file if it does not exist """
+    fai_path = fasta + '.fai'
+
+    # If no fai file exists, return it
+    if op.isfile(fai_path):
+        return fai_path
+
+    # otherwise, generate it using samtools faidx:
+    eprint(f'[wt init] Indexing {fasta}')
+    cmd = f'samtools faidx {fasta}'
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, error = p.communicate()
+    # if failed to generate fai, print informative message and raise exception
+    if p.returncode:
+        eprint("[wt init] Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
+        if fasta.endswith('.gz') and 'please use bgzip' in error.decode():
+            msg = f'[wt init] Seems like your reference FASTA cannot be indexed with samtools faidx.\n' \
+                    f'     Try one of the following:\n' \
+                    f'     1. decompress it (gunzip {fasta}) and try again\n' \
+                    f'     2. change the compression to bgzip:\n' \
+                    f'        gunzip {fasta} && bgzip {fasta[:-3]}'
+            eprint(msg)
+        raise IllegalArgumentError('[wt init] Invalid reference FASTA')
+    if op.isfile(fai_path):
+        eprint(f'[wt init] Generated index file: {fai_path}')
+    else:
+        raise IllegalArgumentError('[wt init] Failed to generate index file (fai)')
+    return fai_path
+
+
 class InitGenome:
     def __init__(self, args):
         self.args = args
@@ -63,33 +94,10 @@ class InitGenome:
         return out_dir
 
     def load_fai(self):
-        """ Load the fai file to a DataFrame """
+        """ Generate, link and load the fai file to a DataFrame """
+        fai_path = generate_fai(self.ref_path)
 
-        fai_path = self.ref_path + '.fai'
-
-        # If no fai file is found, generate it:
-        if not op.isfile(fai_path):
-            eprint(f'[wt init] Indexing {self.ref_path}')
-            cmd = f'samtools faidx {self.ref_path}'
-            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            output, error = p.communicate()
-            # if failed to generate fai, print informative message and abort
-            if p.returncode:
-                eprint("[wt init] Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
-                if self.ref_path.endswith('.gz') and 'please use bgzip' in error.decode():
-                    msg = f'[wt init] Seems like your reference FASTA cannot be indexed with samtools faidx.\n' \
-                            f'     Try one of the following:\n' \
-                            f'     1. decompress it (gunzip {self.ref_path}) and try again\n' \
-                            f'     2. change the compression to bgzip:\n' \
-                            f'        gunzip {self.ref_path} && bgzip {self.ref_path[:-3]}'
-                    eprint(msg)
-                raise IllegalArgumentError('[wt init] Invalid reference FASTA')
-            if op.isfile(fai_path):
-                eprint(f'[wt init] Generated index file: {fai_path}')
-            else:
-                raise IllegalArgumentError('[wt init] Failed to generate index file (fai)')
-
-        # Link fa + fai to the output dir
+        # Link fa + fai (or fa.gz+fa.gz.gzi+fa.gz.fai) to the output dir
         fasta_name = 'genome.fa' + ('.gz' if self.ref_path.endswith('.gz') else '')
         # fasta_name = 'genome.fa'
         self.link_file(self.ref_path, fasta_name)
