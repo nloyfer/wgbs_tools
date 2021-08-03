@@ -121,8 +121,7 @@ class PatVis:
 
     def get_block(self):
         df = ViewPat(self.pat_path, None, self.gr, self.args.strict,
-                min_len=self.args.min_len,
-                strip=self.args.strip).perform_view(dump=False)
+                min_len=self.args.min_len, strip=self.args.strip).perform_view()
         if not df.empty:
             return self.cyclic_print(df)
 
