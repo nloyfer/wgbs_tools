@@ -2,8 +2,8 @@
 
 import argparse
 from utils_wgbs import MAX_PAT_LEN, pat_sampler, validate_single_file, \
-    add_GR_args, eprint, cview_tool, \
-    collapse_pat_script, cview_extend_blocks_script
+    add_GR_args, eprint, cview_tool, collapse_pat_script, \
+    cview_extend_blocks_script
 from genomic_region import GenomicRegion
 from beta_to_blocks import load_blocks_file
 import subprocess
