@@ -140,4 +140,4 @@ $ wgbstools vis -r chr3:119527929-119531943 -b blocks.small.bed.gz *beta --heatm
 $ wgbstools vis -r chr3:119528585-119528783 -b blocks.small.bed.gz Sigmoid_Colon_STL003.small.pat.gz --min_len 4
 ```
 <!--![alt text](images/wt_vis_pat_1.png "pat vis example")-->
-<img src="images/wt_vis_pat_1.png" width="800" height="800" />
+<img src="images/wt_vis_pat_1.png" width="350" height="600" />
