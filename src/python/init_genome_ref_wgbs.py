@@ -156,7 +156,24 @@ class InitGenome:
         self.dump_df(ncgs[['chr', 'size']], 'CpG.chrome.size')
 
         self.validate_nr_sites(df.shape[0])
+        self.add_supp()  # add supplemental files for hg19
         eprint(f'[wt init] Finished initialization of genome {self.name}')
+
+    def add_supp(self):
+        if self.name != 'hg19':
+            return
+        # link annotation files
+        path = Path(op.realpath(__file__))
+        suppdir = op.join(path.parent.parent.parent, 'supplemental')
+        anno_file = op.join(suppdir, 'hg19.annotations.bed.gz')
+        dst_anno = op.join(self.out_dir, 'annotations.bed.gz')
+        if op.isfile(anno_file) and op.isfile(anno_file + '.tbi'):
+            self.link_file(anno_file, dst_anno)
+            self.link_file(anno_file + '.tbi', dst_anno + '.tbi')
+        # link Illumina 450K file
+        ilmn_file = op.join(suppdir, 'hg19.ilmn2CpG.tsv.gz')
+        if op.isfile(ilmn_file):
+            self.link_file(ilmn_file, op.join(self.out_dir, 'ilmn2CpG.tsv.gz'))
 
     def validate_nr_sites(self, nr_sites):
         if self.args.debug:
