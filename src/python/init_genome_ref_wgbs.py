@@ -69,7 +69,7 @@ class InitGenome:
 
         # If no fai file is found, generate it:
         if not op.isfile(fai_path):
-            eprint(f'[wt init] fai file not found. Attempting to index {self.ref_path}')
+            eprint(f'[wt init] Indexing {self.ref_path}')
             cmd = f'samtools faidx {self.ref_path}'
             p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             output, error = p.communicate()
@@ -94,6 +94,8 @@ class InitGenome:
         # fasta_name = 'genome.fa'
         self.link_file(self.ref_path, fasta_name)
         self.link_file(fai_path, fasta_name + '.fai')
+        if fasta_name.endswith('.gz'):
+            self.link_file(self.ref_path + '.gzi', fasta_name + '.gzi')
 
         # load fai file
         try:
