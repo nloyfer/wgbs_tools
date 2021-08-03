@@ -5,12 +5,13 @@ import subprocess
 import numpy as np
 import sys
 import os
+from io import StringIO
 import os.path as op
 import pandas as pd
 from multiprocessing import Pool
 import multiprocessing
-from utils_wgbs import load_beta_data2, MAX_PAT_LEN, MAX_READ_LEN, pat_sampler, validate_single_file, \
-    add_GR_args, IllegalArgumentError, BedFileWrap, load_dict_section, read_shell, eprint, \
+from utils_wgbs import load_beta_data2, MAX_PAT_LEN, pat_sampler, validate_single_file, \
+    add_GR_args, IllegalArgumentError, BedFileWrap, read_shell, eprint, \
     add_multi_thread_args, catch_BrokenPipeError
 from genomic_region import GenomicRegion
 
@@ -84,7 +85,7 @@ class ViewPat:
         df.sort_values(by=['start', 'pat'], inplace=True)
         return df
 
-    def perform_view(self, dump=True):
+    def perform_view(self):
         # todo use for loop for large sections (or full file)
         df = read_shell(self.build_cmd(), names=get_pat_cols(self.pat_path))
         if df.empty:
@@ -103,40 +104,7 @@ class ViewPat:
         if self.sub_sample:                 # --sub_sample
             self.sample_reads(df)
         df.reset_index(drop=True, inplace=True)
-        if dump:
-            df.to_csv(self.opath, sep='\t', index=None, header=None)
         return df
-
-    def compose_awk_cmd(self):
-        cmd = self.build_cmd()
-        if self.strip:
-            eprint('[wt view] WARNING: strip flag not supported with awk_engine. Ignoring it')
-        if self.gr.chrom:
-            start, end = self.gr.sites
-            cmd += ' | awk \'{if ($2 + length($3) > %s) {print;}}\' ' % start
-
-            if self.strict:  # trim reads outside the gr
-                strict_cmd = ' | awk \'{(OFS="\t");s=$2; pat=$3;' \
-                       ' if (s < %s) {s=%s;pat=substr(pat,%s-$2 + 1)}' \
-                       ' if (s + length(pat) > %e) {pat=substr(pat, 0, %e-s)} ' \
-                       ' print $1,s,pat,$4,$5,$6;}\' '
-                strict_cmd = strict_cmd.replace('%s', str(start)).replace('%e', str(end))
-                cmd += strict_cmd
-            if self.min_len > 1:
-                cmd += ' | awk \'{(OFS="\t"); if (length($3) >= %m)'.replace('%m', str(self.min_len))
-                cmd += ' {print $1,$2,$3,$4,$5,$6}}\' '
-        if self.sub_sample is not None:  # sub-sample reads
-            cmd += f' | {pat_sampler} {self.sub_sample} '
-        return cmd
-
-    def perform_view_awk(self):
-        subprocess.call(self.compose_awk_cmd(), shell=True, stdout=self.opath)
-
-    def view_pat(self, awk=False):
-        if awk:
-            self.perform_view_awk()
-        else:
-            self.perform_view()
 
 
 def get_pat_cols(pat_path):
@@ -155,22 +123,15 @@ def get_pat_cols(pat_path):
 
 
 def view_pat_mult_proc(input_file, strict, sub_sample,
-        min_len, grs, i, step, awk, strip, genome):
+        min_len, grs, i, step, strip, genome):
     reads = []
     cgrs = []
     for i in range(i, min(len(grs), i + step)):
         try:
             gr = GenomicRegion(region=grs[i], genome_name=genome)
-            if awk:
-                cmd = ViewPat(input_file, sys.stdout, gr,
-                        strict, sub_sample, None, min_len, strip).compose_awk_cmd()
-                x = subprocess.check_output(cmd, shell=True)
-                if x:
-                    x = x.decode()
-            else:
-                df = ViewPat(input_file, sys.stdout, gr, strict, sub_sample,
-                        None, min_len, strip).perform_view(dump=False)
-                x = df.to_csv(sep='\t', index=None, header=None)
+            df = ViewPat(input_file, sys.stdout, gr, strict, sub_sample,
+                    None, min_len, strip).perform_view()
+            x = df.to_csv(sep='\t', index=None, header=None)
         except IllegalArgumentError as e:
             gr = grs[i] + ' - No CpGs'
             x = ''
@@ -206,7 +167,7 @@ def view_pat_bed_multiprocess(args, bed_wrapper):
             for i in range(0, n, step):
                 params = (args.input_file, args.strict, args.sub_sample,
                         args.min_len, regions_lst, i, step,
-                        args.awk_engine, args.strip, args.genome)
+                        args.strip, args.genome)
                 processes.append(p.apply_async(view_pat_mult_proc, params))
             p.close()
             p.join()
@@ -226,16 +187,43 @@ def view_pat_bed_multiprocess(args, bed_wrapper):
 #                  #
 ####################
 
+def get_beta_section(beta_path, gr):
+    # load data
+    data = load_beta_data2(beta_path, gr=gr.sites)
+    # load loci
+    cmd = f'tabix {gr.genome.revdict_path} {gr.chrom}:{gr.sites[0]}-{gr.sites[1]-1} | cut -f1-2'
+    txt = subprocess.check_output(cmd, shell=True).decode()
+    names = ['chr', 'start']
+    df = pd.read_csv(StringIO(txt), sep='\t', header=None, names=names)
+    df['end'] = df['start'] + 2
+    df['meth'] = data[:, 0]
+    df['total'] = data[:, 1]
+    return df
 
-def view_beta(beta_path, gr, opath):
+
+def view_beta(beta_path, gr, opath, threads):
     """
     View beta file in given region/sites range
     :param beta_path: beta file path
     :param gr: a GenomicRegion object
     :param opath: output path (or stdout)
     """
-    data = load_beta_data2(beta_path, gr=gr.sites)
-    np.savetxt(opath, data, fmt='%s', delimiter='\t')
+    if not gr.is_whole():
+        df = get_beta_section(beta_path, gr)
+        df.to_csv(opath, sep='\t', index=None, header=None)
+        return df
+    # else, whole genome
+    p = Pool(threads)
+    chroms = list(gr.genome.get_chrom_cpg_size_table()['chr'])
+    params = [(beta_path, GenomicRegion(region=c)) for c in chroms]
+    arr = p.starmap(get_beta_section, params)
+    p.close()
+    p.join()
+    # dump
+    mode = 'w'
+    for a in arr:
+        a.to_csv(opath, sep='\t', index=None, mode=mode, header=None)
+        mode = 'a'
 
 
 ##########################
@@ -258,14 +246,7 @@ def parse_args():
                              'Only relevant if "region", "sites" '
                              'or "bed_file" flags are given.')
     parser.add_argument('--strip', action='store_true',
-                        help='pat: Remove trailing dots (from beginning/end of reads).\n'
-                                   'Not supported with awk_engine')
-    parser.add_argument('--awk_engine', action='store_true',
-                        help='pat: use awk engine instead of python.\n'
-                             'Its saves RAM when dealing with large regions.')
-    # parser.add_argument('--multiprocess', '-@', type=int, default=16,
-                        # help='pat: If bed file is specified, use multiple processors to read multiple.\n'
-                             # 'regions in parallel. Default number of processors: 16.')
+                        help='pat: Remove trailing dots (from beginning/end of reads).')
     add_multi_thread_args(parser)
     parser.add_argument('--min_len', type=int, default=1,
                         help='pat: Display only reads covering at least MIN_LEN CpG sites [1]')
@@ -290,22 +271,20 @@ def main():
     validate_single_file(input_file)
 
     bed_wrapper = BedFileWrap(args.bed_file) if args.bed_file else None
-    gr = GenomicRegion(args)
 
     try:
         if op.splitext(input_file)[1] in ('.beta', '.lbeta', '.bin'):
             if bed_wrapper:
                 eprint('Error: -L flag is not supported for beta files')  #TODO implement?
                 exit(1)
-            view_beta(input_file, gr, args.out_path)
+            gr = GenomicRegion(args)
+            view_beta(input_file, gr, args.out_path, args.threads)
         elif input_file.endswith('.pat.gz'):
             if bed_wrapper:
                 view_pat_bed_multiprocess(args, bed_wrapper)
             else:
-                vp = ViewPat(input_file, args.out_path, gr,
-                        args.strict, args.sub_sample,
-                        bed_wrapper, args.min_len, args.strip)
-                vp.view_pat(args.awk_engine)
+                from cview import view_gr
+                view_gr(input_file, args)
         else:
             raise IllegalArgumentError('Unknown input format:', input_file)
 
