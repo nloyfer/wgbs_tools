@@ -6,11 +6,10 @@ import numpy as np
 import os.path as op
 import pandas as pd
 from utils_wgbs import validate_single_file, validate_file_list, load_beta_data, \
-                       beta2vec, IllegalArgumentError, eprint, ilmn2cpg_dict
-from multiprocessing import Pool, cpu_count
+                       beta2vec, IllegalArgumentError, eprint, ilmn2cpg_dict, \
+                       add_multi_thread_args
+from multiprocessing import Pool
 
-# ilmn2cpg_dict = '/cs/cbio/netanel/indexes/ilmn2CpG.tsv.gz'
-# todo: generate this and put in reference directory. download from:
 # https://support.illumina.com/array/array_kits/infinium-methylationepic-beadchip-kit/downloads.html
 
 
@@ -56,17 +55,17 @@ def read_reference(ref):
 def betas2csv(args):
     df = read_reference(args.ref)
     indices = np.array(df['cpg'])
-    # indices = df['cpg'].values
 
-    with Pool(cpu_count()) as p:
-        resarr = [p.apply_async(single_beta, (b, indices, args.cov_thresh)) for b in args.input_files]
-        p.close()
-        p.join()
+    p = Pool(args.threads)
+    params = [(b, indices, args.cov_thresh) for b in args.input_files]
+    arr = p.starmap(single_beta, params)
+    p.close()
+    p.join()
 
-    for name, beta in [x.get() for x in resarr]:
+    for name, beta in arr:
         df[name] = beta
-    df = df.sort_values(by='ilmn')
     del df['cpg']
+
     df.to_csv(args.out_path, index=None, float_format='%.3f', na_rep='NA')
 
 
@@ -75,11 +74,12 @@ def parse_args():
     parser.add_argument('input_files', nargs='+', help='one or more beta files')
     parser.add_argument('-o', '--out_path', type=argparse.FileType('w'), default=sys.stdout,
                         help='Output path. [stdout]')
-    parser.add_argument('-c', '--cov_thresh', type=int, default=1,
+    parser.add_argument('-c', '--cov_thresh', type=int, default=3,
                         help='minimal coverage to include. sites with coverage < ' \
-                        'cov_thresh are ignored [1]')
+                        'cov_thresh are ignored [3]')
     parser.add_argument('--ref', help='a reference file with one column, ' \
-                        'of Illumina IDs, and no header.')
+                        'of Illumina IDs, optionally with a header line.')
+    add_multi_thread_args(parser)
     args = parser.parse_args()
     return args
 
