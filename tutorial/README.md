@@ -96,7 +96,7 @@ The output bed file has 5 columns: chr, start, end, startCpG, endCpG (non inclus
 The segmentation algorithm finds a partition of the genome that optimizes some homogeneity score, i.e, the CpG sites in each block tend to have a similar methylation status. Many of the blocks are typically singletons (covering a single CpG site), but they are dropped when the `--min_cpg MIN_CPG` flag is specified.
 In this example, the `segment` command segmented the region chr3:119,527,929-119,531,943 to 17 blocks, 9 of them cover at least 3 CpG sites.
 
-####3 Index bed
+#### Index bed
 Optional: bgzip and index the output blocks, make it easier to access.
 `index` command wraps bgzip and tabix. It compresses a bed (or pat) file and generates corresponding index file. This step is necessary if you wish to visualize these blocks later using `vis` command.
 ```bash
