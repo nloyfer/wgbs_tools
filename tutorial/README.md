@@ -78,11 +78,32 @@ Sigmoid_Colon_STL003.small.pat.gz.csi
 ### Segmentation 
 Segment the region into homogenously methylated blocks
 ```bash
-$ wgbstools segment --betas *beta --min_cpg 3 --max_bp 2000 -o blocks.small.bed -r $region
+$ wgbstools segment --betas *beta --min_cpg 3 --max_bp 2000 -r $region -o blocks.small.bed
+[wt segment] found 9 blocks
+             (dropped 8 short blocks)
+$ cat blocks.small.bed
+chr3    119527929       119528187       5394767 5394772
+chr3    119528217       119528243       5394774 5394777
+chr3    119528246       119528309       5394777 5394781
+chr3    119528384       119528418       5394782 5394786
+chr3    119528430       119528783       5394786 5394796
+chr3    119528806       119529245       5394796 5394834
+chr3    119529584       119530116       5394837 5394844
+chr3    119530396       119530598       5394846 5394856
+chr3    119531385       119531943       5394858 5394867
 ```
-Optional: bgzip and index the output blocks, make it easier to access
+The output bed file has 5 columns: chr, start, end, startCpG, endCpG (non inclusive). For example, the first block is chr3:119,527,929-119,528,187, 258bp, 5 CpG sites.
+The segmentation algorithm finds a partition of the genome that optimizes some homogeneity score, i.e, the CpG sites in each block tend to have a similar methylation status. Many of the blocks are typically singletons (covering a single CpG site), but they are dropped when the `--min_cpg MIN_CPG` flag is specified.
+In this example, the `segment` command segmented the region chr3:119,527,929-119,531,943 to 17 blocks, 9 of them cover at least 3 CpG sites.
+
+####3 Index bed
+Optional: bgzip and index the output blocks, make it easier to access.
+`index` command wraps bgzip and tabix. It compresses a bed (or pat) file and generates corresponding index file. This step is necessary if you wish to visualize these blocks later using `vis` command.
 ```bash
 $ wgbstools index blocks.small.bed
+$ ls -1 blocks.small.*
+blocks.small.bed.gz
+blocks.small.bed.gz.tbi
 ```
 
 ### collapse beta files to blocks
