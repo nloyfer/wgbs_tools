@@ -12,9 +12,9 @@ from multiprocessing import Pool
 import multiprocessing
 from utils_wgbs import load_beta_data2, MAX_PAT_LEN, pat_sampler, validate_single_file, \
     add_GR_args, IllegalArgumentError, BedFileWrap, read_shell, eprint, \
-    add_multi_thread_args, catch_BrokenPipeError, view_beta_script
+    catch_BrokenPipeError, view_beta_script
 from genomic_region import GenomicRegion
-from cview import view_gr, subprocess_wrap_sigpipe
+from cview import view_gr, subprocess_wrap_sigpipe, add_view_flags
 
 
 PAT_COLS = ('chr', 'start', 'pat', 'count')
@@ -143,6 +143,8 @@ def view_pat_mult_proc(input_file, strict, sub_sample,
 
 
 def is_bed_disjoint(b):
+    if b.endswith('.gz'):
+        return      # fail quietly to warn user
     cmd = f"""/bin/bash -c 'diff {b} <(bedtools intersect -a {b} -b {b} -wa)' > /dev/null """
     if subprocess.call(cmd, shell=True):
         eprint(f'[wt view] WARNING: bed file {b} regions are not disjoint.\n' \
@@ -150,12 +152,16 @@ def is_bed_disjoint(b):
                 '                   Use cview to avoid read duplication.')
 
 
-def view_pat_bed_multiprocess(args, bed_wrapper):
-    if not bed_wrapper:
-        raise IllegalArgumentError('bed file is None')
+def view_pat_bed_multiprocess(args):
+    validate_single_file(args.bed_file)
     is_bed_disjoint(args.bed_file)
 
+    bed_wrapper = BedFileWrap(args.bed_file)
     full_regions_lst = list(bed_wrapper.fast_iter_regions())
+    if len(full_regions_lst) > 100:
+        msg = f'[wt view] WARNING: view is slow for large bed files.\n' \
+                '                  It is recommended to use cview instead'
+        eprint(msg)
     bigstep = 100
     for ch in range(0, len(full_regions_lst), bigstep):
         regions_lst = full_regions_lst[ch:ch + bigstep]
@@ -174,13 +180,15 @@ def view_pat_bed_multiprocess(args, bed_wrapper):
             p.close()
             p.join()
         # res = [sec.decode() for pr in processes for sec in pr.get()]
-        for pr in processes:
-            for reads, regions in zip(*pr.get()):
-                if args.print_region:
-                    args.out_path.write(str(regions) + '\n')
-                if not reads: # if the current region has no CpGs
-                    continue
-                args.out_path.write(reads)
+        outpath = '/dev/stdout' if args.out_path is None else args.out_path
+        with open(outpath, 'w') as f:
+            for pr in processes:
+                for reads, regions in zip(*pr.get()):
+                    if args.print_region:
+                        f.write(str(regions) + '\n')
+                    if not reads: # if the current region has no CpGs
+                        continue
+                    f.write(reads)
 
 
 ####################
@@ -197,15 +205,14 @@ def get_beta_section(beta_path, gr):
     txt = subprocess.check_output(cmd, shell=True).decode()
     names = ['chr', 'start']
     df = pd.read_csv(StringIO(txt), sep='\t', header=None, names=names)
-    df['end'] = df['start'] + 2
+    df['start'] = df['start'] - 1
+    df['end'] = df['start'] + 1
     df['meth'] = data[:, 0]
     df['total'] = data[:, 1]
     return df
 
 
 def view_whole_beta(beta_path, gr, out_path):
-    if out_path == sys.stdout:
-        out_path = '/dev/stdout'
     cmd = f'{view_beta_script} {gr.genome.dict_path} {beta_path} {out_path}'
     subprocess_wrap_sigpipe(cmd)
 
@@ -217,6 +224,8 @@ def view_beta(beta_path, gr, opath, threads):
     :param gr: a GenomicRegion object
     :param opath: output path (or stdout)
     """
+    if opath is None:
+        opath = '/dev/stdout'
     if not gr.is_whole():
         df = get_beta_section(beta_path, gr)
         df.to_csv(opath, sep='\t', index=None, header=None)
@@ -239,21 +248,8 @@ def view_beta(beta_path, gr, opath, threads):
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('input_file')
-    add_GR_args(parser, bed_file=True)
-    parser.add_argument('-o', '--out_path', type=argparse.FileType('w'), default=sys.stdout,
-                        help='Output path. [stdout]')
-    parser.add_argument('--sub_sample', type=float, metavar='[0.0, 1.0]',
-                        help='pat: subsample from reads. Only supported for pat')
-    parser.add_argument('--strict', action='store_true',
-                        help='pat: Truncate reads that start/end outside the given region. '
-                             'Only relevant if "region", "sites" '
-                             'or "bed_file" flags are given.')
-    parser.add_argument('--strip', action='store_true',
-                        help='pat: Remove trailing dots (from beginning/end of reads).')
-    add_multi_thread_args(parser)
-    parser.add_argument('--min_len', type=int, default=1,
-                        help='pat: Display only reads covering at least MIN_LEN CpG sites [1]')
     parser.add_argument('--print_region', action='store_true', help='pat: Prints region before reads')
+    parser = add_view_flags(parser)
     return parser
 
 
@@ -273,20 +269,20 @@ def main():
     input_file = args.input_file
     validate_single_file(input_file)
 
-    bed_wrapper = BedFileWrap(args.bed_file) if args.bed_file else None
 
     try:
         if op.splitext(input_file)[1] in ('.beta', '.lbeta', '.bin'):
-            if bed_wrapper:
-                eprint('Error: -L flag is not supported for beta files')  #TODO implement?
+            if args.bed_file:
+                eprint('Error: -L flag is not supported for beta files')  #TODO implement with bedtools
                 exit(1)
             gr = GenomicRegion(args)
             view_beta(input_file, gr, args.out_path, args.threads)
+
         elif input_file.endswith('.pat.gz'):
-            if bed_wrapper:
-                view_pat_bed_multiprocess(args, bed_wrapper)
-            else:
+            if args.bed_file is None:
                 view_gr(input_file, args)
+            else:
+                view_pat_bed_multiprocess(args)
         else:
             raise IllegalArgumentError('Unknown input format:', input_file)
 

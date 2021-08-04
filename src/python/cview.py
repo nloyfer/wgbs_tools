@@ -3,7 +3,7 @@
 import argparse
 from utils_wgbs import MAX_PAT_LEN, pat_sampler, validate_single_file, \
     add_GR_args, eprint, cview_tool, collapse_pat_script, \
-    cview_extend_blocks_script
+    cview_extend_blocks_script, add_multi_thread_args
 from genomic_region import GenomicRegion
 from beta_to_blocks import load_blocks_file
 import subprocess
@@ -43,6 +43,8 @@ def view_gr(pat, args):
     if not gr.is_whole():
         cmd += f' | sort -k2,2n -k3,3 '
     cmd += f' | {collapse_pat_script} - '
+    if args.out_path is not None:
+        cmd += f' > {args.out_path}'
     subprocess_wrap_sigpipe(cmd)
 
 
@@ -82,6 +84,8 @@ def view_bed(pat, args):
         cmd += f' | {pat_sampler} {args.sub_sample} '
     cmd += f' | sort -k2,2n -k3,3 | {collapse_pat_script} - '  # todo: implement the sort & collapsing in cview_tool
     # eprint(cmd)
+    if args.out_path is not None:
+        cmd += f' > {args.out_path}'
     subprocess_wrap_sigpipe(cmd)
 
 
@@ -99,21 +103,27 @@ def cview(pat, args):
 #                        #
 ##########################
 
-
-def parse_args():
-    parser = argparse.ArgumentParser(description=main.__doc__)
-    parser.add_argument('pat')
+def add_view_flags(parser):
     add_GR_args(parser, bed_file=True)
+    parser.add_argument('-o', '--out_path', help='Output path. [stdout]')
+    parser.add_argument('--sub_sample', type=float, metavar='[0.0, 1.0]',
+                        help='pat: subsample from reads. Only supported for pat')
     parser.add_argument('--strict', action='store_true',
                         help='pat: Truncate reads that start/end outside the given region. '
                              'Only relevant if "region", "sites" '
                              'or "bed_file" flags are given.')
     parser.add_argument('--strip', action='store_true',
-                        help='Remove trailing dots (from beginning/end of reads)')
+                        help='pat: Remove trailing dots (from beginning/end of reads).')
+    add_multi_thread_args(parser)
     parser.add_argument('--min_len', type=int, default=1,
-                        help='Display only reads covering at least MIN_LEN CpG sites [1]')
-    parser.add_argument('--sub_sample', type=float, metavar='[0.0, 1.0]',
-                        help='Subsample from reads')
+                        help='pat: Display only reads covering at least MIN_LEN CpG sites [1]')
+    return parser
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description=main.__doc__)
+    parser.add_argument('pat')
+    parser = add_view_flags(parser)
     return parser
 
 
