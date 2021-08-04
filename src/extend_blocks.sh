@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cut -f1,4,5 | sort -k2,2n | \
+cut -f1,4,5 | sort -k2,2n | grep -v -w "NA" | \
 awk -v OFS="\t" '
 {
     start = $2 - 100;
