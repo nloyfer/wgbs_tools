@@ -16,7 +16,7 @@ COV_BG_EXT = '_cov' + BG_EXT
 COV_BW_EXT = '_cov' + BW_EXT
 
 def b2bw_log(*args, **kwargs):
-    print('[ wt beta_to_bigwig ]', *args, file=sys.stderr, **kwargs)
+    print('[ wt beta_2bw ]', *args, file=sys.stderr, **kwargs)
 
 class BetaToBigWig:
     def __init__(self, args):
