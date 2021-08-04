@@ -10,7 +10,6 @@ import sys
 from pathlib import Path
 
 
-HG19_NR_SITES = 28217448  # total number of CpG sites in hg19 (fixed)
 path = Path(op.realpath(__file__))
 DIR = str(path.parent)
 # DIR = op.dirname(os.path.realpath(__file__)) + '/'
@@ -22,6 +21,7 @@ collapse_pat_script = SRC_DIR + 'collapse_pat.pl'
 segment_tool = SRC_DIR + 'segment_betas/segmentor'
 cview_tool = SRC_DIR + 'cview/cview'
 cview_extend_blocks_script = SRC_DIR + 'cview/extend_blocks.sh'
+view_beta_script = SRC_DIR + 'view_beta.sh'
 homog_tool = SRC_DIR + 'homog/homog'
 
 match_maker_tool = SRC_DIR + 'pipeline_wgbs/match_maker'
@@ -57,10 +57,7 @@ class GenomeRefPaths:
         self.nr_sites = self.count_nr_sites()
 
     def count_nr_sites(self):
-        if self.genome == 'hg19':
-            return HG19_NR_SITES
-        else:
-            return int(self.get_chrom_cpg_size_table()['size'].sum())
+        return int(self.get_chrom_cpg_size_table()['size'].sum())
 
     def join(self, fpath, validate=True):
         path = op.join(self.refdir, fpath)
