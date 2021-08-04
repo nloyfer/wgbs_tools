@@ -206,7 +206,7 @@ def get_beta_section(beta_path, gr):
     names = ['chr', 'start']
     df = pd.read_csv(StringIO(txt), sep='\t', header=None, names=names)
     df['start'] = df['start'] - 1
-    df['end'] = df['start'] + 1
+    df['end'] = df['start'] + 2
     df['meth'] = data[:, 0]
     df['total'] = data[:, 1]
     return df
