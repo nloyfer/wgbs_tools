@@ -12,8 +12,10 @@ from multiprocessing import Pool
 import multiprocessing
 from utils_wgbs import load_beta_data2, MAX_PAT_LEN, pat_sampler, validate_single_file, \
     add_GR_args, IllegalArgumentError, BedFileWrap, read_shell, eprint, \
-    add_multi_thread_args, catch_BrokenPipeError
+    add_multi_thread_args, catch_BrokenPipeError, view_beta_script
 from genomic_region import GenomicRegion
+from cview import view_gr, subprocess_wrap_sigpipe
+
 
 PAT_COLS = ('chr', 'start', 'pat', 'count')
 
@@ -201,6 +203,13 @@ def get_beta_section(beta_path, gr):
     return df
 
 
+def view_whole_beta(beta_path, gr, out_path):
+    if out_path == sys.stdout:
+        out_path = '/dev/stdout'
+    cmd = f'{view_beta_script} {gr.genome.dict_path} {beta_path} {out_path}'
+    subprocess_wrap_sigpipe(cmd)
+
+
 def view_beta(beta_path, gr, opath, threads):
     """
     View beta file in given region/sites range
@@ -211,19 +220,13 @@ def view_beta(beta_path, gr, opath, threads):
     if not gr.is_whole():
         df = get_beta_section(beta_path, gr)
         df.to_csv(opath, sep='\t', index=None, header=None)
-        return df
-    # else, whole genome
-    p = Pool(threads)
-    chroms = list(gr.genome.get_chrom_cpg_size_table()['chr'])
-    params = [(beta_path, GenomicRegion(region=c)) for c in chroms]
-    arr = p.starmap(get_beta_section, params)
-    p.close()
-    p.join()
-    # dump
-    mode = 'w'
-    for a in arr:
-        a.to_csv(opath, sep='\t', index=None, mode=mode, header=None)
-        mode = 'a'
+        return
+
+    if beta_path.endswith('.beta'):
+        view_whole_beta(beta_path, gr, opath)
+    else:
+        data = load_beta_data2(beta_path, gr=gr.sites)
+        np.savetxt(opath, data, fmt='%s', delimiter='\t')
 
 
 ##########################
@@ -283,7 +286,6 @@ def main():
             if bed_wrapper:
                 view_pat_bed_multiprocess(args, bed_wrapper)
             else:
-                from cview import view_gr
                 view_gr(input_file, args)
         else:
             raise IllegalArgumentError('Unknown input format:', input_file)
