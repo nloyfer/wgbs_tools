@@ -24,10 +24,11 @@ def subprocess_wrap_sigpipe(cmd):
 ###################
 
 def view_gr(pat, args):
+    validate_single_file(pat, '.pat.gz')
     gr = GenomicRegion(args)
     if gr.is_whole():
         s = 1
-        e = 30000000   # todo: take last site from GenomeRef...
+        e = gr.genome.nr_sites + 1
         cmd = f'gunzip -c {pat} '
     else:
         s, e = gr.sites
@@ -103,8 +104,6 @@ def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('pat')
     add_GR_args(parser, bed_file=True)
-    parser.add_argument('--tmp_dir', '-T', default='.',
-                        help='Temp directory for intermediate files [.]')
     parser.add_argument('--strict', action='store_true',
                         help='pat: Truncate reads that start/end outside the given region. '
                              'Only relevant if "region", "sites" '
