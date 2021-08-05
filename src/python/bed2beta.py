@@ -5,7 +5,8 @@ import os.path as op
 import sys
 import pandas as pd
 import numpy as np
-from utils_wgbs import delete_or_skip, splitextgz, trim_to_uint8, validate_file_list, load_dict, eprint, load_dict_section
+from utils_wgbs import delete_or_skip, splitextgz, trim_to_uint8, validate_file_list, \
+                       load_dict, eprint, load_dict_section
 from genomic_region import GenomicRegion
 
 
@@ -73,35 +74,12 @@ def parse_args():
     return args
 
 
-# def next_chrom(bed_path):   # todo: use or remove
-#     try:
-#         cur_chrom = ''
-#         df = pd.DataFrame()
-#         for chunk_df in pd.read_csv(bed_path, sep='\t', skiprows=0, header=None,
-#                                     names=['chr', 'start', 'meth', 'total'],
-#                                     usecols=[0, 1, 3, 4], chunksize=100000):
-#             chrom = chunk_df['chr'][0]
-#             cc = chunk_df[chunk_df['chr'] == cur_chrom]
-#             nc = chunk_df[chunk_df['chr'] != cur_chrom]
-#             if nc.shape[0]:
-#                 cur_chrom = chrom
-#             df = pd.concat([df, cc], reset_index=True)
-#             if not df.empty():
-#                 yield chunk_df
-#             df = pd.concat([df, nc], reset_index=True)
-#
-#     except pd.errors.ParserError as e:
-#         print('Invalid input file.\n{}'.format(e))
-#         return
-
-
 def main():
     """
     Convert bed[.gz] file[s] to beta file[s].
     bed file should be of the format (tab-separated):
     chr    start    end    #meth    #total
     """
-    # todo: bed or bedGraph?
     args = parse_args()
     validate_file_list(args.bed_paths)
     bed2betas(args)
