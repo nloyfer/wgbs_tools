@@ -34,6 +34,7 @@ from convert import main as convert_main
 from segment_betas import main as segment_beta_main
 from homog import main as homog_main
 # from dmb import main as dmb_main
+from find_markers import main as fm_main
 
 """
 Dependencies:
@@ -76,6 +77,7 @@ callbacks = [
     ('compare_betas', compare_beta_main),
     ('homog', homog_main),
     # ('dmb', dmb_main),
+    ('find_markers', fm_main),
     ('bam_cpg_counts', bamAddMethylData_main),
     ('frag_len', frag_len_main),
 ]
