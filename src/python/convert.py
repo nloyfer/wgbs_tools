@@ -2,7 +2,8 @@
 
 import argparse
 from utils_wgbs import add_GR_args, eprint, GenomeRefPaths, delete_or_skip, \
-                       load_dict_section, add_multi_thread_args, IllegalArgumentError
+                       load_dict_section, add_multi_thread_args, IllegalArgumentError, \
+                       read_shell
 from genomic_region import GenomicRegion
 import pandas as pd
 import numpy as np
@@ -151,9 +152,7 @@ def add_cpgs_to_bed(bed_file, genome, drop_empty, threads, add_anno):
 
     # add annotations:
     if add_anno:
-        annodf = get_anno(r, bed_file, genome)
-        if annodf is not None:
-            r = r.merge(annodf, how='left', on=COORDS_COLS3)
+        r = get_anno(r, genome)
 
     # drop regions w/o CpGs
     if drop_empty:
@@ -263,28 +262,21 @@ def add_bed_to_cpgs(cpgs, genome, threads):
 #                                                                  #
 ####################################################################
 
-def get_anno(df, bed_path, genome):
+def get_anno(df, genome):
     anno_path = GenomeRefPaths(genome).annotations
     if anno_path is None:
-        return
+        return df
     isnice, msg = is_block_file_nice(df)
     if not isnice:
         eprint(f'[wt convert] WARNING: No annotations added.\n'  \
-               f'             Incompatible input BED file ({bed_path}):\n' \
+               f'             Incompatible input BED file.\n' \
                f'             {msg}')
-        return
-    if bed_path == sys.stdin:
-        eprint(f'[wt convert] WARNING: No annotations added'  \
-                f' when input file is passed with stdin.')
-        return
-    read = 'gunzip -cd' if bed_path.endswith('.gz') else 'cat'
-    cmd = f'{read} {bed_path} | cut -f1-3 | sort -k1,1 -k2,2n | '
-    cmd += f'bedtools intersect -wao -a - -b {anno_path} '
-    cmd += '| bedtools merge -c 7,8 -o distinct,distinct '
-    txt = subprocess.check_output(cmd, shell=True).decode()
+        return df
+    from pybedtools import BedTool
+    bt = BedTool.from_dataframe(df.iloc[:, :3]).intersect(BedTool(anno_path), wao=True)
     names = COORDS_COLS3 + ['type', 'gene']
-    annodf = pd.read_csv(StringIO(txt), sep='\t', header=None, names=names)
-    return annodf
+    annodf = bt.merge(c='7,8',o='distinct,distinct').to_dataframe(names=names)
+    return df.merge(annodf, how='left', on=COORDS_COLS3)
 
 
 def is_block_file_nice(df):
