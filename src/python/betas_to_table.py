@@ -12,9 +12,8 @@ from multiprocessing import Pool
 from dmb import load_gfile_helper, match_prefix_to_bin
 from beta_to_blocks import collapse_process, load_blocks_file, is_block_file_nice
 from utils_wgbs import validate_single_file, validate_file_list, eprint, \
-                       IllegalArgumentError, beta2vec, add_multi_thread_args, drop_dup_keep_order
-
-
+                       IllegalArgumentError, beta2vec, add_multi_thread_args, \
+                       drop_dup_keep_order
 
 
 def parse_args():
@@ -22,39 +21,18 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('blocks', help='Blocks file with no header and with >= 5 columns')
     parser.add_argument('--output', '-o', help='specify output path for the table [Default is stdout]')
-    parser.add_argument('--groups_file', '-g', help='csv file of groups')
+    parser.add_argument('--groups_file', '-g',
+                help='groups csv file with at least 2 columns: name, group. beta files belong to the same group are averaged')
     parser.add_argument('--betas', nargs='+', help='beta files', required=True)
     parser.add_argument('--verbose', '-v', action='store_true')
     parser.add_argument('-c', '--min_cov', type=int, default=4, help='Minimal coverage to be considered,'
                                                                  'In both groups. [4]')
     parser.add_argument('--digits', type=int, default=2, help='float percision (number of digits) [2]')
+    parser.add_argument('--chunk_size', type=int, help='Number of blocks to load on each step [All of them]')
     add_multi_thread_args(parser)
     args = parser.parse_args()
     return args
 
-
-def dump(outpath, df, digits, verbose):
-    if outpath is None:
-        df.to_csv(sys.stdout, na_rep='NA',
-                  float_format=f"%.{digits}f",
-                  index=None, sep='\t')
-        return
-
-    ixs = np.array_split(df.index, 100)
-    header = True
-    mode = 'w'
-    eixs = enumerate(ixs)
-    if verbose:
-        eprint(f'[wt table] dumping table with shape {df.shape} to {outpath}')
-        from tqdm import tqdm  # todo: drop if not installed
-        eixs = tqdm(enumerate(ixs), total=len(ixs))
-    for ix, subset in eixs:
-        df.loc[subset].to_csv(outpath, na_rep='NA',
-                              float_format=f"%.{digits}f",
-                              index=None, sep='\t',
-                              mode=mode, header=header)
-        header = None
-        mode = 'a'
 
 def groups_load_wrap(groups_file, betas):
     if groups_file is not None:
@@ -78,30 +56,72 @@ def cwrap(beta_path, blocks_df, is_nice, verbose):
     return collapse_process(beta_path, blocks_df, is_nice)
 
 
-def betas2table(betas, blocks, groups_file, min_cov, threads=8, verbose=False):
-    validate_single_file(blocks)
-
-    gf = groups_load_wrap(groups_file, betas)
-    blocks_df = load_blocks_file(blocks)
+def get_table(blocks_df, gf, min_cov, threads=8, verbose=False, group=True):
     is_nice, _ = is_block_file_nice(blocks_df)
     if verbose:
         eprint(f'[wt table] reducing to {blocks_df.shape[0]:,} blocks')
+    betas = drop_dup_keep_order(gf['full_path'])
     p = Pool(threads)
-    # params = [(b, blocks_df, verbose) for b in sorted(gf['full_path'].unique())]
-    params = [(b, blocks_df, is_nice, verbose) for b in drop_dup_keep_order(gf['full_path'])]
+    params = [(b, blocks_df, is_nice, verbose) for b in betas]
+    # arr = [cwrap(*p) for p in params] # todo: remove
     arr = p.starmap(cwrap, params)
     p.close()
     p.join()
 
     dicts = [d for d in arr if d is not None]
     dres = {k: beta2vec(v, min_cov) for d in dicts for k, v in d.items()}
-    # groups = sorted(gf['group'].unique())
+    if not group:
+        for b in gf['fname']:
+            blocks_df[b] = dres[b]
+        return blocks_df
+
+    if not dres:
+        eprint(f'[ wt table ] failed reducing {gf["fname"].tolist()} to blocks\n{blocks_df}')
+        raise IllegalArgumentError()
+    if dres[list(dres.keys())[0]].size != blocks_df.shape[0]:
+        eprint(f'[ wt table] beta2block returned wrong number of values')
+        raise IllegalArgumentError()
+
     groups = drop_dup_keep_order(gf['group'])
     with np.warnings.catch_warnings():
         np.warnings.filterwarnings('ignore', r'Mean of empty slice')
         for group in groups:
-            blocks_df[group] = np.nanmean(np.concatenate([dres[k][None, :] for k in gf['fname'][gf['group'] == group]]), axis=0).T
+            blocks_df[group] = np.nanmean(np.concatenate([dres[k][None, :] for k \
+                in gf['fname'][gf['group'] == group]]), axis=0).T
     return blocks_df
+
+
+def betas2table(betas, blocks, groups_file, min_cov, threads=8, verbose=False):
+    validate_single_file(blocks)
+    gf = groups_load_wrap(groups_file, betas)
+    blocks_df = load_blocks_file(blocks)
+    return get_table(blocks_df, gf, min_cov, threads, verbose)
+
+
+def dump(outpath, df, first, digits):
+    if first:
+        header = True
+        mode = 'w'
+    else:
+        header = None
+        mode = 'a'
+    if outpath is None:
+        outpath = sys.stdout
+    df.to_csv(outpath, na_rep='NA',
+              float_format=f"%.{digits}f",
+              index=None, sep='\t',
+              mode=mode, header=header)
+
+
+def beta2table_generator(betas, blocks, groups_file, min_cov, threads, chunk_size=None, verbose=False):
+    validate_single_file(blocks)
+    gf = groups_load_wrap(groups_file, betas)
+    blocks_df = load_blocks_file(blocks)
+    if chunk_size is None:
+        chunk_size = blocks_df.shape[0]
+    for start in range(0, blocks_df.shape[0], chunk_size):
+        subset_blocks = blocks_df.iloc[start:start + chunk_size].copy().reset_index(drop=True)
+        yield get_table(subset_blocks, gf, min_cov, threads, verbose)
 
 
 def main():
@@ -110,10 +130,17 @@ def main():
     Optionally collapse samples with groups file
     """
     args = parse_args()
-
-    df = betas2table(args.betas, args.blocks, args.groups_file,
-                     args.min_cov, args.threads, args.verbose)
-    dump(args.output, df, args.digits, args.verbose)
+    chunks = beta2table_generator(args.betas,
+                                  args.blocks,
+                                  args.groups_file,
+                                  args.min_cov,
+                                  args.threads,
+                                  args.chunk_size,
+                                  args.verbose)
+    first_chunk = True
+    for chunk in chunks:
+        dump(args.output, chunk, first_chunk, args.digits)
+        first_chunk = False
 
 
 if __name__ == '__main__':
