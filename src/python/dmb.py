@@ -14,6 +14,10 @@ from utils_wgbs import load_beta_data2, validate_single_file, eprint, \
 DEBUG_NR = 100000
 um_ind_dict = {'U': 0, 'M': 2}
 
+def set_hypo_hyper(hyper, hypo):
+    if not hyper and not hypo:
+        return True, True
+    return hyper, hypo
 
 class MarkersFinder:
     def __init__(self, args):
@@ -26,7 +30,7 @@ class MarkersFinder:
         self.keepinds = None
         self.groups = None
         self.verbose = args.verbose
-        self.hyper, self.hypo = self.set_hypo_hyper()
+        self.hyper, self.hypo = self.set_hypo_hyper(args.hyper, args.hypo)
         self.validate_args()
         # validate output dir:
         if not op.isdir(args.out_dir):
@@ -41,11 +45,6 @@ class MarkersFinder:
             eprint('Possible targets:', sorted(self.gf['group'].unique()))
             raise IllegalArgumentError()
 
-    def set_hypo_hyper(self):
-        hyper, hypo = self.args.hyper, self.args.hypo
-        if not hyper and not hypo:
-            return True, True
-        return hyper, hypo
 
     def run(self):
 
