@@ -10,7 +10,7 @@ from multiprocessing import Pool
 import sys
 from utils_wgbs import load_beta_data, trim_to_uint8, GenomeRefPaths, \
                         IllegalArgumentError, add_multi_thread_args, \
-                        splitextgz, validate_file_list
+                        splitextgz, validate_file_list, validate_single_file, eprint
 
 def b2b_log(*args, **kwargs):
     print('[ wt beta_to_blocks ]', *args, file=sys.stderr, **kwargs)
@@ -56,28 +56,34 @@ def is_block_file_nice(df):
 
 def load_blocks_file(blocks_path, nrows=None):
     # validate blocks_path
-    if not op.isfile(blocks_path):
-        raise IllegalArgumentError(f'Invalid blocks file: {blocks_path}. No such file')
+    validate_single_file(blocks_path)
 
-    # see if blocks_path has a header:
-    peek_df = pd.read_csv(blocks_path, sep='\t', nrows=1, header=None, comment='#')
-    header = None if str(peek_df.iloc[0, 1]).isdigit() else 0
+    try:
+        # see if blocks_path has a header:
+        peek_df = pd.read_csv(blocks_path, sep='\t', nrows=1, header=None, comment='#')
+        header = None if str(peek_df.iloc[0, 1]).isdigit() else 0
 
-    names = ['chr', 'start', 'end', 'startCpG', 'endCpG']
-    if len(peek_df.columns) < len(names):
-        msg = f'Invalid blocks file: {blocks_path}. less than {len(names)} columns'
-        raise IllegalArgumentError(msg)
+        names = ['chr', 'start', 'end', 'startCpG', 'endCpG']
+        if len(peek_df.columns) < len(names):
+            msg = f'Invalid blocks file: {blocks_path}. less than {len(names)} columns'
+            raise IllegalArgumentError(msg)
 
-    # load 
-    # dtypes = {'chr':str, 'start', 'end', 'startCpG', 'endCpG'}
-    dtypes = {'startCpG':'Int64', 'endCpG':'Int64'}
-    df = pd.read_csv(blocks_path, sep='\t', usecols=range(len(names)), dtype=dtypes,
-                     header=header, names=names, nrows=None, comment='#')
+        # load 
+        # dtypes = {'chr':str, 'start', 'end', 'startCpG', 'endCpG'}
+        dtypes = {'startCpG':'Int64', 'endCpG':'Int64'}
+        df = pd.read_csv(blocks_path, sep='\t', usecols=range(len(names)), dtype=dtypes,
+                         header=header, names=names, nrows=None, comment='#')
 
-    # blocks start before they end - invalid file
-    dfnona = df.dropna()    # allow blocks with missing values
-    if not ((dfnona['endCpG'] -  dfnona['startCpG']) >= 0).all():
-        raise IllegalArgumentError(f'Invalid CpG columns in blocks file {blocks_path}')
+        # blocks start before they end - invalid file
+        dfnona = df.dropna()    # allow blocks with missing values
+        if not ((dfnona['endCpG'] -  dfnona['startCpG']) >= 0).all():
+            raise IllegalArgumentError(f'Invalid CpG columns in blocks file {blocks_path}')
+    except pd.errors.ParserError as e:
+        eprint(f'Invalid input file.\n{e}')
+        return pd.DataFrame()
+    except pd.errors.EmptyDataError as e:
+        eprint(f'Empty blocks file.\n{e}')
+        return pd.DataFrame()
 
     return df
 
@@ -88,15 +94,12 @@ def load_blocks_file(blocks_path, nrows=None):
 #                                                    #
 ######################################################
 
-def fast_method(data, df):
-    block_bins = np.unique(np.concatenate([df['startCpG'], df['endCpG'], [1, data.shape[0] + 1]]))
-    block_bins.sort()
-    filtered_indices = np.isin(block_bins, np.concatenate([df['startCpG'], [df['endCpG'].iloc[-1]]]))
 
-    # reduce to blocks:
-    block_bins[-1] -= 1
-    reduced_data = np.add.reduceat(data, block_bins - 1)[filtered_indices][:-1]
-    return reduced_data
+def fast_method(data, df):
+    df -= (df.startCpG.iloc[0] - 1)
+    block_bins = np.sort(np.unique(df.values.flatten()))[:-1]
+    filtered_indices = np.isin(block_bins, df['startCpG'])
+    return np.add.reduceat(data, block_bins - 1)[filtered_indices]
 
 
 def slow_method(data, df):
@@ -112,17 +115,18 @@ def slow_method(data, df):
 
 def reduce_data(beta_path, df, is_nice):
     if is_nice:
-        method = fast_method
         df = df[['startCpG', 'endCpG']].astype(int)
+        start = df['startCpG'].values[0]
+        end = df['endCpG'].values[df.shape[0] - 1]
+        return fast_method(load_beta_data(beta_path, (start, end)), df)
     else:
-        method = slow_method
-    return method(load_beta_data(beta_path), df)
+        return slow_method(load_beta_data(beta_path), df)
 
 
 def collapse_process(beta_path, df, is_nice, lbeta=False, out_dir=None, bedGraph=False):
     try:
         # load beta file:
-        reduced_data = reduce_data(beta_path, df, is_nice)
+        reduced_data = reduce_data(beta_path, df.reset_index(drop=True), is_nice)
         return dump(df, reduced_data, beta_path, lbeta, out_dir, bedGraph)
 
     except Exception as e:
