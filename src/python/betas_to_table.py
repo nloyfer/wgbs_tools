@@ -28,7 +28,7 @@ def parse_args():
     parser.add_argument('-c', '--min_cov', type=int, default=4, help='Minimal coverage to be considered,'
                                                                  'In both groups. [4]')
     parser.add_argument('--digits', type=int, default=2, help='float percision (number of digits) [2]')
-    parser.add_argument('--chunk_size', type=int, help='Number of blocks to load on each step [All of them]')
+    parser.add_argument('--chunk_size', type=int, default=200000, help='Number of blocks to load on each step [200000]')
     add_multi_thread_args(parser)
     args = parser.parse_args()
     return args
