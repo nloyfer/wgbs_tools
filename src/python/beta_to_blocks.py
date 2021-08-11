@@ -78,6 +78,11 @@ def load_blocks_file(blocks_path, nrows=None):
         dfnona = df.dropna()    # allow blocks with missing values
         if not ((dfnona['endCpG'] -  dfnona['startCpG']) >= 0).all():
             raise IllegalArgumentError(f'Invalid CpG columns in blocks file {blocks_path}')
+
+        if dfnona.shape[0] == df.shape[0]:
+            df['startCpG'] = df['startCpG'].astype(int)
+            df['endCpG'] = df['endCpG'].astype(int)
+
     except pd.errors.ParserError as e:
         eprint(f'Invalid input file.\n{e}')
         return pd.DataFrame()
