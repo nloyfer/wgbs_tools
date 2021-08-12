@@ -1,4 +1,4 @@
-# wgbstools - suite for DNA methylation sequencing data conversion, visualization, and analysis
+# wgbstools - suite for DNA methylation sequencing data representation, visualization, and analysis
 wgbstools is an extensive computational suite tailored for bisulfite sequencing data. 
 It allows fast access and ultra-compact representation of high-throughput data,
 as well as machine learning and statistical analysis, and informative visualizations, 
