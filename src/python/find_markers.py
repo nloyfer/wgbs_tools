@@ -71,6 +71,9 @@ class MarkerFinder:
 
     def run(self):
 
+        # first dump the param file
+        self.dump_params()
+
         # load all blocks
         blocks = self.load_blocks()
         # load data in chunks
@@ -82,7 +85,6 @@ class MarkerFinder:
         for target in self.targets:
             self.group = target
             self.dump_results(self.res[target].reset_index(drop=True))
-        self.dump_params()
 
     def proc_chunk(self, blocks_df):
         self.df = self.load_data_chunk(blocks_df)
@@ -92,7 +94,6 @@ class MarkerFinder:
             self.group = group
             tf = self.find_group_markers()
             self.res[group] = pd.concat([self.res[group], tf])
-
 
     #############################
     #                           #
@@ -294,7 +295,6 @@ class MarkerFinder:
                 f.write(f'{key}:{val}\n' )
                 # f.write(f'#> {sample}\n' )
         eprint(f'dumped parameter file to {outpath}')
-
 
 
 def main():
