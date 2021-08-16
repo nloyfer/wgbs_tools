@@ -1,6 +1,5 @@
 #!/usr/bin/python3 -u
 
-import argparse
 import os
 import os.path as op
 import subprocess
@@ -10,9 +9,11 @@ import pandas as pd
 
 from beta_to_blocks import load_blocks_file
 from betas_to_table import get_table, groups_load_wrap
-from dmb import load_gfile_helper, match_prefix_to_bin, set_hypo_hyper
+from dmb import load_gfile_helper, match_prefix_to_bin
 from utils_wgbs import validate_single_file, add_multi_thread_args, \
-        validate_file_list, eprint, drop_dup_keep_order
+        validate_file_list, eprint, drop_dup_keep_order, IllegalArgumentError
+from fm_load_params import MFParams, parse_args
+
 
 
 def load_group_file(groups_file, betas):
@@ -56,8 +57,6 @@ class MarkerFinder:
         self.tg_names = []
         self.bg_names = []
         self.inds_dict = {}
-        self.hyper, self.hypo = set_hypo_hyper(args.hyper, args.hypo)
-        self.validate_args()
 
         # validate output dir:
         if not op.isdir(args.out_dir):
@@ -68,12 +67,13 @@ class MarkerFinder:
         groups = sorted(self.gf['group'].unique())
         self.targets = get_validate_targets(self.args.targets, groups)
         self.res = {t: pd.DataFrame() for t in self.targets}
+        self.inds_dict = set_bg_tg_names(self.gf, self.targets)
 
     def run(self):
 
-        # load all data
+        # load all blocks
         blocks = self.load_blocks()
-        self.inds_dict = set_bg_tg_names(self.gf, self.targets)
+        # load data in chunks
         chunk_size = self.args.chunk_size
         for start in range(0, blocks.shape[0], chunk_size):
             self.proc_chunk(blocks.iloc[start:start + chunk_size])
@@ -82,6 +82,7 @@ class MarkerFinder:
         for target in self.targets:
             self.group = target
             self.dump_results(self.res[target].reset_index(drop=True))
+        self.dump_params()
 
     def proc_chunk(self, blocks_df):
         self.df = self.load_data_chunk(blocks_df)
@@ -89,20 +90,9 @@ class MarkerFinder:
         for group in self.targets:
             eprint(group)
             self.group = group
-            tf = self.find_markers_group()
+            tf = self.find_group_markers()
             self.res[group] = pd.concat([self.res[group], tf])
 
-    def validate_args(self):
-        if self.args.min_cpg < 0:
-            raise IllegalArgumentError('min_cpg must be non negative')
-        if self.args.max_cpg < 1:
-            raise IllegalArgumentError('max_cpg must larger than 0')
-        if self.args.min_bp < 0:
-            raise IllegalArgumentError('min_bp must be non negative')
-        if self.args.max_bp < 2:
-            raise IllegalArgumentError('max_bp must larger than 1')
-        validate_single_file(self.args.blocks_path)
-        validate_single_file(self.args.groups_file)
 
     #############################
     #                           #
@@ -149,14 +139,13 @@ class MarkerFinder:
                          verbose=False,
                          group=False)
 
-
     #############################
     #                           #
     #       Finding markers     #
     #                           #
     #############################
 
-    def find_markers_group(self):
+    def find_group_markers(self):
         if self.df.empty:
             return self.df
 
@@ -167,8 +156,8 @@ class MarkerFinder:
         # filter blocks by coverage:
         df_tg = tf[self.tg_names]
         df_bg = tf[self.bg_names]
-        keep_tg = (df_tg.notna().sum(axis=1) / (df_tg.shape[1])) >= self.args.na_thresh
-        keep_bg = (df_bg.notna().sum(axis=1) / (df_bg.shape[1])) >= self.args.na_thresh
+        keep_tg = (df_tg.notna().sum(axis=1) / (df_tg.shape[1])) >= (1 - self.args.na_rate_tg)
+        keep_bg = (df_bg.notna().sum(axis=1) / (df_bg.shape[1])) >= (1 - self.args.na_rate_bg)
         tf = tf.loc[keep_tg & keep_bg, :].reset_index(drop=True)
 
         # find markers:
@@ -180,15 +169,22 @@ class MarkerFinder:
 
     def find_M_markers(self, tf):
         # look for 'M' markers
-        if not self.hyper:
+        if self.args.only_hypo:
             return pd.DataFrame()
 
-        df_bg = tf[self.bg_names].fillna(.5)
-        keep = df_bg.mean(axis=1) <= self.args.bg_beta_M
+        # filter by mean thresholds
+        df_bg = tf[self.bg_names]
+        df_tg = tf[self.tg_names]
+        keep_umt = np.nanmean(df_bg.values, axis=1) <= self.args.unmeth_mean_thresh
+        keep_mmt = np.nanmean(df_tg.values, axis=1) >= self.args.meth_mean_thresh
+        keep = keep_umt & keep_mmt
+
         tfM = tf.loc[keep, :].copy()
+        tfM['direction'] = 'M'
         df_tg = tf.loc[keep, self.tg_names].fillna(.5)
         df_bg = tf.loc[keep, self.bg_names].fillna(.5)
 
+        # filter by quantile thresholds
         tfM['tg'] = np.quantile(df_tg,
                                 self.args.tg_quant,
                                 interpolation='higher',
@@ -197,18 +193,31 @@ class MarkerFinder:
                                 1 - self.args.bg_quant,
                                 interpolation='lower',
                                 axis=1)
-        tfM = tfM[(tfM['tg'] - tfM['bg'] >= self.args.delta)]
-        tfM['direction'] = 'M'
+        # delta
+        tfM = tfM[(tfM['tg'] - tfM['bg'] >= self.args.delta)].reset_index(drop=True)
+        if tfM.empty:
+            return tfM
+        # high & low
+        keep_ut = tfM['bg'] <= self.args.unmeth_thresh
+        keep_mt = tfM['tg'] >= self.args.meth_thresh
+        keep = keep_ut & keep_mt
+        tfM = tfM.loc[keep, :]
+
         return tfM
 
     def find_U_markers(self, tf):
         # look for 'U' markers
-        if not self.hypo:
+        if self.args.only_hyper:
             return pd.DataFrame()
 
-        df_bg = tf[self.bg_names].fillna(.5)
-        keep = df_bg.mean(axis=1) >= self.args.bg_beta_U
+        df_bg = tf[self.bg_names]
+        df_tg = tf[self.tg_names]
+        keep_umt = np.nanmean(df_tg.values, axis=1) <= self.args.unmeth_mean_thresh
+        keep_mmt = np.nanmean(df_bg.values, axis=1) >= self.args.meth_mean_thresh
+        keep = keep_umt & keep_mmt
+
         tfU = tf.loc[keep, :].copy()
+        tfU['direction'] = 'U'
         df_tg = tf.loc[keep, self.tg_names].fillna(.5)
         df_bg = tf.loc[keep, self.bg_names].fillna(.5)
 
@@ -220,11 +229,16 @@ class MarkerFinder:
                                 self.args.bg_quant,
                                 interpolation='higher',
                                 axis=1)
-        tfU = tfU[(tfU['bg'] - tfU['tg'] >= self.args.delta)]
-        tfU['direction'] = 'U'
+        # delta
+        tfU = tfU[(tfU['bg'] - tfU['tg'] >= self.args.delta)].reset_index(drop=True)
+        if tfU.empty:
+            return tfU
+        # high & low
+        keep_ut = tfU['tg'] <= self.args.unmeth_thresh
+        keep_mt = tfU['bg'] >= self.args.meth_thresh
+        keep = keep_ut & keep_mt
+        tfU = tfU.loc[keep, :]
         return tfU
-
-
 
     #############################
     #                           #
@@ -253,6 +267,7 @@ class MarkerFinder:
         eprint(f'dumping to {outpath}')
         df_mode = 'w'
 
+        # todo: add all parameters to a config file in the same directory. or to header
         # write header:
         if self.args.header:
             # write header (comments):
@@ -266,40 +281,19 @@ class MarkerFinder:
         # dump df:
         df.to_csv(outpath, index=None, sep='\t', mode=df_mode, header=None)
 
-
-def parse_args():
-    parser = argparse.ArgumentParser(description=main.__doc__)
-    parser.add_argument('--blocks_path', '-b', help='Blocks bed path.', required=True)
-    parser.add_argument('--groups_file', '-g', help='csv file of groups', required=True)
-    parser.add_argument('--targets', nargs='+', help='find markers only for these groups')
-    parser.add_argument('--betas', help='beta file paths. files not in the group files are ignored', nargs='+', required=True)
-    parser.add_argument('-o', '--out_dir', default='.', help='Output directory [.]')
-    parser.add_argument('--min_bp', type=int, default=0)
-    parser.add_argument('--max_bp', type=int, default=1000000)
-    parser.add_argument('--min_cpg', type=int, default=0)
-    parser.add_argument('--max_cpg', type=int, default=1000000)
-    parser.add_argument('-m', '--delta', type=float, default=0.5,
-                       help='Filter markers by beta values delta. range: [0.0, 1.0]. Default 0.5')
-    parser.add_argument('-c', '--min_cov', type=int, default=5,
-            help='Minimal number of binary observations in block coverage to be considered [5]')
-    parser.add_argument('--hyper', action='store_true', help='Only consider hyper-methylated markers')
-    parser.add_argument('--hypo', action='store_true', help='Only consider hypo-methylated markers')
-    parser.add_argument('--top', type=int,
-                        help='Output only the top TOP markers, under the constraints. [All]')
-    parser.add_argument('--header', action='store_true', help='add header to output files')
-    parser.add_argument('--tg_quant', type=float, default=.25, help='quantile of target samples to ignore')
-    parser.add_argument('--bg_quant', type=float, default=.025, help='quantile of background samples to ignore')
-
-    parser.add_argument('--bg_beta_U', type=float, default=.6, help='background average beta value for "U" markers [.6]')
-    parser.add_argument('--bg_beta_M', type=float, default=.5, help='background average beta value for "M" markers [.5]')
-
-    parser.add_argument('--na_thresh', type=float, default=.66, help='rate of samples with sufficient coverage required in both target and background [.66]')
-
-    parser.add_argument('--chunk_size', type=int, default=150000, help='Number of blocks to load on each step [150000]')
-    parser.add_argument('--verbose', '-v', action='store_true')
-    add_multi_thread_args(parser)
-    args = parser.parse_args()
-    return args
+    def dump_params(self):
+        """ Dump a parameter file """
+        outpath = op.join(self.args.out_dir, 'params.txt')
+        with open(outpath, 'w') as f:
+            for key in vars(self.args):
+                val = getattr(self.args, key)
+                if key == 'beta_list_file':
+                    val = None
+                if key == 'betas':
+                    val = ' '.join(val)
+                f.write(f'{key}:{val}\n' )
+                # f.write(f'#> {sample}\n' )
+        eprint(f'dumped parameter file to {outpath}')
 
 
 
@@ -307,8 +301,8 @@ def main():
     """
     Find differentially methylated blocks
     """
-    args = parse_args()
-    MarkerFinder(args).run()
+    params = MFParams(parse_args())
+    MarkerFinder(params).run()
 
 
 if __name__ == '__main__':
