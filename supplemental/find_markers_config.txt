@@ -1,0 +1,153 @@
+#
+# This is an example for a find_markers configuration file.
+# lines starting with "#" can be deleted, as they are ignored by the find_markers command
+# The default values for all optional parameters (i.e. when they are set to "NA") 
+# are specified in supplemental/find_markers_defaults.txt (which can also be edited by the user)
+# every parameter can be specified with find_markers command line argument. 
+# In case of contradiction, the command line argument prevails
+# To summerize, command line > config file > defaults file
+# To be certain, the de-facto parameters are dumped to OUT_DIR/params.txt
+
+#########################
+#                       # 
+#  Input parameters     #
+#                       # 
+#########################
+
+# Path to a blocks file. 
+# The file must have at least 5 columns: chr, start, end, startCpG, endCpG
+# if the blocks file is large, running time is much better when the blocks 
+# are sorted  by startCpG (sort -k4,4n).
+# this parameter is required.
+blocks_path: NA
+
+# groups file is a csv file with at least two columns, and a header line
+# the first column is the names of the samples (suffixes are optional)
+# another column named "group" contains the labels for the samples (group name)
+# the find_marker tool finds a set of markers for each target group.
+# By default, all groups are included as target groups.
+# The tool compares each target group to all the other samples listed in the GROUPS_FILE ("background group")
+# this parameter is required.
+groups_file: NA
+
+# It's possible to find markers for only subset of the groups, TARGETS.
+# Note the background group will not be changed by using this parameter. 
+# TARGETS is a space-separated list of groups/labels.
+targets: NA
+
+# a list of beta files
+# Can either be supplied directly (a string) or as file 
+# all the samples listed in GROUPS_FILE must be listed in this list.
+# files listed in BETAS / BETA_LIST_FILE but not in GROUPS_FILE are ignored.
+# Exactly one of the parameters (betas, beta_list_file) is required. If both specified, BETAS is ignored
+
+# a file with a list of beta file paths, each file in a new line
+beta_list_file: NA
+
+# a space separated list of beta file paths
+# It may be more convinient to specify the beta files using the --betas flag
+# E.g: wgbstools find_markers --betas /path/to/beta_files/*beta 
+betas: NA
+
+
+#########################
+#                       # 
+#  Marker Constraints   #
+#                       # 
+#########################
+
+# marker size filters
+# markers violating these constraints are removed
+# all values are non negative integers
+min_bp: 0
+max_bp: 5000
+min_cpg: 0
+max_cpg: 5000
+
+# coverage filters
+# MIN_COV (integer) is the minimal number of binary observations (CpG sites' statuses) a marker must have to be considered.
+# A marker passes the filter if at most NA_RATE_TG of the target samples and at most NA_RATE_BG of the background samples have insufficient coverage (i.e. have <MIN_COV observations) in that marker
+# For example, for MIN_COV=5, NA_RATE_TG=0, and NA_RATE_BG=.4, all found markers will have at least 5 observations in all of the target samples, and in at least 90% of the background samples.
+min_cov: 5
+na_rate_tg:.334
+na_rate_bg:.334
+
+
+#########################
+#                       # 
+#  Methylation filters  #
+#                       # 
+#########################
+
+# limit marker direction (hyper / hypo methylated):
+# only_hyper - find only hyper-methylated markers (AKA "M" markers)
+# only_hypo - find only hypo-methylated markers (AKA "U" markers)
+only_hyper: False
+only_hypo: False
+
+# delta - the requested difference in methylation between target group and background group
+# delta is a fraction in range (0, 1)
+delta: 0.5
+
+# tg_quant - portion of the the target group to ignore/relax
+# bg_quant - portion of the background group to ignore/relax
+# for example, for bg_quant=.025 and tg_quant=.25, a "U" marker passes the test if the .75th quantile of the target group is smaller than the .025th of the background group by at least DELTA (e.g. 0.5).
+# Similarly, a "M" marker passes if the difference between the .25th quantile of the target group is larger then the .975th quantile of the background group by at least DELTA.
+# tg_quant, bg_quant are fracions in range [0, .5]
+tg_quant: 0.25
+bg_quant: 0.025
+
+# meth_thresh is a threshold for the low *quantile* methylation of the methylated group,
+# i.e. the TG_QUANT of the target group (for "M" markers) or the BG_QUANT of the background group (for "U" markers)
+# analygously, unmeth_thresh is the threshold for the high quantile of the unmethylated group: 1-TG_QUANT of the target group for "U" markers.
+# For example, for meth_thresh=.7:
+#   a "M" marker passes the test if the (TG_QUANT)'th quantile of the target group >=0.7.
+#   a "U" marker passes the test if the (1-BG_QUANT)'th quantile of the background group >=0.7.
+# unmeth_thresh is a fraction in range [0, .5)
+# meth_thresh is a fraction in range (.5, 1]
+unmeth_thresh: .4
+meth_thresh: .6
+
+# meth_mean_thresh is a threshold for the *average* methylation of the methylated group,
+# i.e. the target group (for "M" markers) or the background group (for "U" markers)
+# analygously, unmeth_mean_thresh is the threshold for the unmethylated group.
+# For example, for meth_mean_thresh=.7:
+#   a "M" marker passes the test if the average methylation of the *target* group >=0.7.
+#   a "U" marker passes the test if the average methylation of the *background* group >=0.7.
+# unmeth_mean_thresh is a fraction in range [0, .5)
+# meth_mean_thresh is a fraction in range (.5, 1]
+unmeth_mean_thresh: NA
+meth_mean_thresh: NA
+
+
+
+#########################
+#                       # 
+#  Output parameters    #
+#                       # 
+#########################
+
+# output directory. Default is current directory
+# a marker file for each target group will be generated and saved in this directory
+out_dir: .
+
+# Filter only top TOP (integer) markers.
+# The markers are ranked by the delta values (methylation difference between target and background)
+top: NA
+
+# If header=True, each marker file begins with a list of the samples used to generate it, sorted by group
+header: False
+
+
+#########################
+#                       # 
+#  Other parameters     #
+#                       # 
+#########################
+
+# verbosity. If true, extra information is outputed to stderr
+verbose: False
+
+# chunk_size - Number of blocks to load on each step.
+# Does not affect the output, only memory consumption and running time.
+chunk_size: 150000
