@@ -10,9 +10,9 @@ import os
 from itertools import groupby
 import subprocess
 from multiprocessing import Pool
-import multiprocessing
 from pathlib import Path
 from utils_wgbs import validate_single_file, eprint, IllegalArgumentError, add_multi_thread_args
+from set_default_ref import set_def_ref
 
 
 def generate_fai(fasta):
@@ -59,6 +59,7 @@ class InitGenome:
         self.fai_df = self.load_fai()
 
     def get_fasta(self):
+        # download fasta from UCSC, unless the fasta file is provided
         if self.ref_path is not None:
             validate_single_file(self.ref_path)
             return
@@ -82,15 +83,19 @@ class InitGenome:
     def setup_dir(self):
         path = Path(op.realpath(__file__))
         out_dir = op.join(op.join(path.parent.parent.parent, 'references'), self.name)
-        # abort if files exists and --force was not specified
+        # if the requested genome name already exist:
+        # abort if --force was not specified, or delete the existing directory.
         if op.isdir(out_dir):
             if not self.force:
-                msg = f'[wt init] Error: genome {self.name} already exists ({out_dir}). Use -f to overwrite it.'
+                msg = f'[wt init] Error: genome {self.name} already exists ({out_dir}).'
+                msg += f' Use -f to overwrite it.'
                 raise IllegalArgumentError(msg)
             else:
                 shutil.rmtree(out_dir)
         os.makedirs(out_dir, exist_ok=True)
         eprint(f'[wt init] Setting up genome reference files in {out_dir}')
+        if not self.args.no_default:
+            set_def_ref(self.name)
         return out_dir
 
     def load_fai(self):
@@ -125,14 +130,13 @@ class InitGenome:
         arr = p.starmap(load_seq_by_chrom, params)
         p.close()
         p.join()
-        return pd.concat(arr)
+        return pd.concat(arr).reset_index(drop=True)
 
     def run(self):
         eprint('[wt init] Processing chromosomes...')
 
         # CpG.bed.gz - Dictionary mapping locus to CpG-Index
         df = self.find_cpgs_loci()
-        df.reset_index(drop=True, inplace=True)
         eprint('[wt init] Building CpG-Index dictionary...')
         df['site'] = df.index + 1
         self.dump_df(df, 'CpG.bed')
@@ -251,6 +255,9 @@ def parse_args():
     parser.add_argument('--fasta_path', help='path to a reference genome FASTA file.\n' \
                         ' If none provided, wgbstools will attempt to download one from UCSC')
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing files if existed')
+    parser.add_argument('--no_default', action='store_true',
+            help='Do not set this genome as the default reference for wgbstools.\n' \
+                    'This setting can be changed with wgbstools set_default_ref')
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('--no_sort', action='store_true',
                         help='If set, keep the chromosome order of the reference genome.\n'

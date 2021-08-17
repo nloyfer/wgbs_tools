@@ -29,6 +29,7 @@ from bam2pat import main as bam2pat_main
 from bamAddMethylData import main as bamAddMethylData_main
 from mix_pat import main as mix_pat_main
 from init_genome_ref_wgbs import main as init_genome_main
+from set_default_ref import main as sdf_main
 from frag_len import main as frag_len_main
 from convert import main as convert_main
 from segment_betas import main as segment_beta_main
@@ -63,6 +64,7 @@ callbacks = [
 
     # generate pats and betas
     ('init_genome', init_genome_main),
+    ('set_default_ref', sdf_main),
     ('bam2pat', bam2pat_main),
     ('index', index_main),
     ('pat2beta', pat2beta_main),
