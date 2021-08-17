@@ -1,31 +1,42 @@
 # Initialize a new genome reference
 
+Setup a reference genome (e.g., hg19, mm9). This is a necessary step before using any other command.
+This command generates a directory with the genome name in the "references" directory, and saves there about 100-200Mb of indexing files that are necessary for other wgbstools command.
+When you setup a reference genome, it becomes the default genome for wgbstools from now on, until you set another genome as the default (`wgbstools set_default_ref`).
 
 ```
-usage: init_genome [-h] [-f] [-d] [--no_sort] [-@ THREADS] genome_ref name
+usage: init_genome [-h] [--fasta_path FASTA_PATH] [-f] [--no_default] [-d]
+                   [--no_sort] [-@ THREADS]
+                   name
 
-Init genome reference.
+Init genome reference. Note: we currently support only chromosomes starting
+with "chr". I.e. "chr1" and not "1".
 
 positional arguments:
-  genome_ref            path to a genome *.fa file
   name                  name of the genome (e.g. hg19, mm9...). A directory of
                         this name will be created in references/
 
 optional arguments:
   -h, --help            show this help message and exit
+  --fasta_path FASTA_PATH
+                        path to a reference genome FASTA file. If none
+                        provided, wgbstools will attempt to download one from
+                        UCSC
   -f, --force           Overwrite existing files if existed
+  --no_default          Do not set this genome as the default reference for
+                        wgbstools. This setting can be changed with wgbstools
+                        set_default_ref
   -d, --debug
   --no_sort             If set, keep the chromosome order of the reference
                         genome. Default behaviour is to sort
                         1,2,...,10,11,...,X,Y,M
   -@ THREADS, --threads THREADS
-                        Number of threads to use (default:
-                        multiprocessing.cpu_count)
-
+                        Number of threads to use (default: all available CPUs)
 ```
 
 For example,
 ```
-wgbs_tools init_genome /path/to/my/genome.fa hg19
+wgbs_tools init_genome hg19 --fasta_path /path/to/my/genome.fa
 ```
 Will generate some necessary files in references/hg19/.
+If no `fasta_path` is specified, `wgbstools` will attempt to download a fasta file with that name from UCSC.
