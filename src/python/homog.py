@@ -151,7 +151,7 @@ def parse_args():
     parser.add_argument('--force', '-f', action='store_true', help='Overwrite files if exist')
     parser.add_argument('--binary', action='store_true', help='Output binary files (uint8)')
     parser.add_argument('--bed', action='store_true', help='Output bed file')
-    parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
+    parser.add_argument('--genome', help='Genome reference name.')
     parser.add_argument('--nr_bits', type=int, default=8,
             help='For binary output, specify number of bits for the output format - 8 or 16. ' \
                  '(e.g. 8 statnds for uint8, which means values are trimmed to [0, 255])')

@@ -68,8 +68,7 @@ def parse_args():
                         #todo: infer that from bed.
     parser.add_argument('--outdir', '-o', default='.',
                         help='Output directory. Default is current directory [.]')
-    parser.add_argument('--genome', help='Genome reference name. Default is hg19.',
-                        default='hg19')
+    parser.add_argument('--genome', help='Genome reference name.')
     args = parser.parse_args()
     return args
 

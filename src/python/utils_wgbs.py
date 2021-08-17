@@ -39,9 +39,16 @@ main_script = op.join(DIR, 'wgbs_tools.py')
 class IllegalArgumentError(ValueError):
     pass
 
+def get_genome_name(gname):
+    if gname is None or gname == 'default':
+        path = Path(op.realpath(__file__))
+        refdir = op.join(op.join(path.parent.parent.parent, 'references'), 'default')
+        return os.readlink(refdir)
+    else:
+        return gname
 
 class GenomeRefPaths:
-    def __init__(self, name='hg19'):
+    def __init__(self, name=None):
         self.genome = name
         self.refdir = self.build_dir()
 
@@ -73,9 +80,13 @@ class GenomeRefPaths:
 
     def build_dir(self):
         if not self.genome:
-            self.genome = 'hg19'
+            self.genome = 'default'
         path = Path(op.realpath(__file__))
         refdir = op.join(op.join(path.parent.parent.parent, 'references'), self.genome)
+        if self.genome == 'default':
+            self.genome = os.readlink(refdir)
+            refdir = str(Path(refdir).resolve())
+
         if not op.isdir(refdir):
             raise IllegalArgumentError(f'Invalid reference name: {self.genome}')
         return refdir
@@ -153,7 +164,7 @@ def validate_prefix(prefix):
         raise IllegalArgumentError(f'Invalid prefix: no such directory: {dirname}')
 
 
-def load_dict(nrows=None, skiprows=None, genome_name='hg19'):
+def load_dict(nrows=None, skiprows=None, genome_name=None):
     d_path = GenomeRefPaths(genome_name).dict_path
     res = pd.read_csv(d_path, header=None, names=['chr', 'start'], sep='\t', usecols=[0, 1],
                       nrows=nrows, skiprows=skiprows)
@@ -161,7 +172,7 @@ def load_dict(nrows=None, skiprows=None, genome_name='hg19'):
     return res
 
 
-def load_dict_section(region, genome_name='hg19'):
+def load_dict_section(region, genome_name=None):
     if region is None:
         return load_dict(genome_name=genome_name)
     dpath = GenomeRefPaths(genome_name).dict_path
@@ -176,7 +187,7 @@ def add_GR_args(parser, required=False, bed_file=False, no_anno=False):
     region_or_sites.add_argument('-r', '--region', help='genomic region of the form "chr1:10,000-10,500"')
     if bed_file:
         region_or_sites.add_argument('-L', '--bed_file', help='Bed file. Columns <chr, start, end>')
-    parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
+    parser.add_argument('--genome', help='Genome reference name. Default is "default".', default='default')
     if no_anno:
         parser.add_argument('--no_anno', help='Do not print genomic annotations', action='store_true')
     return region_or_sites

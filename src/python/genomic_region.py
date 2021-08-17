@@ -4,7 +4,7 @@ import sys
 import numpy as np
 import pandas as pd
 import os.path as op
-from utils_wgbs import IllegalArgumentError, GenomeRefPaths, eprint
+from utils_wgbs import IllegalArgumentError, GenomeRefPaths, eprint, get_genome_name
 
 
 def index2chrom(site, genome):
@@ -13,8 +13,8 @@ def index2chrom(site, genome):
 
 
 class GenomicRegion:
-    def __init__(self, args=None, region=None, sites=None, genome_name='hg19'):
-        self.genome_name = genome_name
+    def __init__(self, args=None, region=None, sites=None, genome_name=None):
+        self.genome_name = get_genome_name(genome_name)
         self.chrom = None
         self.sites = sites
         self.region_str = region
@@ -23,7 +23,7 @@ class GenomicRegion:
 
         # todo: this could be prettier
         if args is not None:
-            self.genome_name = args.genome
+            self.genome_name = get_genome_name(args.genome)
             self.genome = GenomeRefPaths(self.genome_name)
             if args.sites:
                 self.parse_sites(args.sites)

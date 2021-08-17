@@ -71,7 +71,7 @@ def parse_args():
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing file if existed')
     parser.add_argument('-o', '--out_dir', help='Output directory for the beta file. [.]', default='.')
     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
-    parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
+    parser.add_argument('--genome', help='Genome reference name.')
     add_multi_thread_args(parser)
     return parser.parse_args()
 
