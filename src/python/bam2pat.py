@@ -11,14 +11,14 @@ import uuid
 import re
 from multiprocessing import Pool
 from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args, eprint, \
-        add_multi_thread_args, mult_safe_remove, collapse_pat_script, GenomeRefPaths, \
+        add_multi_thread_args, mult_safe_remove, GenomeRefPaths, \
         validate_single_file, delete_or_skip
 from init_genome_ref_wgbs import chromosome_order
 from pat2beta import pat2beta
 from index_wgbs import Indxer
 from genomic_region import GenomicRegion
 
-PAT_SUFF = '.pat'
+PAT_SUFF = '.pat.gz'
 
 # Minimal Mapping Quality to consider.
 # 10 means include only reads w.p. >= 0.9 to be mapped correctly.
@@ -42,7 +42,7 @@ def subprocess_wrap(cmd, debug):
         # eprint("Failed with subprocess %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
         # raise IllegalArgumentError('Failed')
 
-def pat(out_path, debug, temp_dir):
+def gen_pat_part(out_path, debug, temp_dir):
     try:
         # if out_path is empty, return None
         if op.getsize(out_path) == 0:
@@ -52,7 +52,8 @@ def pat(out_path, debug, temp_dir):
         cmd = f'sort {out_path} -k2,2n -k3,3 '
         if temp_dir:
             cmd += f' -T {temp_dir} '
-        cmd += f' | sed -e "s/$/\t1/" | {collapse_pat_script} - > {pat_path}'
+        cmd += " | uniq -c | awk -v OFS='\t' '{print $2,$3,$4,$1}'"
+        cmd += f' | bgzip -f > {pat_path}'
         subprocess_wrap(cmd, debug)
 
         mult_safe_remove([out_path])
@@ -103,7 +104,7 @@ def proc_chr(bam, out_path, region, genome, chr_offset, paired_end, ex_flags, ma
         print(cmd)
     subprocess_wrap(cmd, debug)
 
-    return pat(out_path, debug, temp_dir)
+    return gen_pat_part(out_path, debug, temp_dir)
 
 
 def validate_bam(bam):
@@ -116,7 +117,6 @@ def validate_bam(bam):
 
     # check if bam is sorted by coordinate:
     peek_cmd = f'samtools view -H {bam} | head -1'
-    so = subprocess.PIPE
     if 'coordinate' not in subprocess.check_output(peek_cmd, shell=True).decode():
         eprint('bam file must be sorted by coordinate')
         return False
@@ -124,9 +124,8 @@ def validate_bam(bam):
     # check if bam is indexed:
     if not (op.isfile(bam + '.bai')):
         eprint('[wt bam2pat] bai file was not found! Generating...')
-        r = subprocess.call(['samtools', 'index', bam])
-        if r:
-            eprint(f'Failed indexing bam: {bam}')
+        if subprocess.call(['samtools', 'index', bam]):
+            eprint(f'[wt bam2pat] Failed indexing bam: {bam}')
             return False
     return True
 
@@ -202,8 +201,8 @@ class Bam2Pat:
         name = op.join(self.out_dir, op.basename(self.bam_path)[:-4])
         # build temp dir:
         name = op.splitext(op.basename(self.bam_path))[0]
-        uname = f'{name}.{str(uuid.uuid4())[:8]}.PID{os.getpid()}'
-        self.tmp_dir = op.join(self.args.out_dir, uname)
+        self.tmp_dir = op.join(self.args.out_dir,
+                f'{name}.{str(uuid.uuid4())[:8]}.PID{os.getpid()}')
         os.mkdir(self.tmp_dir)
         tmp_prefix = op.join(self.tmp_dir, name)
 
@@ -212,46 +211,59 @@ class Bam2Pat:
         cf['size'] = [0] + list(np.cumsum(cf['size']))[:-1]
         chr_offset = cf.set_index('chr').to_dict()['size']
 
-        processes = []
-        nr_threads = self.args.threads  # todo smarter default!
-        with Pool(nr_threads) as p:
-            for c in self.set_regions():
-                out_path = f'{tmp_prefix}.{c}.out'
-                params = (self.bam_path, out_path, c, self.gr.genome, chr_offset,
-                          is_pair_end(self.bam_path), self.args.exclude_flags,
-                          self.args.mapq, self.debug, self.args.blueprint,
-                          self.args.temp_dir, blist, wlist, self.args.min_cpg, self.verbose)
-                processes.append(p.apply_async(proc_chr, params))
-            if not processes:
-                raise IllegalArgumentError('Empty bam file')
-            p.close()
-            p.join()
-        res = [pr.get() for pr in processes]  # [pat_path for each chromosome]
-        if None in res:
-            eprint('[wt bam2pat] threads failed')
-            return
-        if not ''.join(res):
+        params = []
+        for c in self.set_regions():
+            out_path = f'{tmp_prefix}.{c}.out'
+            par = (self.bam_path, out_path, c, self.gr.genome, chr_offset,
+                   is_pair_end(self.bam_path), self.args.exclude_flags,
+                   self.args.mapq, self.debug, self.args.blueprint,
+                   self.args.temp_dir, blist, wlist, self.args.min_cpg, self.verbose)
+            params.append(par)
+        if not params:
+            raise IllegalArgumentError('Empty bam file')
+
+        p = Pool(self.args.threads)
+        pat_parts = p.starmap(proc_chr, params)
+        p.close()
+        p.join()
+
+        self.concat_parts(name, pat_parts)
+        # remove all small files
+        mult_safe_remove(pat_parts)
+
+    def validate_parts(self, pat_parts):
+        # validate parts:
+        for part in pat_parts:
+            if part is None:            # subprocess threw exception
+                eprint('[wt bam2pat] threads failed')
+                return False
+            if op.getsize(part) == 0:   # empty pat was created
+                eprint('[wt bam2pat] threads failed')
+                return False
+        if not ''.join(pat_parts):      # all parts are empty
             eprint('[wt bam2pat] No reads found in bam file. No pat file is generated')
+            return False
+        return True
+
+    def concat_parts(self, name, pat_parts):
+
+        if not self.validate_parts(pat_parts):
             return
 
         # Concatenate chromosome files
-        prefix = op.join(self.args.out_dir, name)
-        pat_path = prefix + PAT_SUFF
-        os.system('cat ' + ' '.join(res) + ' > ' + pat_path)  # pat
+        pat_path = op.join(self.args.out_dir, name) + PAT_SUFF
+        os.system('cat ' + ' '.join(pat_parts) + ' > ' + pat_path)
 
-        # remove all small files
-        mult_safe_remove(res)
-
-        # generate beta file and bgzip the pat file
-        eprint('[wt bam2pat] bgzipping and indexing:')
         if not op.isfile(pat_path):
-            eprint(f'[wt bam2pat] failed to generate {pat_path}.gz')
+            eprint(f'[wt bam2pat] failed to generate {pat_path}')
             return
 
-        Indxer(pat_path).run()
-        eprint(f'[wt bam2pat] generated {pat_path}.gz')
+        # generate beta file and index the pat file
+        eprint('[wt bam2pat] indexing and generating beta file...')
+        Indxer(pat_path, threads=self.args.threads).run()
+        eprint(f'[wt bam2pat] generated {pat_path}')
 
-        beta_path = pat2beta(f'{pat_path}.gz', self.out_dir, args=self.args)
+        beta_path = pat2beta(f'{pat_path}', self.out_dir, args=self.args)
         eprint(f'[wt bam2pat] generated {beta_path}')
 
 
@@ -264,7 +276,7 @@ def parse_bam2pat_args(parser):
     lists.add_argument('-L', '--whitelist', help='bed file. Consider only reads overlapping this bed file',
                         nargs='?', const=True, default=False)
     parser.add_argument('--blueprint', '-bp', action='store_true',
-            help='filter bad BS conversion reads if <90 percent of CHs are converted')
+            help='filter bad bisulfite conversion reads if <90 percent of CHs are converted')
 
 
 def add_args():
@@ -303,11 +315,13 @@ def main():
     # validate output dir:
     if not op.isdir(args.out_dir):
         raise IllegalArgumentError(f'Invalid output dir: {args.out_dir}')
+
     for bam in args.bam:
         if not validate_bam(bam):
             eprint(f'[wt bam2pat] Skipping {bam}')
             continue
-        pat = op.join(args.out_dir, op.basename(bam)[:-4] + '.pat.gz')
+
+        pat = op.join(args.out_dir, op.basename(bam)[:-4] + PAT_SUFF)
         if not delete_or_skip(pat, args.force):
             continue
         Bam2Pat(args, bam)
