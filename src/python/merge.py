@@ -9,19 +9,19 @@ import os
 from index_wgbs import Indxer
 from utils_wgbs import validate_file_list, splitextgz, delete_or_skip, trim_to_uint8, load_beta_data, \
         collapse_pat_script, IllegalArgumentError, main_script, eprint, add_GR_args
+from genomic_region import GenomicRegion
 
 
 class MergePats:
-    def __init__(self, pats, out_nogzip, labels, args):
+    def __init__(self, pats, outpath, labels, args):
         self.args = args
         self.pats = pats
-        self.out_nogzip = out_nogzip
+        self.outpath = outpath
         self.labels = labels
 
     def merge_pats(self):
         view_flags = []
         for i in range(len(self.pats)):
-            # v = ' --awk '
             v = ' '
             if self.args.strict:
                 v += ' --strict'
@@ -29,6 +29,9 @@ class MergePats:
                 v += ' --min_len {}'.format(self.args.min_len)
             if self.args.bed_file is not None:
                 v += ' -L {}'.format(self.args.bed_file)
+            gr = GenomicRegion(self.args)
+            if not gr.is_whole():
+                v += ' -s {}-{}'.format(*gr.sites)
             # v += ' -@ {}'.format(max(1, len(self.pats) // 16))
             view_flags.append(v)
         if not view_flags:
@@ -54,20 +57,21 @@ class MergePats:
         if self.args.temp_dir:
             temp_dir = self.args.temp_dir
             if not op.isdir(temp_dir):
-                eprint('Invalid temp dir: {}. Ignoring it'.format(temp_dir))
+                eprint(f'Invalid temp dir: {temp_dir}. Ignoring it')
             else:
-                cmd += ' -T {} '.format(temp_dir)
+                cmd += f' -T {temp_dir} '
         for i in range(len(self.pats)):
             cmd += self.compose_view_cmd(i, view_flags)
         cmd += ' | {} - '.format(collapse_pat_script)
-        cmd += ' | bgzip > {}.gz'.format(self.out_nogzip)
-        cmd = '/bin/bash -c "{}"'.format(cmd)
+        # cmd += f' | bedtools groupby -g 1-3 -c 4'  # TODO: check how many columns in self.pats[0] and use groupby instead of collapse_pat_script
+        cmd += f' | bgzip > {self.outpath}'
+        cmd = f'/bin/bash -c "{cmd}"'
         eprint(cmd)
         subprocess.check_call(cmd, shell=True)
 
-        if not op.isfile(self.out_nogzip + '.gz'):
-            raise IllegalArgumentError('Error: failed to create file {}.gz'.format(self.out_nogzip))
-        Indxer(self.out_nogzip + '.gz', force=self.args.force).run()
+        if not op.isfile(self.outpath):
+            raise IllegalArgumentError(f'[wt merge] Error: failed to create file {self.outpath}')
+        Indxer(self.outpath).run()
 
 
 def merge_betas(betas, opath):
@@ -86,9 +90,6 @@ def merge_betas(betas, opath):
     data.tofile(opath)
     return data
 
-
-def merge_unqs():
-    raise NotImplemented
 
 
 def parse_args():
@@ -140,9 +141,7 @@ def main():
     if files_type in ('beta', 'bin'):
         merge_betas(input_files, out_path)
     elif files_type == 'pat.gz':
-        MergePats(input_files, args.prefix + '.pat', args.labels, args).merge_pats()
-    elif files_type == 'unq.gz':
-        merge_unqs()
+        MergePats(input_files, args.prefix + '.pat.gz', args.labels, args).merge_pats()
     else:
         print('Unknown input format:', input_files[0])
         return

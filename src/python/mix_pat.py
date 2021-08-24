@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import os.path as op
 from multiprocessing import Pool
-import multiprocessing
 from utils_wgbs import validate_file_list, IllegalArgumentError, splitextgz, add_GR_args, delete_or_skip, \
         BedFileWrap, eprint, validate_dir, add_multi_thread_args
 from genomic_region import GenomicRegion
@@ -56,24 +55,23 @@ class Mixer:
         self.stats[title] = data
 
     def single_mix(self, rep):
-        prefix_i = self.prefix + '_{}.pat'.format(rep + 1)
-        if not delete_or_skip(prefix_i + '.gz', self.args.force):
+        mix_i = self.prefix + f'_{rep + 1}.pat.gz'
+        if not delete_or_skip(mix_i, self.args.force):
             return
 
         view_flags = []
         for i in range(self.nr_pats):
-            # v = ' --awk '
-            v = ''
+            v = ' '
             if self.args.strict:
                 v += ' --strict'
             if self.args.bed_file is not None:
                 v += ' -L {}'.format(self.args.bed_file)
-            elif self.gr.sites is not None:
+            elif not self.gr.is_whole():
                 v += ' -s {}-{}'.format(*self.gr.sites)
             v += ' --sub_sample {}'.format(self.adj_rates[i])
             view_flags.append(v)
-        eprint('prefix:', prefix_i)
-        m = MergePats(self.pats, prefix_i, self.labels, args=self.args)
+        eprint('mix:', mix_i)
+        m = MergePats(self.pats, mix_i, self.labels, args=self.args)
         m.fast_merge_pats(view_flags=view_flags)
 
     def validate_labels(self, labels):
@@ -142,12 +140,11 @@ def single_mix(i, m):
 def mult_mix(args):
     m = Mixer(args)
     m.print_rates()
-    with Pool(args.threads) as p:
-        for i in range(args.reps):
-            p.apply_async(single_mix, (i, m))
-        p.close()
-        p.join()
-    # m.print_rates()
+    p = Pool(args.threads)
+    params = [(i, m) for i in range(args.reps)]
+    arr = p.starmap(single_mix, params)
+    p.close()
+    p.join()
 
 
 ##########################
