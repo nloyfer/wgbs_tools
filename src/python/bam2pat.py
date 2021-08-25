@@ -10,9 +10,9 @@ import shutil
 import uuid
 import re
 from multiprocessing import Pool
-from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, add_GR_args, eprint, \
-        add_multi_thread_args, mult_safe_remove, GenomeRefPaths, \
-        validate_single_file, delete_or_skip
+from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, \
+        add_GR_args, eprint, add_multi_thread_args, mult_safe_remove, \
+        GenomeRefPaths, validate_single_file, delete_or_skip
 from init_genome_ref_wgbs import chromosome_order
 from pat2beta import pat2beta
 from index_wgbs import Indxer
@@ -26,7 +26,6 @@ PAT_SUFF = '.pat.gz'
 MAPQ = 10
 FLAGS_FILTER = 1796  # filter flags with these bits
 
-# todo: unsorted / sorted by name
 CHROMS = ['X', 'Y', 'M', 'MT'] + list(range(1, 23))
 
 
@@ -142,7 +141,6 @@ class Bam2Pat:
         self.verbose = args.verbose
         self.out_dir = args.out_dir
         self.bam_path = bam
-        self.debug = args.debug
         self.gr = GenomicRegion(args)
         self.start_threads()
         self.cleanup()
@@ -201,7 +199,7 @@ class Bam2Pat:
         name = op.join(self.out_dir, op.basename(self.bam_path)[:-4])
         # build temp dir:
         name = op.splitext(op.basename(self.bam_path))[0]
-        self.tmp_dir = op.join(self.args.out_dir,
+        self.tmp_dir = op.join(self.out_dir,
                 f'{name}.{str(uuid.uuid4())[:8]}.PID{os.getpid()}')
         os.mkdir(self.tmp_dir)
         tmp_prefix = op.join(self.tmp_dir, name)
@@ -216,7 +214,7 @@ class Bam2Pat:
             out_path = f'{tmp_prefix}.{c}.out'
             par = (self.bam_path, out_path, c, self.gr.genome, chr_offset,
                    is_pair_end(self.bam_path), self.args.exclude_flags,
-                   self.args.mapq, self.debug, self.args.blueprint,
+                   self.args.mapq, self.args.debug, self.args.blueprint,
                    self.args.temp_dir, blist, wlist, self.args.min_cpg, self.verbose)
             params.append(par)
         if not params:
@@ -251,7 +249,7 @@ class Bam2Pat:
             return
 
         # Concatenate chromosome files
-        pat_path = op.join(self.args.out_dir, name) + PAT_SUFF
+        pat_path = op.join(self.out_dir, name) + PAT_SUFF
         os.system('cat ' + ' '.join(pat_parts) + ' > ' + pat_path)
 
         if not op.isfile(pat_path):
@@ -285,7 +283,7 @@ def add_args():
     add_GR_args(parser)
     parser.add_argument('--out_dir', '-o', default='.')
     parser.add_argument('--min_cpg', type=int, default=1,
-                help='Reads covering less than MIN_CPG sites are removed [1]')  # todo: implement
+                help='Reads covering less than MIN_CPG sites are removed [1]')
     parser.add_argument('--debug', '-d', action='store_true')
     parser.add_argument('--force', '-f', action='store_true', help='overwrite existing files if exists')
     parser.add_argument('--verbose', '-v', action='store_true')
