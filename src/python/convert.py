@@ -66,6 +66,7 @@ def convert_bed_file(args):
 
 def load_bed(bed_path, nrows=None):
     try:
+        # TODO: handle a bed with a header line? But support stdin as input...
         df = pd.read_csv(bed_path, sep='\t', header=None, nrows=nrows, comment='#')
         df.columns = COORDS_COLS3 + list(df.columns)[3:]
         return df
