@@ -240,7 +240,7 @@ def parse_args():
     parser.add_argument('--min_cpg', type=int, default=1,
                         help='Minimal block size (in #sites) to output. Shorter blocks will simply be ' \
                              'ommited from output (equivalent to set min_cpg to 1 and then filter output by ' \
-                             'length). Default is 3')
+                             'length). Default is 1')
     parser.add_argument('--max_cpg', type=int, default=1000,
                         help='Maximal allowed block size (in #sites). Default is 1000')
     parser.add_argument('--max_bp', type=int, default=2000,
