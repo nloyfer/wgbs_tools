@@ -7,7 +7,7 @@ import subprocess
 import multiprocessing
 from utils_wgbs import delete_or_skip, splitextgz, IllegalArgumentError, eprint, \
         add_multi_thread_args, validate_single_file
-
+from convert import COORDS_COLS5
 
 class Pat:
     def __init__(self):
@@ -21,7 +21,7 @@ class Bed:
     def __init__(self):
         self.suff = 'bed'
         self.tabix_flags = ' -p bed '
-        self.sort_flags = '-k1,1n -k2,2'
+        self.sort_flags = '-k4,4n'
         self.ind_suff = '.tbi'
 
 
@@ -50,7 +50,7 @@ class Indxer:
         scmd = f'sort {self.ftype.sort_flags} {self.in_file}'
         if subprocess.call(scmd + ' -sc', shell=True):
             eprint(f'{self.in_file} is not sorted. Sorting...')
-            subprocess.check_call(scmd + f'-o {self.in_file}', shell=True)
+            subprocess.check_call(scmd + f' -o {self.in_file}', shell=True)
 
         # bgzip the file:
         cmd = f'bgzip -@ {self.threads} -f {self.in_file}'
@@ -89,7 +89,8 @@ class Indxer:
 
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
-    parser.add_argument('input_files', nargs='+', help='One or more file with extensions .pat[.gz] or .bed[.gz]')
+    parser.add_argument('input_files', nargs='+',
+            help=f'One or more file with extensions .pat[.gz] or .bed[.gz]. Bed files must have the columns {COORDS_COLS5}')
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing index file (csi) if existed')
     add_multi_thread_args(parser)
     return parser.parse_args()
