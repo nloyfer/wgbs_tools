@@ -42,7 +42,7 @@ class GenomeRefPaths:
         self.dict_path = self.join('CpG.bed.gz')
         self.chrom_cpg_sizes = self.join('CpG.chrome.size')
         self.chrom_sizes = self.join('chrome.size')
-        self.revdict_path = self.join('CpG.rev.bin')
+        # self.revdict_path = self.join('CpG.rev.bin')
         self.genome_path = self.join('genome.fa')
         self.annotations = self.join('annotations.bed.gz', validate=False)
         if not op.isfile(self.annotations):
@@ -158,7 +158,7 @@ def add_GR_args(parser, required=False, bed_file=False):
 
 
 def add_multi_thread_args(parser):
-    parser.add_argument('-@', '--threads', type=int, default=1,#multiprocessing.cpu_count(),
+    parser.add_argument('-@', '--threads', type=int, default=multiprocessing.cpu_count(),
                         help='Number of threads to use (default: multiprocessing.cpu_count)')
 
 
