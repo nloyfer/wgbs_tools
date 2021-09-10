@@ -25,6 +25,13 @@ num2color_dict = {
     'U': '01;32',   # green
 }
 
+num2color_dict2 = {
+    'C': '01;34',   # blue
+    'T': '01;33',   # yellow
+    'X': '01;33',   # yellow
+    'M': '01;31',   # red
+    'U': '01;32',   # green
+}
 
 def table2text(table):
     """ join table to text.
@@ -109,7 +116,8 @@ class PatVis:
 
         # Color text
         if not self.args.no_color:
-            txt = color_text(txt, num2color_dict)
+            nd = num2color_dict2 if self.args.yebl else num2color_dict
+            txt = color_text(txt, nd)
         if not self.args.text:
             txt = re.sub('[CTUXM]', FULL_CIRCLE, txt)               # letters -> circles
             txt = re.sub('\.', DASH, txt)                           # dots -> dashes
