@@ -6,7 +6,7 @@
 #include <math.h>
 #include <string>
 #include <iostream>
-
+#include <stdexcept>      // std::invalid_argument
 
 
 //  g++ -std=c++11 stdin2beta.cpp -o stdin2beta

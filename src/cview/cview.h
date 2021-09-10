@@ -9,11 +9,13 @@
 #include <sstream>
 #include <iostream>
 #include <fstream>
+#include <stdexcept>
 #include <math.h>
 #include <boost/iostreams/filtering_streambuf.hpp>
 #include <boost/iostreams/copy.hpp>
 #include <string>
 #include <stdlib.h>
+
 
 #define SEP "\t"
 

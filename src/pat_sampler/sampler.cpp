@@ -4,6 +4,8 @@
 #include <fstream>
 #include <chrono>
 #include <random>
+#include <stdexcept>      // std::invalid_argument
+
 
 //  g++ -std=c++11 sampler.cpp -o pat_sampler
 

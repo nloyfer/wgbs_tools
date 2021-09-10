@@ -16,6 +16,8 @@
 #include <boost/iostreams/filter/gzip.hpp>
 #include <string>
 #include <stdlib.h>
+#include <stdexcept>      // std::invalid_argument
+
 
 #define SEP "\t"
 #define DEFAULT_LEN "5"
