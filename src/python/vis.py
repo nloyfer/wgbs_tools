@@ -29,6 +29,8 @@ def pat_args(parser):
             help='Pat vis: output colored text instead of shapes')
     parser.add_argument('--strike', action='store_true',
             help='Pat vis: add strikethrough to reads')
+    parser.add_argument('--yebl', action='store_true',
+                        help='color yellow-blue instead of green-red')
 
 def beta_args(parser):
     # parser.add_argument('-d', '--dists', action='store_true',
