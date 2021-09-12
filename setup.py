@@ -64,7 +64,7 @@ def compile_all(args):
         compile_single(cmd, 'segmentor', args.verbose)
 
         # cview (cview)
-        cmd = 'g++ -c -o src/cview/main.o src/cview/main.cpp -std=c++11; g++ -c -o src/cview/cview.o src/cview/cview.cpp ; g++ -o src/cview/cview src/cview/main.o src/cview/cview.o -std=c++11'
+        cmd = 'g++ -c -o src/cview/main.o src/cview/main.cpp -std=c++11; g++ -c -o src/cview/cview.o src/cview/cview.cpp -std=c++11; g++ -o src/cview/cview src/cview/main.o src/cview/cview.o -std=c++11'
         compile_single(cmd, 'cview', args.verbose)
 
     except RuntimeError as e:
