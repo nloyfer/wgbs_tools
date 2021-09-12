@@ -230,7 +230,8 @@ def load_groups_file(groups_file, idir, verbose=False):
 
 def match_prefix_to_bin(prefixes, bins, suff=None):
     full_paths = []
-    missing = []
+    missing_binaries = []
+    included = []
     for prefix in prefixes:
         # look for bin files starting with current prefix:
         if suff is not None:
@@ -239,16 +240,28 @@ def match_prefix_to_bin(prefixes, bins, suff=None):
             results = [f for f in bins if op.basename(f).startswith(prefix)]
         # make sure there is exactly one such bin file
         if not results:
-            missing.append(prefix)
+            missing_binaries.append(prefix)
         elif len(results) > 1:
             raise IllegalArgumentError(f'Found multiple matches for prefix {prefix}')
         else:
             full_paths.append(results[0])
-    if missing:
-        eprint(f'Error: {len(missing)} prefixes from groups file were not found in input bins:')
-        for p in missing:
+            included.append(op.basename(results[0]))
+
+    # print information about missing binary files
+    if missing_binaries:
+        eprint(f'Error: {len(missing_binaries)} prefixes from groups file were not found in input bins:')
+        for p in missing_binaries:
             eprint(p)
         raise IllegalArgumentError('groups file mismatch binary files')
+
+    # check how many bins were not included in prefixes:
+    excluded_bins = []
+    for b in bins:
+        if op.basename(b) not in included:
+            excluded_bins.append(b)
+    if excluded_bins:
+        eprint(f'warning: ignoring {len(excluded_bins)} binary files not included in groups file')
+
     return full_paths
 
 
