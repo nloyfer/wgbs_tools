@@ -105,14 +105,23 @@ class GenomicRegion:
 
         # Update GR fields:
         self.region_str = region
-        self.sites = self._region_str2sites()
         self.bp_tuple = (region_from, region_to)
+        self.sites = self._region_str2sites()
 
     def _region_str2sites(self):
         # find CpG indexes in range of the region:
         cmd = f'tabix {self.genome.dict_path} {self.region_str} | '
-        cmd += 'awk \'{if (NR == 1) {first=$3}}END{print first"-"$3+1}\''
+        # cmd += 'awk \'(NR==1){first=$3} {lbp=$2} END{print first"-"$3+1}\''
+
+        # if bp_tuple[1] equals exactly a loci of a CpG site, this site is *not* included
+        # e.g., in hg19, chr6:71046415-71046562 is 9718430-9718435 in sites
+        cmd += f"awk -v b={self.bp_tuple[1]} "
+        cmd += '\'(NR==1){first=$3} END{if ($2<b) {r+=1}; print first"-"$3+r}\''
         res = subprocess.check_output(cmd, shell=True).decode()
+        # eprint(cmd)
+
+        if len(set(res.strip().split('-'))) == 1:
+            res = '-1'
 
         # throw error if there are no CpGs in range
         if res.strip() == '-1':
@@ -140,10 +149,12 @@ class GenomicRegion:
         else:
             raise IllegalArgumentError(f'sites must be of format: "start-end" or "site" .\nGot: {sites_str}')
         # validate sites are in range:
-        if not self.genome.nr_sites + 1 >= site2 > site1 >= 1:
+        if not self.genome.nr_sites + 1 >= site2 >= site1 >= 1:
             msg = 'sites violate the constraints: '
             msg += f'{self.genome.nr_sites + 1} >= {site2} > {site1} >= 1'
             raise IllegalArgumentError(msg)
+        if site1 == site2:
+            site2 += 1
         return site1, site2
 
     def index2locus(self, index):
