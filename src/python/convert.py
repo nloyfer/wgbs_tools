@@ -1,9 +1,11 @@
 #!/usr/bin/python3 -u
 
 import argparse
+import os
+import tempfile
 from utils_wgbs import add_GR_args, eprint, GenomeRefPaths, delete_or_skip, \
                        load_dict_section, add_multi_thread_args, IllegalArgumentError, \
-                       read_shell
+                       read_shell, check_executable
 from genomic_region import GenomicRegion
 import pandas as pd
 import numpy as np
@@ -25,6 +27,7 @@ def parse_args():
                              'if "-" is passed, the file is read from stdin.')
     parser.add_argument('--out_path', '-o', help='Output path for bed file [stdout]')
     parser.add_argument('-d', '--debug', action='store_true')
+    # parser.add_argument('--bedtools', action='store_true')
     parser.add_argument('-p', '--parsable', action='store_true',
                         help='Output a parsing friendly format (only work with -r/-s flags)')
     parser.add_argument('--drop_empty', action='store_true',
@@ -54,13 +57,20 @@ def convert_bed_file(args):
         return
     # add CpG columns
     bed_file = args.bed_file
+    # TODO: support stdin for -L in all wgbstools features, and add it to the help message
     if bed_file == '-':
         bed_file = sys.stdin
-    r = add_cpgs_to_bed(bed_file=bed_file,
-            genome=args.genome,
-            drop_empty=args.drop_empty,
-            threads=args.threads,
-            add_anno=(not args.parsable) and (not args.no_anno))
+    add_anno = (not args.parsable) and (not args.no_anno)
+
+    if not check_executable('bedtools', verbose=True):
+        eprint('continue with a slower implementation')
+        r = add_cpgs_to_bed(bed_file=bed_file,
+                genome=args.genome,
+                drop_empty=args.drop_empty,
+                threads=args.threads,
+                add_anno=add_anno)
+    else:
+        r = bedtools_conversion(bed_file, args.genome, args.drop_empty, add_anno)
     r.to_csv(out_path, sep='\t', header=None, index=None, na_rep='NA')
 
 
@@ -74,6 +84,38 @@ def load_bed(bed_path, nrows=None):
         eprint(f'[wt convert] ERROR: empty bed file')
         raise IllegalArgumentError('Invalid bed file')
 
+def bedtools_conversion(bed_file, genome, drop_empty, add_anno):
+    df = load_bed(bed_file)
+    tmp_name = tempfile.NamedTemporaryFile().name
+    df.sort_values(by=['chr', 'start']).drop_duplicates().iloc[:, :3].to_csv(tmp_name, sep='\t', header=None, index=None)
+    ref = GenomeRefPaths(genome).dict_path
+    cmd = f"tabix -R {tmp_name} {ref} | "
+    cmd += "awk -v OFS='\t' '{print $1,$2,$2+1,$3}' | "
+    cmd += " sort -k1,1 -k2,2n -u | "       # sort is required for cases of overlapping blocks
+    cmd += f"bedtools intersect -sorted -b - -a {tmp_name} -loj | "
+    cmd += f"bedtools groupby -g 1,2,3 -c 7,7 -o first,last | "
+    cmd += " awk -v OFS='\t' '{print $1,$2,$3,$4,$5+1;}' "
+    cmd += "| sed 's/\.\t1/NA\tNA/g'"       # replace missing values with (NA)s
+    # eprint(cmd.replace('\t', '\\t'))
+    rf = read_shell(cmd, names=COORDS_COLS5)
+    # os.unlink(tmp_name)
+
+    df = df.merge(rf, how='left', on=COORDS_COLS3)
+    df = df[COORDS_COLS5 + list(df.columns)[3:-2]]
+
+    # if there are missing values, the CpG columns' type will be float or object. Change it to Int64
+    if df.startCpG.isna().sum() > 0:
+        df['endCpG'] = df['endCpG'].astype('Int64')
+        df['startCpG'] = df['startCpG'].astype('Int64')
+
+    if drop_empty:
+        df.dropna(inplace=True, subset=['startCpG', 'endCpG'])
+
+    # add annotations:
+    if add_anno:
+        df = get_anno(df, genome)
+
+    return df
 
 def slow_conversion(df, genome):
     df = df.iloc[:, :3]
@@ -102,7 +144,8 @@ def chr_thread(df, cf, genome):
     if not (tf['start'][1:].values - tf['end'][:tf.shape[0] - 1].values  >= 0).all():
         if df.shape[0] > 30:
             eprint(f'[wt convert] [{chrom}] WARNING: ' \
-                    'Found overlaps in the input bed file. Conversion may be slow.')
+                    'Found overlaps in the input bed file. Conversion may be slow.\n' \
+                    '             Install bedtools for better performance')
         return slow_conversion(df, genome)
 
     rf = load_dict_section(chrom, genome).sort_values('start')
