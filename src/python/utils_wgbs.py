@@ -99,6 +99,15 @@ def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
 
+def check_executable(cmd, verbose=False):
+    for p in os.environ['PATH'].split(":"):
+        if os.access(os.path.join(p, cmd), os.X_OK):
+            return True
+    if verbose:
+        eprint(f'executable {cmd} not found in PATH')
+    return False
+
+
 class BedFileWrap:
     def __init__(self, bed_path, genome=None):
         self.bed_path = bed_path

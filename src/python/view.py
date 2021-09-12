@@ -12,7 +12,7 @@ from multiprocessing import Pool
 import multiprocessing
 from utils_wgbs import load_beta_data2, MAX_PAT_LEN, pat_sampler, validate_single_file, \
     add_GR_args, IllegalArgumentError, BedFileWrap, read_shell, eprint, \
-    catch_BrokenPipeError, view_beta_script
+    catch_BrokenPipeError, view_beta_script, check_executable
 from genomic_region import GenomicRegion
 from cview import view_gr, subprocess_wrap_sigpipe, add_view_flags
 

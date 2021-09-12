@@ -76,6 +76,8 @@ def proc_chr(bam, out_path, region, genome, chr_offset, paired_end, ex_flags, ma
     if whitelist:
         cmd += f' -M -L {whitelist} '
     elif blacklist:
+        if not check_executable('bedtools'):
+            eprint(f'[wt bam2pat] blacklist flag only works if bedtools is installed')
         cmd += f' -b | bedtools intersect -sorted -v -abam stdin -b {blacklist} | samtools view '
     if debug:
         cmd += ' | head -200 '
