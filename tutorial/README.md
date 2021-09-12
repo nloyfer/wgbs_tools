@@ -197,4 +197,4 @@ for target in `tail +2 bams/groups.csv| cut -f2 -d,`; do echo "=====\n$target\n=
 ```
 
 <!--![alt text](images/wt_vis_markers.png "beta vis all markers")-->
-<img src="images/wt_vis_markers.png" width="600" height="660" />
+<img src="images/wt_vis_markers.png" width="700" height="700" />
