@@ -90,7 +90,7 @@ class MarkerFinder:
         self.df = self.load_data_chunk(blocks_df)
 
         for group in self.targets:
-            eprint(group)
+            # eprint(f'target: {group}')
             self.group = group
             tf = self.find_group_markers()
             self.res[group] = pd.concat([self.res[group], tf])
@@ -188,11 +188,11 @@ class MarkerFinder:
         # filter by quantile thresholds
         tfM['tg'] = np.quantile(df_tg,
                                 self.args.tg_quant,
-                                interpolation='higher',
+                                interpolation='lower',
                                 axis=1)
         tfM['bg'] = np.quantile(df_bg,
                                 1 - self.args.bg_quant,
-                                interpolation='lower',
+                                interpolation='higher',
                                 axis=1)
         # delta
         tfM = tfM[(tfM['tg'] - tfM['bg'] >= self.args.delta)].reset_index(drop=True)
@@ -224,11 +224,11 @@ class MarkerFinder:
 
         tfU['tg'] = np.quantile(df_tg,
                                 1 - self.args.tg_quant,
-                                interpolation='lower',
+                                interpolation='higher',
                                 axis=1)
         tfU['bg'] = np.quantile(df_bg,
                                 self.args.bg_quant,
-                                interpolation='higher',
+                                interpolation='lower',
                                 axis=1)
         # delta
         tfU = tfU[(tfU['bg'] - tfU['tg'] >= self.args.delta)].reset_index(drop=True)
