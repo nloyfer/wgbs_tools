@@ -150,6 +150,7 @@ This command takes as input:
 - beta files: a set of beta files to find the DMR for.
 - group file: a `csv` table\ text file defining which beta files are case and which are control, or other groups.
 - blocks file: a `bed` file with 2 extra columns for CpG indexes. Could be the output of the `wgbstools segment` command, or any custom bed file once you added the [startCpG, endCpG] columns with `wgbstools convert -L BED_FILE`.
+
 For each group defined in the `group_file`, `find_markers` will find all regions/ blocks within the supplied blocks file that differentiate between the samples within this group when compared to samples from all other groups.
 Other than these required arguments, there are plenty of configuration arguments. See `find_markers --help` for more information.
 
