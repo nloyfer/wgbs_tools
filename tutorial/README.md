@@ -154,4 +154,20 @@ This command takes as input:
 For each group defined in the `group_file`, `find_markers` will find all regions/ blocks within the supplied blocks file that differentiate between the samples within this group when compared to samples from all other groups.
 Other than these required arguments, there are plenty of configuration arguments. See `find_markers --help` for more information.
 
+We use the following group file:
+```bash
+$ cat groups.csv
+name,group
+Lung_STL002.small,background
+Pancreas_STL002.small,background
+Sigmoid_Colon_STL003.small,colon
+```
+And find DMRs for the colon sample as follows:
+```bash
+$ wgbstools find_markers --blocks_path blocks.small.bed.gz --groups_file groups.csv --targets colon --betas *beta --min_cpg 4
+dumped parameter file to ./params.txt
+colon
+Number of markers found: 4
+dumping to ./Markers.colon.bed
+```
 
