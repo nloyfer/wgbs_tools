@@ -162,12 +162,36 @@ Lung_STL002.small,lung
 Pancreas_STL002.small,pancreas
 Sigmoid_Colon_STL003.small,colon
 ```
-And find DMRs for the colon sample as follows:
+And find DMRs for the colon, the pancreas and the lung samples as follows:
 ```bash
-$ wgbstools find_markers --blocks_path blocks.small.bed.gz --groups_file bams/groups.csv --targets colon --betas *beta --min_cpg 4
+$ wgbstools find_markers --blocks_path blocks.small.bed.gz --groups_file bams/groups.csv --betas *beta --delta .3
 dumped parameter file to ./params.txt
-target: colon
-Number of markers found: 4
+Number of markers found: 3
 dumping to ./Markers.colon.bed
+Number of markers found: 1
+dumping to ./Markers.lung.bed
+Number of markers found: 0
+dumping to ./Markers.pancreas.bed
 ```
+Here are the output markers (None found for the pancreas):
+```bash
+$ head Markers.*.bed
+==> Markers.colon.bed <==
+chr3    119528384       119528418       5394782 5394786 colon   chr3:119528384-119528418        4CpGs   34bp    0.92    0.45    46      M
+chr3    119528430       119528783       5394786 5394796 colon   chr3:119528430-119528783        10CpGs  353bp   0.76    0.28    48      M
+chr3    119528806       119529245       5394796 5394834 colon   chr3:119528806-119529245        38CpGs  439bp   0.76    0.0     75      M
 
+==> Markers.lung.bed <==
+chr3    119528246       119528309       5394777 5394781 lung    chr3:119528246-119528309        4CpGs   63bp    0.43    0.73    30      U
+
+==> Markers.pancreas.bed <==
+```
+The 10th-11th columns are the target and background methylation average for this block.
+When there is more than one sample in a group, these values show the quantiles for the respected groups (e.g. for the first block, chr3:119528384-119528418, 0.45 is the 0.975-th quantile of the "non colon" group of samples). See supplemental/find_markers_config.txt for more information.
+The 12th is the difference between them (multiplied by 100).
+
+
+Let's take a look at the markers:
+```bash
+for target in `tail +2 bams/groups.csv| cut -f2 -d,`; do echo "=====\n$target\n====="; for r in `cut -f7 Markers.$target.bed`; do echo "$r\n"; wgbstools vis *beta -r $r; done ; done
+```
