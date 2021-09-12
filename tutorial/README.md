@@ -190,7 +190,7 @@ The 10th-11th columns are the target and background methylation average for this
 When there is more than one sample in a group, these values show the quantiles for the respected groups (e.g. for the first block, chr3:119528384-119528418, 0.45 is the 0.975-th quantile of the "non colon" group of samples). See `supplemental/find_markers_config.txt` for more information.
 The 12th is the difference between them (multiplied by 100).
 
-[`supplemental/find_markers_config.txt`](supplemental/find_markers_config.txt)
+[`supplemental/find_markers_config.txt`](../supplemental/find_markers_config.txt)
 
 Let's take a look at the markers:
 ```bash
