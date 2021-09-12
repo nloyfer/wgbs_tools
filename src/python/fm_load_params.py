@@ -107,7 +107,6 @@ class MFParams:
             validate_single_file(self.beta_list_file)
             with open(self.beta_list_file, 'r') as f:
                 self.betas = [l.strip() for l in f.readlines()]
-                print(len(self.betas))
         validate_file_list(self.betas)
 
 
