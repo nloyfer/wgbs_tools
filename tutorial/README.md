@@ -156,17 +156,17 @@ Other than these required arguments, there are plenty of configuration arguments
 
 We use the following group file:
 ```bash
-$ cat groups.csv
+$ cat bams/groups.csv
 name,group
-Lung_STL002.small,background
-Pancreas_STL002.small,background
+Lung_STL002.small,lung
+Pancreas_STL002.small,pancreas
 Sigmoid_Colon_STL003.small,colon
 ```
 And find DMRs for the colon sample as follows:
 ```bash
-$ wgbstools find_markers --blocks_path blocks.small.bed.gz --groups_file groups.csv --targets colon --betas *beta --min_cpg 4
+$ wgbstools find_markers --blocks_path blocks.small.bed.gz --groups_file bams/groups.csv --targets colon --betas *beta --min_cpg 4
 dumped parameter file to ./params.txt
-colon
+target: colon
 Number of markers found: 4
 dumping to ./Markers.colon.bed
 ```
