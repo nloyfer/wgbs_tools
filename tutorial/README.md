@@ -193,5 +193,8 @@ The 12th is the difference between them (multiplied by 100).
 
 Let's take a look at the markers:
 ```bash
-for target in `tail +2 bams/groups.csv| cut -f2 -d,`; do echo "=====\n$target\n====="; for r in `cut -f7 Markers.$target.bed`; do echo "$r\n"; wgbstools vis *beta -r $r; done ; done
+for target in `tail +2 bams/groups.csv| cut -f2 -d,`; do echo "=====\n$target\n====="; for r in `cut -f7 Markers.$target.bed`; do echo "$r\n"; wgbstools vis *beta -r $r -b blocks.small.bed.gz; done ; done
 ```
+
+<!--![alt text](images/wt_vis_markers.png "beta vis all markers")-->
+<img src="images/wt_vis_markers.png" width="400" height="600" />
