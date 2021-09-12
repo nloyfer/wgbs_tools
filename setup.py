@@ -24,6 +24,7 @@ def compile_single(cmd, name, verbose):
 
     # If failed:
     if p.returncode:
+        eprint('\033[01;31mFAIL\033[00m')
         eprint("Failed compilation.\nCommand: {}\nreturn code: {}\nstderr:\n{}\nstdout:\n{}".
                format(cmd, p.returncode, output.decode(), error.decode()))
         eprint(f'Failed compiling {name}')
@@ -33,7 +34,7 @@ def compile_single(cmd, name, verbose):
     elif verbose:
         eprint(cmd)
         eprint(output.decode())
-    eprint('success')
+    eprint('\033[01;32mSUCCESS\033[00m')
 
 
 def compile_all(args):
