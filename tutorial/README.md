@@ -187,7 +187,7 @@ chr3    119528246       119528309       5394777 5394781 lung    chr3:119528246-1
 ==> Markers.pancreas.bed <==
 ```
 The 10th-11th columns are the target and background methylation average for this block.
-When there is more than one sample in a group, these values show the quantiles for the respected groups (e.g. for the first block, chr3:119528384-119528418, 0.45 is the 0.975-th quantile of the "non colon" group of samples). See supplemental/find_markers_config.txt for more information.
+When there is more than one sample in a group, these values show the quantiles for the respected groups (e.g. for the first block, chr3:119528384-119528418, 0.45 is the 0.975-th quantile of the "non colon" group of samples). See `supplemental/find_markers_config.txt` for more information.
 The 12th is the difference between them (multiplied by 100).
 
 
@@ -197,4 +197,4 @@ for target in `tail +2 bams/groups.csv| cut -f2 -d,`; do echo "=====\n$target\n=
 ```
 
 <!--![alt text](images/wt_vis_markers.png "beta vis all markers")-->
-<img src="images/wt_vis_markers.png" width="700" height="700" />
+<img src="images/wt_vis_markers.png" width="600" height="600" />
