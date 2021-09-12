@@ -44,7 +44,7 @@ exon    NR1I2
 ```
 
 ### Generate pat & beta files
-To generate [`pat`](docs/pat_format.md) and [`beta`](docs/beta_format.md)) files for each of the samples, we use the `bam2pat` command.
+To generate [`pat`](../docs/pat_format.md) and [`beta`](../docs/beta_format.md)) files for each of the samples, we use the `bam2pat` command.
 ```bash
 $ wgbstools bam2pat bams/*.bam -r $region
 [wt bam2pat] bam: bams/Lung_STL002.small.bam
@@ -187,10 +187,8 @@ chr3    119528246       119528309       5394777 5394781 lung    chr3:119528246-1
 ==> Markers.pancreas.bed <==
 ```
 The 10th-11th columns are the target and background methylation average for this block.
-When there is more than one sample in a group, these values show the quantiles for the respected groups (e.g. for the first block, chr3:119528384-119528418, 0.45 is the 0.975-th quantile of the "non colon" group of samples). See `supplemental/find_markers_config.txt` for more information.
+When there is more than one sample in a group, these values show the quantiles for the respected groups (e.g. for the first block, chr3:119528384-119528418, 0.45 is the 0.975-th quantile of the "non colon" group of samples). See [`supplemental/find_markers_config.txt`](../supplemental/find_markers_config.txt) for more information.
 The 12th is the difference between them (multiplied by 100).
-
-[`supplemental/find_markers_config.txt`](../supplemental/find_markers_config.txt)
 
 Let's take a look at the markers:
 ```bash
