@@ -12,7 +12,7 @@ na_rate_tg:.334
 na_rate_bg:.334
 only_hyper:False
 only_hypo:False
-delta:0.1
+delta:0.3
 tg_quant:0.25
 bg_quant:0.025
 unmeth_thresh:1.0
