@@ -1,6 +1,7 @@
 blocks_path:NA
 groups_file:NA
 targets:NA
+background:NA
 beta_list_file:NA
 betas:NA
 min_bp:0

@@ -116,7 +116,8 @@ def parse_args():
             help=f'find_markers config file see {COS_CONF_PATH} for example')
     parser.add_argument('--blocks_path', '-b', help='Blocks bed path.')
     parser.add_argument('--groups_file', '-g', help='csv file of groups')
-    parser.add_argument('--targets', nargs='+', help='find markers only for these groups')
+    parser.add_argument('--targets', nargs='+', help='find markers only for these groups (OR relation)')
+    parser.add_argument('--background', nargs='+', help='find markers only against these groups (AND relation)')
     betas_group = parser.add_mutually_exclusive_group()
     betas_group.add_argument('--betas', nargs='+',
             help='beta file paths. files not in the group files are ignored')

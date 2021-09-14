@@ -6,6 +6,7 @@ import subprocess
 import sys
 import numpy as np
 import pandas as pd
+from difflib import get_close_matches
 
 from beta_to_blocks import load_blocks_file
 from betas_to_table import get_table, groups_load_wrap
@@ -13,7 +14,6 @@ from dmb import load_gfile_helper, match_prefix_to_bin
 from utils_wgbs import validate_single_file, add_multi_thread_args, \
         validate_file_list, eprint, drop_dup_keep_order, IllegalArgumentError
 from fm_load_params import MFParams, parse_args
-
 
 
 def load_group_file(groups_file, betas):
@@ -24,27 +24,36 @@ def load_group_file(groups_file, betas):
     return gf
 
 
-def get_validate_targets(targets, groups):
-    # validate target is in groups file
-    if not targets:
+def get_validate_targets(subset, groups):
+    # groups: a list of all groups that appeared in the group file
+    # subset: a subset of groups from the groups file
+    # validate group in subset appears in the in groups file
+
+    # if subset is None, return the whole set
+    if not subset:
         return groups
-    for target in targets:
-        if target not in groups:
-            eprint(f'Invalid target: {target}')
-            eprint('Possible targets:', groups)
+
+    # validate all instances in "subset" do belong to "groups"
+    for group in subset:
+        if group not in groups:
+            # Invalid group. suggest the closest alternative and abort.
+            close = [c for c in get_close_matches(group, groups)][0]
+            eprint(f'Invalid group: {group}. Did you mean {close}?')
+            eprint('All possible groups:', groups)
             raise IllegalArgumentError()
-    return targets
+    return subset
 
 
-def set_bg_tg_names(gf, targets):
+def set_bg_tg_names(gf, targets, background):
     r = {}
     for group in targets:
         tg_names = gf[gf['group'] == group]['fname'].values
-        bg_names = drop_dup_keep_order(gf[gf['group'] != group]['fname'])
+        # bg_names = drop_dup_keep_order(gf[gf['group'] != group]['fname'])
+        bg_names = gf[gf['group'].isin(background)]['fname'].unique()
 
         # remove from bg_names samples shared with tg_names
         bg_names = [s for s in bg_names if s not in tg_names]
-        assert(len(bg_names) + len(tg_names) == len(set(gf['fname'])))
+        assert(len(bg_names) + len(tg_names) <= len(set(gf['fname'])))
         r[group] = tg_names, bg_names
     return r
 
@@ -66,8 +75,9 @@ class MarkerFinder:
         self.gf = load_group_file(args.groups_file, args.betas)
         groups = sorted(self.gf['group'].unique())
         self.targets = get_validate_targets(self.args.targets, groups)
+        self.background = get_validate_targets(self.args.background, groups)
         self.res = {t: pd.DataFrame() for t in self.targets}
-        self.inds_dict = set_bg_tg_names(self.gf, self.targets)
+        self.inds_dict = set_bg_tg_names(self.gf, self.targets, self.background)
 
     def run(self):
 

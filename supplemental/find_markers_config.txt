@@ -35,6 +35,15 @@ groups_file: NA
 # TARGETS is a space-separated list of groups/labels.
 targets: NA
 
+# It's possible to find markers only against a subset of the groups, BACKGROUND.
+# If not specified, the markers will be found for all targets in a "one vs. all" manner.
+# This is the default behaviour.
+# Otherwise, background must be a subset of the groups in the group file.
+# Each target in "targets" will be compared to all groups in the "background" set (excluding samples that belong the the current target).
+# BACKGROUND is a space-separated list of groups/labels.
+background:NA
+
+
 # a list of beta files
 # Can either be supplied directly (a string) or as file 
 # all the samples listed in GROUPS_FILE must be listed in this list.
