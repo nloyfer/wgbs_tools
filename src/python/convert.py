@@ -62,8 +62,8 @@ def convert_bed_file(args):
         bed_file = sys.stdin
     add_anno = (not args.parsable) and (not args.no_anno)
 
-    if not check_executable('bedtools', verbose=True):
-        eprint('continue with a slower implementation')
+    if not check_executable('bedtools', verbose=False):
+        # eprint('continue with a slower implementation')
         r = add_cpgs_to_bed(bed_file=bed_file,
                 genome=args.genome,
                 drop_empty=args.drop_empty,
