@@ -54,6 +54,8 @@ def set_bg_tg_names(gf, targets, background):
         # remove from bg_names samples shared with tg_names
         bg_names = [s for s in bg_names if s not in tg_names]
         assert(len(bg_names) + len(tg_names) <= len(set(gf['fname'])))
+        assert len(bg_names)
+        assert len(tg_names)
         r[group] = tg_names, bg_names
     return r
 
