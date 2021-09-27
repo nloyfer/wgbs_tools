@@ -5,6 +5,7 @@ import os.path as op
 import subprocess
 import sys
 import numpy as np
+from math import ceil
 import pandas as pd
 from difflib import get_close_matches
 
@@ -68,6 +69,8 @@ class MarkerFinder:
         self.tg_names = []
         self.bg_names = []
         self.inds_dict = {}
+        self.chunk_count = 0
+        self.nr_chunks = 1
 
         # validate output dir:
         if not op.isdir(args.out_dir):
@@ -90,6 +93,9 @@ class MarkerFinder:
         blocks = self.load_blocks()
         # load data in chunks
         chunk_size = self.args.chunk_size
+        self.nr_chunks = ceil(blocks.shape[0] / chunk_size)
+        if self.verbose:
+            eprint(f'processing data in {self.nr_chunks} chunks...')
         for start in range(0, blocks.shape[0], chunk_size):
             self.proc_chunk(blocks.iloc[start:start + chunk_size])
 
@@ -142,8 +148,10 @@ class MarkerFinder:
     def load_data_chunk(self, blocks_df):
         # load methylation data from beta files collapsed to the blocks in blocks_df
         if self.verbose:
+            self.chunk_count += 1
             nr_samples = len(self.gf['fname'].unique())
-            eprint(f'loading data for {blocks_df.shape[0]:,} blocks over' \
+            eprint(f'{self.chunk_count}/{self.nr_chunks} ) ' \
+                   f'loading data for {blocks_df.shape[0]:,} blocks over' \
                    f' {nr_samples} samples...')
         return get_table(blocks_df=blocks_df.copy(),
                          gf=self.gf,
@@ -167,10 +175,8 @@ class MarkerFinder:
         tf = self.df.copy()
 
         # filter blocks by coverage:
-        df_tg = tf[self.tg_names]
-        df_bg = tf[self.bg_names]
-        keep_tg = (df_tg.notna().sum(axis=1) / (df_tg.shape[1])) >= (1 - self.args.na_rate_tg)
-        keep_bg = (df_bg.notna().sum(axis=1) / (df_bg.shape[1])) >= (1 - self.args.na_rate_bg)
+        keep_tg = (tf[self.tg_names].notna().sum(axis=1) / len(self.tg_names)) >= (1 - self.args.na_rate_tg)
+        keep_bg = (tf[self.bg_names].notna().sum(axis=1) / len(self.bg_names)) >= (1 - self.args.na_rate_bg)
         tf = tf.loc[keep_tg & keep_bg, :].reset_index(drop=True)
 
         # find markers:
@@ -186,23 +192,16 @@ class MarkerFinder:
             return pd.DataFrame()
 
         # filter by mean thresholds
-        df_bg = tf[self.bg_names]
-        df_tg = tf[self.tg_names]
-        keep_umt = np.nanmean(df_bg.values, axis=1) <= self.args.unmeth_mean_thresh
-        keep_mmt = np.nanmean(df_tg.values, axis=1) >= self.args.meth_mean_thresh
-        keep = keep_umt & keep_mmt
-
-        tfM = tf.loc[keep, :].copy()
-        tfM['direction'] = 'M'
-        df_tg = tf.loc[keep, self.tg_names].fillna(.5)
-        df_bg = tf.loc[keep, self.bg_names].fillna(.5)
+        keep_umt = np.nanmean(tf[self.bg_names], axis=1) <= self.args.unmeth_mean_thresh
+        keep_mmt = np.nanmean(tf[self.tg_names], axis=1) >= self.args.meth_mean_thresh
+        tfM = tf.loc[keep_umt & keep_mmt, :]
 
         # filter by quantile thresholds
-        tfM['tg'] = np.quantile(df_tg,
+        tfM['tg'] = np.quantile(tfM[self.tg_names].fillna(.5),
                                 self.args.tg_quant,
                                 interpolation='lower',
                                 axis=1)
-        tfM['bg'] = np.quantile(df_bg,
+        tfM['bg'] = np.quantile(tfM[self.bg_names].fillna(.5),
                                 1 - self.args.bg_quant,
                                 interpolation='higher',
                                 axis=1)
@@ -210,12 +209,12 @@ class MarkerFinder:
         tfM = tfM[(tfM['tg'] - tfM['bg'] >= self.args.delta)].reset_index(drop=True)
         if tfM.empty:
             return tfM
+
         # high & low
         keep_ut = tfM['bg'] <= self.args.unmeth_thresh
         keep_mt = tfM['tg'] >= self.args.meth_thresh
-        keep = keep_ut & keep_mt
-        tfM = tfM.loc[keep, :]
-
+        tfM = tfM.loc[keep_ut & keep_mt, :]
+        tfM['direction'] = 'M'
         return tfM
 
     def find_U_markers(self, tf):
@@ -223,22 +222,17 @@ class MarkerFinder:
         if self.args.only_hyper:
             return pd.DataFrame()
 
-        df_bg = tf[self.bg_names]
-        df_tg = tf[self.tg_names]
-        keep_umt = np.nanmean(df_tg.values, axis=1) <= self.args.unmeth_mean_thresh
-        keep_mmt = np.nanmean(df_bg.values, axis=1) >= self.args.meth_mean_thresh
-        keep = keep_umt & keep_mmt
+        # filter by mean thresholds
+        keep_umt = np.nanmean(tf[self.tg_names], axis=1) <= self.args.unmeth_mean_thresh
+        keep_mmt = np.nanmean(tf[self.bg_names], axis=1) >= self.args.meth_mean_thresh
+        tfU = tf.loc[keep_umt & keep_mmt, :]
 
-        tfU = tf.loc[keep, :].copy()
-        tfU['direction'] = 'U'
-        df_tg = tf.loc[keep, self.tg_names].fillna(.5)
-        df_bg = tf.loc[keep, self.bg_names].fillna(.5)
-
-        tfU['tg'] = np.quantile(df_tg,
+        # filter by quantile thresholds
+        tfU['tg'] = np.quantile(tfU[self.tg_names].fillna(.5),
                                 1 - self.args.tg_quant,
                                 interpolation='higher',
                                 axis=1)
-        tfU['bg'] = np.quantile(df_bg,
+        tfU['bg'] = np.quantile(tfU[self.bg_names].fillna(.5),
                                 self.args.bg_quant,
                                 interpolation='lower',
                                 axis=1)
@@ -246,11 +240,12 @@ class MarkerFinder:
         tfU = tfU[(tfU['bg'] - tfU['tg'] >= self.args.delta)].reset_index(drop=True)
         if tfU.empty:
             return tfU
+
         # high & low
         keep_ut = tfU['tg'] <= self.args.unmeth_thresh
         keep_mt = tfU['bg'] >= self.args.meth_thresh
-        keep = keep_ut & keep_mt
-        tfU = tfU.loc[keep, :]
+        tfU = tfU.loc[keep_ut & keep_mt, :]
+        tfU['direction'] = 'U'
         return tfU
 
     #############################
