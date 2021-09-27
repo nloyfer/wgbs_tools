@@ -96,6 +96,9 @@ class MFParams:
                 eprint(f'[wt fm] missing required parameter: {key}')
                 raise IllegalArgumentError()
             validate_single_file(val)
+            # change path to absolute path
+            setattr(self, key, op.abspath(val))
+
 
         # validate betas
         if (self.betas is None and self.beta_list_file is None) or \
