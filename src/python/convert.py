@@ -70,7 +70,8 @@ def convert_bed_file(args):
                 threads=args.threads,
                 add_anno=add_anno)
     else:
-        r = bedtools_conversion(bed_file, args.genome, args.drop_empty, add_anno)
+        r = bedtools_conversion(bed_file, args.genome,
+                args.drop_empty, add_anno, args.debug)
     r.to_csv(out_path, sep='\t', header=None, index=None, na_rep='NA')
 
 
@@ -84,7 +85,7 @@ def load_bed(bed_path, nrows=None):
         eprint(f'[wt convert] ERROR: empty bed file')
         raise IllegalArgumentError('Invalid bed file')
 
-def bedtools_conversion(bed_file, genome, drop_empty, add_anno):
+def bedtools_conversion(bed_file, genome, drop_empty, add_anno, debug):
     df = load_bed(bed_file)
     tmp_name = tempfile.NamedTemporaryFile().name
     df.sort_values(by=['chr', 'start']).drop_duplicates().iloc[:, :3].to_csv(tmp_name, sep='\t', header=None, index=None)
@@ -96,9 +97,11 @@ def bedtools_conversion(bed_file, genome, drop_empty, add_anno):
     cmd += f"bedtools groupby -g 1,2,3 -c 7,7 -o first,last | "
     cmd += " awk -v OFS='\t' '{print $1,$2,$3,$4,$5+1;}' "
     cmd += "| sed 's/\.\t1/NA\tNA/g'"       # replace missing values with (NA)s
-    # eprint(cmd.replace('\t', '\\t'))
+    if debug:
+        eprint(cmd.replace('\t', '\\t'))
     rf = read_shell(cmd, names=COORDS_COLS5)
-    # os.unlink(tmp_name)
+    if not debug:
+        os.unlink(tmp_name)
 
     df = df.merge(rf, how='left', on=COORDS_COLS3)
     df = df[COORDS_COLS5 + list(df.columns)[3:-2]]
@@ -317,7 +320,7 @@ def get_anno(df, genome):
                f'             {msg}')
         return df
     from pybedtools import BedTool
-    bt = BedTool.from_dataframe(df.iloc[:, :3]).intersect(BedTool(anno_path), wao=True)
+    bt = BedTool.from_dataframe(df.sort_values(by=['chr', 'start']).iloc[:, :3]).intersect(BedTool(anno_path), wao=True)
     names = COORDS_COLS3 + ['type', 'gene']
     annodf = bt.merge(c='7,8',o='distinct,distinct').to_dataframe(names=names)
     return df.merge(annodf, how='left', on=COORDS_COLS3)
