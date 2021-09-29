@@ -103,13 +103,13 @@ def bedtools_conversion(bed_file, genome, drop_empty, add_anno, debug):
     if not debug:
         os.unlink(tmp_name)
 
+    # if there are missing values, the CpG columns' type 
+    # will be float or object. Change it to Int64
+    if rf['startCpG'].dtype != int:
+        rf = rf.astype({'startCpG': 'Int64', 'endCpG': 'Int64'})
+
     df = df.merge(rf, how='left', on=COORDS_COLS3)
     df = df[COORDS_COLS5 + list(df.columns)[3:-2]]
-
-    # if there are missing values, the CpG columns' type will be float or object. Change it to Int64
-    if df.startCpG.isna().sum() > 0:
-        df['endCpG'] = df['endCpG'].astype('Int64')
-        df['startCpG'] = df['startCpG'].astype('Int64')
 
     if drop_empty:
         df.dropna(inplace=True, subset=['startCpG', 'endCpG'])
