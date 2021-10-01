@@ -46,8 +46,10 @@ The default reference genome for any wgbstools command from now on will be `hg19
 #### Multiple reference genomes
 wgbstools supports multiple reference genomes. The default genome is the last genome configured using the `init_genome` command. To change the default genome, run `set_default_ref`, for example:
 ```bash
-# download and setup the mm9 reference
+# download and setup the mm9 reference with:
 wgbs_tools init_genome mm9
-# Now the default ref is mm9. change it back to hg19:
+# Now the default ref is mm9. change it back to hg19 with:
 wgbstools set_default_ref --name hg19
+# to list the configured genomes and the default one, run:
+wgbstools set_default_ref -ls
 ```
