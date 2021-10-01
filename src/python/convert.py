@@ -328,7 +328,7 @@ def get_anno(df, genome):
         return df.merge(annodf, how='left', on=COORDS_COLS3)
     except ImportError as e:
         eprint(f'[wt convert] WARNING: No annotations added.\n'  \
-               f'             please install pybedtools.\n')
+               f'             install pybedtools to get annotations.\n')
         return df
 
 
