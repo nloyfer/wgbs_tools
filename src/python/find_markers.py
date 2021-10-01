@@ -102,6 +102,7 @@ class MarkerFinder:
         # dump results:
         for target in self.targets:
             self.group = target
+            self.tg_names, self.bg_names = self.inds_dict[self.group]
             self.dump_results(self.res[target].reset_index(drop=True))
 
     def proc_chunk(self, blocks_df):
@@ -266,7 +267,9 @@ class MarkerFinder:
         cols_to_dump = ['chr', 'start', 'end', 'startCpG', 'endCpG',
                         'target', 'region', 'lenCpG', 'bp', 'tg',
                         'bg', 'delta', 'direction']
-        self.dump_single_df(tf[cols_to_dump].round(2))
+        if not tf.empty:
+            tf = tf[cols_to_dump].round(2)
+        self.dump_single_df(tf)
 
     def dump_single_df(self, df):
         """ Dump the results, with comments header """
@@ -275,7 +278,6 @@ class MarkerFinder:
         eprint(f'dumping to {outpath}')
         df_mode = 'w'
 
-        # todo: add all parameters to a config file in the same directory. or to header
         # write header:
         if self.args.header:
             # write header (comments):
