@@ -112,14 +112,17 @@ class InitGenome:
 
         # load fai file
         try:
-            df = pd.read_csv(fai_path, sep='\t', header=None, usecols=[0, 1, 2, 4],
+            df = pd.read_csv(fai_path, sep='\t',
+                             header=None,
+                             usecols=[0, 1, 2, 4],
                              names=['chr', 'size', 'offset', 'width'])
             # filter invalid chromosomes
             df = df[df.apply(lambda x: is_valid_chrome(x['chr']), axis=1)]
 
             # sort chromosomes:
             if not self.args.no_sort:
-                df = pd.DataFrame(sorted(df['chr'], key=chromosome_order), columns=['chr']).merge(df, how='left')
+                df = pd.DataFrame(sorted(df['chr'], key=chromosome_order),
+                        columns=['chr']).merge(df, how='left')
             return df
         except pd.errors.ParserError as e:
             raise IllegalArgumentError(f'Invalid fai file.\n{e}')
@@ -252,9 +255,11 @@ def parse_args():
     parser.add_argument('name', help='name of the genome (e.g. hg19, mm9...).\n'
                                      'A directory of this name will be created '
                                      'in references/')
-    parser.add_argument('--fasta_path', help='path to a reference genome FASTA file.\n' \
-                        ' If none provided, wgbstools will attempt to download one from UCSC')
-    parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing files if existed')
+    parser.add_argument('--fasta_path',
+            help='path to a reference genome FASTA file.\n' \
+                 ' If none provided, wgbstools will attempt to download one from UCSC')
+    parser.add_argument('-f', '--force', action='store_true',
+            help='Overwrite existing files if existed')
     parser.add_argument('--no_default', action='store_true',
             help='Do not set this genome as the default reference for wgbstools.\n' \
                     'This setting can be changed with wgbstools set_default_ref')
