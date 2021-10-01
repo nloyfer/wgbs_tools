@@ -17,6 +17,7 @@
 #include <iomanip>      // std::setprecision
 #include <fstream>
 //#include <string_view>
+#include <array>        // std::array
 #include <cstdio>
 #include <memory>
 #include <stdexcept>
