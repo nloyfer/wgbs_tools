@@ -9,7 +9,7 @@ import pandas as pd
 import math
 import os
 from multiprocessing import Pool
-from dmb import load_gfile_helper, match_prefix_to_bin
+from dmb import load_gfile_helper, match_prefix_to_bin, load_uxm
 from beta_to_blocks import collapse_process, load_blocks_file, is_block_file_nice
 from utils_wgbs import validate_single_file, validate_file_list, eprint, \
                        IllegalArgumentError, beta2vec, add_multi_thread_args, \
@@ -50,10 +50,16 @@ def groups_load_wrap(groups_file, betas):
     return gf
 
 
-def cwrap(beta_path, blocks_df, is_nice, verbose):
-    if verbose:
-        eprint('[wt table]', op.splitext(op.basename(beta_path))[0])
-    return collapse_process(beta_path, blocks_df, is_nice)
+def cwrap(beta_path, blocks_df, is_nice, min_cov, verbose):
+    # if verbose:
+        # eprint('[wt table]', op.splitext(op.basename(beta_path))[0])
+    if beta_path.endswith('.beta'):
+        r = collapse_process(beta_path, blocks_df, is_nice)
+        if r is not None:
+            d, v = r.popitem()
+            return {d: beta2vec(v, min_cov)}
+    else:
+        return {op.basename(beta_path)[:-4] : load_uxm(beta_path, blocks_df, 'U', min_cov)}
 
 
 def get_table(blocks_df, gf, min_cov, threads=8, verbose=False, group=True):
@@ -62,14 +68,14 @@ def get_table(blocks_df, gf, min_cov, threads=8, verbose=False, group=True):
         eprint(f'[wt table] reducing to {blocks_df.shape[0]:,} blocks')
     betas = drop_dup_keep_order(gf['full_path'])
     p = Pool(threads)
-    params = [(b, blocks_df, is_nice, verbose) for b in betas]
+    params = [(b, blocks_df, is_nice, min_cov, verbose) for b in betas]
     # arr = [cwrap(*p) for p in params] # todo: remove
     arr = p.starmap(cwrap, params)
     p.close()
     p.join()
 
     dicts = [d for d in arr if d is not None]
-    dres = {k: beta2vec(v, min_cov) for d in dicts for k, v in d.items()}
+    dres = {k: v for d in dicts for k, v in d.items()}
     if not group:
         for b in gf['fname']:
             blocks_df[b] = dres[b]
@@ -120,7 +126,7 @@ def beta2table_generator(betas, blocks, groups_file, min_cov, threads, chunk_siz
     if chunk_size is None:
         chunk_size = blocks_df.shape[0]
     for start in range(0, blocks_df.shape[0], chunk_size):
-        subset_blocks = blocks_df.iloc[start:start + chunk_size].copy().reset_index(drop=True)
+        subset_blocks = blocks_df.iloc[start:start + chunk_size].copy()
         yield get_table(subset_blocks, gf, min_cov, threads, verbose)
 
 
