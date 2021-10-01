@@ -1,7 +1,7 @@
 # Initialize a new genome reference
 
 Setup a reference genome (e.g., hg19, mm9). This is a necessary step before using any other command.
-This command generates a directory with the genome name in the "references" directory, and saves there about 100-200Mb of indexing files that are necessary for other wgbstools command.
+This command generates a directory with the genome name in the "references" directory, and saves there about 100-200Mb of indexing files that are necessary for other wgbstools commands.
 When you setup a reference genome, it becomes the default genome for wgbstools from now on, until you set another genome as the default (`wgbstools set_default_ref`).
 
 ```
@@ -38,5 +38,16 @@ For example,
 ```
 wgbs_tools init_genome hg19 --fasta_path /path/to/my/genome.fa
 ```
-Will generate some necessary files in references/hg19/.
+Will generate some necessary files in `references/hg19/`.
+
 If no `fasta_path` is specified, `wgbstools` will attempt to download a fasta file with that name from UCSC.
+The default reference genome for any wgbstools command from now on will be `hg19`.
+
+#### Multiple reference genomes
+wgbstools supports multiple reference genomes. The default genome is the last genome configured using the `init_genome` command. To change the default genome, run `set_default_ref`, for example:
+```bash
+# download and setup the mm9 reference
+wgbs_tools init_genome mm9
+# Now the default ref is mm9. change it back to hg19:
+wgbstools set_default_ref --name hg19
+```
