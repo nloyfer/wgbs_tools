@@ -10,6 +10,7 @@ import sys
 import subprocess
 from io import StringIO
 from beta_to_blocks import load_blocks_file, is_block_file_nice
+from convert import COORDS_COLS5
 from utils_wgbs import IllegalArgumentError, add_multi_thread_args, \
         homog_tool, main_script, splitextgz, GenomeRefPaths, validate_file_list
 
@@ -53,7 +54,7 @@ def trim_uxm_to_uint8(data, nr_bits):
     res = data.astype(dtype)
     return res
 
-def homog_chrom(pat, name, blocks_path, chrom, rates_cmd, view_full):
+def homog_chrom(pat, name, blocks, blocks_path, chrom, rates_cmd, view_full):
     if view_full:
         cmd = f'tabix {pat} {chrom}'
     else:
@@ -66,6 +67,7 @@ def homog_chrom(pat, name, blocks_path, chrom, rates_cmd, view_full):
     if df.values.sum() == 0:
         homog_log(f' [ {name}.{chrom} ] WARNING: all zeros!')
 
+    df = pd.concat([blocks.reset_index(drop=True), df], axis=1)
     return df
 
 def should_be_skipped(force, bin_path, bed_path, binary, bed):
@@ -103,17 +105,19 @@ def homog_process(pat, blocks, args):
     cf = GenomeRefPaths(args.genome).get_chrom_cpg_size_table()
     chroms = sorted(set(cf.chr) & set(blocks.chr))
     p = Pool(args.threads)
-    params = [(pat, name, args.blocks_file, c, rate_cmd,
+    params = [(pat, name, blocks[blocks['chr'] ==c],
+               args.blocks_file, c, rate_cmd,
                view_full) for c in chroms]
     arr = p.starmap(homog_chrom, params)
     p.close()
     p.join()
 
     df = pd.concat(arr).reset_index(drop=True)
+    df = blocks.merge(df, how='left', on=COORDS_COLS5)
+
     if binary:
-        trim_uxm_to_uint8(df.values, args.nr_bits).tofile(bin_path)
+        trim_uxm_to_uint8(df[list('UXM')].values, args.nr_bits).tofile(bin_path)
     if bed:
-        df = pd.concat([blocks, df], axis=1)
         df.to_csv(bed_path, sep='\t', header=None, index=None)
     return df
 
