@@ -319,11 +319,17 @@ def get_anno(df, genome):
                f'             Incompatible input BED file.\n' \
                f'             {msg}')
         return df
-    from pybedtools import BedTool
-    bt = BedTool.from_dataframe(df.sort_values(by=['chr', 'start']).iloc[:, :3]).intersect(BedTool(anno_path), wao=True)
-    names = COORDS_COLS3 + ['type', 'gene']
-    annodf = bt.merge(c='7,8',o='distinct,distinct').to_dataframe(names=names)
-    return df.merge(annodf, how='left', on=COORDS_COLS3)
+    try:
+        from pybedtools import BedTool
+        bt = BedTool.from_dataframe(df.sort_values(by=['chr',
+            'start']).iloc[:, :3]).intersect(BedTool(anno_path), wao=True)
+        names = COORDS_COLS3 + ['type', 'gene']
+        annodf = bt.merge(c='7,8',o='distinct,distinct').to_dataframe(names=names)
+        return df.merge(annodf, how='left', on=COORDS_COLS3)
+    except ImportError as e:
+        eprint(f'[wt convert] WARNING: No annotations added.\n'  \
+               f'             please install pybedtools.\n')
+        return df
 
 
 def is_block_file_nice(df):
