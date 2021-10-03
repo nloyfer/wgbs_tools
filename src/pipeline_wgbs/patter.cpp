@@ -340,7 +340,7 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
         std::string meth_pattern;
         bool reversed;
         if (is_paired_end) {
-            reversed = ((samflag == 83) || (samflag == 163));
+            reversed = ( ((samflag & 0x53) == 83) || ((samflag & 0xA3) == 163) );
         } else {
             reversed = ((samflag & 0x0010) == 16);
         }
