@@ -35,7 +35,8 @@ def compile_single(cmd, name, verbose):
     elif verbose:
         eprint(cmd)
         eprint(output.decode())
-    eprint('\033[01;32mSUCCESS\033[00m')
+    else:
+        eprint('\033[01;32mSUCCESS\033[00m')
 
 modules = {
         'stdin2beta' : 'g++ -std=c++11 src/pat2beta/stdin2beta.cpp -o src/pat2beta/stdin2beta',
