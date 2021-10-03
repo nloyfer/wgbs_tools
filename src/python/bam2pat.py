@@ -1,6 +1,5 @@
 #!/usr/bin/python3 -u
 
-
 import os
 import os.path as op
 import argparse
@@ -25,9 +24,18 @@ PAT_SUFF = '.pat.gz'
 # And missing values (255)
 MAPQ = 10
 FLAGS_FILTER = 1796  # filter flags with these bits
+MAX_READ_SIZE = 1000 # extend samtools view region by this size
 
 CHROMS = ['X', 'Y', 'M', 'MT'] + list(range(1, 23))
 
+def extend_region(region, by):
+    if ':' not in region:
+        return region
+    chrom, r = region.split(':')
+    start, end = map(int, r.split('-'))
+    start = max(1, start - by)
+    end += by
+    return f'{chrom}:{start}-{end}'
 
 def subprocess_wrap(cmd, debug):
     if debug:
@@ -94,13 +102,9 @@ def proc_chr(bam, out_path, region, genome, chr_offset, paired_end, ex_flags, ma
             eprint('[wt bam2pat] ' + validation_cmd)
         return ''
 
-    chrom = region
-    if ':' in chrom:
-        chrom = chrom[:chrom.find(':')]
-    cmd += f' | {patter_tool} {genome.genome_path} {chr_offset[chrom]} '
+    region = extend_region(region, MAX_READ_SIZE)
+    cmd += f' | {patter_tool} {genome.dict_path} {region}'
     cmd += f' --min_cpg {min_cpg}'
-    if blueprint:
-        cmd += ' --blueprint '
     cmd += f' > {out_path}'
     if verbose:
         print(cmd)
@@ -264,11 +268,13 @@ class Bam2Pat:
         Indxer(pat_path, threads=self.args.threads).run()
         eprint(f'[wt bam2pat] generated {pat_path}')
 
-        beta_path = pat2beta(f'{pat_path}', self.out_dir, args=self.args)
-        eprint(f'[wt bam2pat] generated {beta_path}')
+        if not self.args.no_beta:
+            beta_path = pat2beta(f'{pat_path}', self.out_dir, args=self.args)
+            eprint(f'[wt bam2pat] generated {beta_path}')
 
 
 def parse_bam2pat_args(parser):
+    parser.add_argument('--no_beta', action='store_true', help='Do not generate a beta fils, only pat')
     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
     parser.add_argument('-T', '--temp_dir', help='passed to unix sort. Useful in case bam file is very large')
     lists = parser.add_mutually_exclusive_group()

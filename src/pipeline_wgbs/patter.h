@@ -45,10 +45,10 @@ public:
  
     // Current chromosome
     std::string chr;
-
-    /** CpG-Index offset of the current chromosome.
-     * i.e., How many CpGs there are before the first CpG in the current chromosome */
-    int chrom_offset;
+    std::string region;
+    int offset = 0;
+    //bool conv[1000000] = {false};
+    bool* conv = new bool[10000000]();
 
     std::string mbias_path;
     int min_cpg = 0;
@@ -58,19 +58,18 @@ public:
     int line_i = 0;
     clock_t tick = clock();
     bool is_paired_end = false;
-    bool blueprint = false;
     bool first_line(std::string &line);
 
     mbias_ss mbias[2];
 
-    patter(std::string refpath, int coff, bool bp, std::string mb, int mc):
-            ref_path(refpath), chrom_offset(coff), blueprint(bp), mbias_path(mb), min_cpg(mc) {}
-
+    patter(std::string refpath, std::string rgn, std::string mb, int mc):
+            ref_path(refpath), region(rgn), mbias_path(mb), min_cpg(mc) {}
+    ~patter() {delete[] conv;}
     void load_genome_ref();
     int find_cpg_inds_offset();
     std::vector<long> fasta_index();
 
-    int compareSeqToRef(std::string &seq, std::string &ref, bool reversed, std::string &meth_pattern);
+    int compareSeqToRef(std::string &seq, int start_locus, bool reversed, std::string &meth_pattern);
     void print_stats_msg();
     void dump_mbias();
     void print_progress();
