@@ -19,6 +19,14 @@ def set_hypo_hyper(hyper, hypo):
         return True, True
     return hyper, hypo
 
+def load_uxm(binpath, blocks_df, um, min_cov):
+    data = np.fromfile(binpath, np.uint8).reshape((-1, 3))[blocks_df.index, :]
+    covs = data.sum(axis=1)
+    cond = covs > min_cov
+    r = np.divide(data[:, um_ind_dict[um]], covs, where=cond)
+    r[~cond] = np.nan
+    return r.astype(np.float)
+
 class MarkersFinder:
     def __init__(self, args):
         self.args = args
@@ -110,17 +118,17 @@ class MarkersFinder:
         dfU = pd.DataFrame()
         dfM = pd.DataFrame()
         if self.hypo:
-            dfU = np.zeros((self.nr_blocks, self.gf_nodup.shape[0]), dtype=np.float16)
+            dfU = np.zeros((self.nr_blocks, self.gf_nodup.shape[0]), dtype=np.float)
         if self.hyper:
-            dfM = np.zeros((self.nr_blocks, self.gf_nodup.shape[0]), dtype=np.float16)
+            dfM = np.zeros((self.nr_blocks, self.gf_nodup.shape[0]), dtype=np.float)
 
         from tqdm import tqdm # todo: only if installed
         for ind, row in tqdm(self.gf_nodup.iterrows(), total=self.gf_nodup.shape[0]):
             data = np.fromfile(row['full_path'], dtype).reshape((-1, nr_cols))[self.keepinds, :]
             if self.hypo:
-                dfU[:, ind] = self.table2vec(data, 'U')
+                dfU[:, ind] = table2vec(data, 'U', self.arsg.min_cov)
             if self.hyper:
-                dfM[:, ind] = self.table2vec(data, 'M')
+                dfM[:, ind] = table2vec(data, 'M', self.arsg.min_cov)
 
         return self.array2df(dfU), self.array2df(dfM)
 
@@ -130,13 +138,6 @@ class MarkersFinder:
         return pd.concat([self.blocks,
                           pd.DataFrame(data=df, columns=self.gf_nodup['fname'].values)],
                           axis=1)
-
-    def table2vec(self, data, um):
-        covs = data.sum(axis=1)
-        cond = covs > self.args.min_cov
-        r = np.divide(data[:, um_ind_dict[um]], covs, where=cond)
-        r[~cond] = np.nan
-        return r.astype(np.float16)
 
     def find_markers_group(self, df, um):
         if df.empty:
@@ -213,6 +214,9 @@ def load_gfile_helper(groups_file):
         raise IllegalArgumentError('gropus file must have a column named "group"')
     # drop samples where include==False
     if 'include' in gf.columns:
+        if gf['include'].dtype != bool:
+            eprint('Invalid group file')
+            raise IllegalArgumentError('Invalid group file. Include column must be boolean')
         gf = gf[gf['include']]
     # drop unnecessary columns
     gf = gf.rename(columns={gf.columns[0]: 'fname'})
@@ -242,7 +246,9 @@ def match_prefix_to_bin(prefixes, bins, suff=None):
         if not results:
             missing_binaries.append(prefix)
         elif len(results) > 1:
-            raise IllegalArgumentError(f'Found multiple matches for prefix {prefix}')
+            eprint(f'Found multiple matches for prefix {prefix}:')
+            eprint(results, sep='\n')
+            raise IllegalArgumentError('Invalid binary files or group file')
         else:
             full_paths.append(results[0])
             included.append(op.basename(results[0]))
@@ -261,6 +267,8 @@ def match_prefix_to_bin(prefixes, bins, suff=None):
             excluded_bins.append(b)
     if excluded_bins:
         eprint(f'warning: ignoring {len(excluded_bins)} binary files not included in groups file')
+        if len(excluded_bins) < 5:
+            eprint(*excluded_bins, sep='\n')
 
     return full_paths
 

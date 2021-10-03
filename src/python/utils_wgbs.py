@@ -365,7 +365,7 @@ def splitextgz(input_file):
 
 
 def safe_remove(fpath):
-    if op.isfile(fpath):
+    if fpath is not None and op.isfile(fpath):
         os.remove(fpath)
 
 def mult_safe_remove(files):
