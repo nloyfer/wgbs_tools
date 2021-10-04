@@ -58,6 +58,7 @@ public:
     int line_i = 0;
     clock_t tick = clock();
     bool is_paired_end = false;
+    std::vector <std::string> dummy_tokens;
     bool first_line(std::string &line);
 
     mbias_ss mbias[2];
@@ -76,7 +77,8 @@ public:
     int locus2CpGIndex(int locus);
     std::string clean_CIGAR(std::string seq, std::string CIGAR);
     std::vector<std::string> samLineToPatVec(std::vector<std::string> tokens);
-    void proc2lines(std::vector<std::string> tokens1, std::vector<std::string> tokens2);
+    void proc2lines(std::vector<std::string> &tokens1, std::vector<std::string> &tokens2);
+    void proc1line(std::vector <std::string> &tokens1);
     void action();
 
     void initialize_patter(std::string &line_str);
