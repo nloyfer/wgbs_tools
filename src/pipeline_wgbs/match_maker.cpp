@@ -108,16 +108,18 @@ std::vector<std::string> flush_data(std::vector<std::string> &data,
                     flushed[i] = false;
                 }
             } else {
-                std::cerr << "skipping " << line2tokens(r1)[0] << std::endl;
                 flushed[i] = false;
             }
         }
     } 
 
+    // Go over the non flushed reads.
+    // If it's last chunk and we output singles, flush them
+    // otherwise, push them to optimistics for the next round (or to oblivion)
     std::vector<std::string> optimistics;
     for (unsigned int i = 0; i < data.size(); i++) {
         if (!(flushed[i])) {
-            if (output_singles) {
+            if (last_chunk && output_singles) {
                 pairs_vec.push_back(PairedEnd(data.at(i), dummy));
             } else {
                 optimistics.push_back(data.at(i));
