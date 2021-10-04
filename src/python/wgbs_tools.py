@@ -35,6 +35,7 @@ from segment_betas import main as segment_beta_main
 from homog import main as homog_main
 # from dmb import main as dmb_main
 from find_markers import main as fm_main
+from snp_splitter import main as snp_splitter_main
 
 """
 Dependencies:
@@ -81,6 +82,7 @@ callbacks = [
     ('find_markers', fm_main),
     ('bam_cpg_counts', bamAddMethylData_main),
     ('frag_len', frag_len_main),
+    ('allele_split', snp_splitter_main)
 ]
 callbacks = OrderedDict(callbacks)
 
