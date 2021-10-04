@@ -83,17 +83,16 @@ std::vector<std::string> flush_data(std::vector<std::string> &data,
     if (data.empty()) return data;
 
     std::sort (data.begin(), data.end());
+    std::string dummy = "";
     std::vector<bool> flushed(data.size()); // mark which lines are flushed. The others will be returned as singles.
     std::vector<PairedEnd> pairs_vec;
     int last_line_pos = read_pos(data.at(data.size() - 1));
     for (unsigned int i = 0; i < data.size() - 1; i++) {
         std::string r1 = data.at(i);
-        std::string r2 = data.at(i + 1);
+        std::string r2 = data.at(i + 1); 
 
         // if r1 and r2 have the same name - they are a pair
         if (r1.substr(0, r1.find('\t')) == r2.substr(0, r2.find('\t'))) {
-//            myfile << r1 << std::endl;
-//            myfile << r2 << std::endl;
             pairs_vec.push_back(PairedEnd(r1, r2));
             flushed[i] = true;
             flushed[i + 1] = true;
@@ -101,26 +100,30 @@ std::vector<std::string> flush_data(std::vector<std::string> &data,
         }
         else {
             if (output_singles) {
-                if ((read_mate_pos(r1) < last_line_pos) || (last_chunk)) {    // read i has no hope finding a mate
-                    std::string dummy = "";
+                if ((read_mate_pos(r1) < last_line_pos) ||
+                        (last_chunk)) {    // read i has no hope finding a mate
                     pairs_vec.push_back(PairedEnd(r1, dummy));
                     flushed[i] = true;
                 } else {  // else, r1 is tagged as single
                     flushed[i] = false;
                 }
             } else {
+                std::cerr << "skipping " << line2tokens(r1)[0] << std::endl;
                 flushed[i] = false;
             }
         }
-    }
+    } 
 
     std::vector<std::string> optimistics;
     for (unsigned int i = 0; i < data.size(); i++) {
         if (!(flushed[i])) {
-            optimistics.push_back(data.at(i));
+            if (output_singles) {
+                pairs_vec.push_back(PairedEnd(data.at(i), dummy));
+            } else {
+                optimistics.push_back(data.at(i));
+            }
         }
     }
-
     resortByPos(pairs_vec, myfile);
 
     data.clear();
@@ -184,6 +187,7 @@ void action(bool output_singles) {
     std::cerr << log_pref << "finished " << addCommas(line_i) << " lines." << std::endl;
     if (!(data.empty())) {
         std::cerr << log_pref << "Filtered " << addCommas(data.size()) << " unpaired reads" << std::endl;
+        //std::cerr << data[0];
     }
 }
 
