@@ -314,7 +314,7 @@ char snp_patter::samLineToPatVec(std::vector <std::string> tokens) {
         std::string meth_pattern;
         bool reversed;
         if (is_paired_end) {
-            reversed = ((samflag == 83) || (samflag == 163));
+            reversed = ( ((samflag & 0x53) == 83) || ((samflag & 0xA3) == 163) );
         } else {
             reversed = ((samflag & 0x0010) == 16);
         }
@@ -369,28 +369,8 @@ char snp_patter::proc2lines(std::vector <std::string> tokens1,
             return 'Z';
         }
         return snp_read1;
-//        std::vector <std::string> res = merge(samLineToPatVec(tokens1), samLineToPatVec(tokens2));
-//        if (res.empty()) { return; }
-//        if ((res[2]).length() < min_cpg) {
-//            readsStats.nr_short++;
-//            return;
-//        }
-//
-//        // print to stdout
-//        std::string sep = "";
-//        for (auto &j: res) {
-//            std::cout << sep << j;
-//            sep = TAB;
-//        }
-//        std::cout << std::endl;
     }
     catch (std::exception &e) {
-//        std::string msg = "[ " + chr + " ] Exception while merging. lines ";
-//        msg += std::to_string(line_i) + ". Line content: \n";
-//        std::cerr << "[ patter ] " << msg;
-//        print_vec(tokens1);
-//        print_vec(tokens2);
-//        std::cerr <<  "[ patter ] " << e.what() << std::endl;
         return 'Z';
     }
 }
@@ -496,25 +476,38 @@ void snp_patter::proc_sam_in_stream(std::istream& in){
             first_in_pair = false;
             readsStats.nr_pairs++;
             continue;
-        }
+        }// otherwise (second row in couple, or not-paired-end), line is processed:
 
-        // otherwise (second row in couple, or not-paired-end), line is processed:
         tokens2 = line2tokens(line_str);
-        first_in_pair = true;   // next line will be first of couple.
-
-        // process couple of lines. write to stdout
-        // in case of single-end input file, tokens1 will be empty
-        read2 = line_str;
-        char snp_let = proc2lines(tokens1, tokens2);
-        if (snp_let == snp_let1){
-            std::cout << read1 << "\n" << read2 << "\n";
-//            std::cout << std::endl;
+        if (tokens1[3] == "23530782" || tokens2[3] == "23530782"){
+            int x = 0;
         }
+        if ((!(tokens2.empty())) && (!(tokens1.empty()))
+            && (tokens1[0] != tokens2[0])) {
+            // process couple of lines. write to stdout
+            // in case of single-end input file, tokens1 will be empty
+            // in case of non-paired read, use emtpy tokens for second param
+            read2 = line_str;
+            std::vector <std::string> empty_tokens;
+            char snp_let = proc2lines(tokens1, empty_tokens);
+            if (snp_let == snp_let1){
+                std::cout << read1 << "\n";
+            }
+            tokens1 = tokens2;
+            read1 = line_str;
+        } else {
+            first_in_pair = true;   // next line will be first of couple.
+            read2 = line_str;
+            char snp_let = proc2lines(tokens1, tokens2);
+            if (snp_let == snp_let1){
+                std::cout << read1 << "\n" << read2 << "\n";
+            }
+        }
+
 
 
     }
     print_stats_msg();
-//    dump_mbias();
 }
 
 void snp_patter::action(std::string samFilePath) {
@@ -575,7 +568,6 @@ int main(int argc, char **argv) {
     clock_t begin = clock();
     try {
         InputParser input(argc, argv);
-        int min_cpg = 1;
         long snp_pos = -1;
         char snp_let1 = 'Z';
         char snp_let2 = 'Z';
@@ -602,20 +594,11 @@ int main(int argc, char **argv) {
         } else {
             throw std::invalid_argument("must provide snp letter two.");
         }
-//        if (input.cmdOptionExists("--min_cpg")){
-//            std::string min_cpg_string = input.getCmdOption("--min_cpg");
-//
-//            if ( !is_number(min_cpg_string) )
-//                throw std::invalid_argument("invalid min_cpg argument. min_cpg should be a non-negative integer.");
-//            min_cpg = std::stoi(input.getCmdOption("--min_cpg"));
-//        }
         if (argc < 3) {
             throw std::invalid_argument("Usage: patter GENOME_PATH CPG_CHROM_SIZE_PATH [--bam] [--mbias MBIAS_PATH]");
         }
-//        bool blueprint = input.cmdOptionExists("--blueprint");
-//        std::string mbias_path = input.getCmdOption("--mbias");
         snp_patter p(snp_pos, snp_let1, snp_let2);
-        p.action("");
+        p.action("/cs/cbio/jon/trial.sam");
 
     }
     catch (std::exception &e) {

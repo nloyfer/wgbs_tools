@@ -102,7 +102,7 @@ def proc_chr(bam, out_path, name, snp_pos, snp_let1, snp_let2, ex_flags, mapq, d
     subprocess_wrap(final_cmd, debug)
     parser = add_args()
     parse_bam2pat_args(parser)
-    args = parser.parse_args([bam_file_out, "--out_dir", out_path, "-r", chrom, "--threads", "1"])
+    args = parser.parse_args([bam_file_out, "--out_dir", out_path, "-r", chrom, "--threads", "1", "--no_beta"])
     Bam2Pat(args, bam_file_out)
 
         # index_cmd = f'/bin/bash -c "cat <(samtools view -H {bam}) <(cat {out_path}) | samtools view -h -b - | samtools sort -O bam - > {bam_file_out} && samtools index {bam_file_out}"'
