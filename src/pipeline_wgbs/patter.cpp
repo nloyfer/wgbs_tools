@@ -338,13 +338,13 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
 
         // build methylation pattern:
         std::string meth_pattern;
-        bool reversed;
+        bool bottom;
         if (is_paired_end) {
-            reversed = ( ((samflag & 0x53) == 83) || ((samflag & 0xA3) == 163) );
+            bottom = ( ((samflag & 0x53) == 83) || ((samflag & 0xA3) == 163) );
         } else {
-            reversed = ((samflag & 0x0010) == 16);
+            bottom = ((samflag & 0x10) == 16);
         }
-        ReadOrient ro = reversed ? OB : OT;
+        ReadOrient ro = bottom ? OB : OT;
 
         int start_site = compareSeqToRef(seq, start_locus, ro, meth_pattern);
 
