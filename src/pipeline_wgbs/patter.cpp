@@ -340,7 +340,7 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
         std::string meth_pattern;
         bool reversed;
         if (is_paired_end) {
-            reversed = ((samflag == 83) || (samflag == 163));
+            reversed = ( ((samflag & 0x53) == 83) || ((samflag & 0xA3) == 163) );
         } else {
             reversed = ((samflag & 0x0010) == 16);
         }
@@ -371,14 +371,20 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
     return res; // return empty vector
 }
 
+bool are_paired(std::vector <std::string> tokens1,
+                std::vector <std::string> tokens2) {
+    // return true iff the reads are non empty and paired
+    return ((!(tokens2.empty())) && 
+            (!(tokens1.empty())) &&
+            (tokens1[0] == tokens2[0]));
+}
 
-void patter::proc2lines(std::vector <std::string> tokens1,
-                        std::vector <std::string> tokens2) {
+void patter::proc2lines(std::vector <std::string> &tokens1,
+                        std::vector <std::string> &tokens2) {
 
     try {
         // sanity check: two lines must have the same QNAME
-        if ((!(tokens2.empty())) && (!(tokens1.empty()))
-            && (tokens1[0] != tokens2[0])) {
+        if (!(are_paired(tokens1, tokens2))) {
             readsStats.nr_invalid += 2;
             throw std::invalid_argument("lines are not complements!");
         }
@@ -454,10 +460,9 @@ bool patter::first_line(std::string &line) {
 
 void patter::initialize_patter(std::string &line_str) {
     // first line based initializations
-    if (dict.empty()) {
-        is_paired_end = first_line(line_str);
-        load_genome_ref();
-    }
+    if (!(dict.empty())) { return; }
+    is_paired_end = first_line(line_str);
+    load_genome_ref();
 }
 
 /***************************************************************
@@ -476,11 +481,15 @@ void patter::print_progress(){
     }
 }
 
+void patter::proc1line(std::vector <std::string> &tokens1) {
+    proc2lines(tokens1, dummy_tokens);
+    tokens1.clear();
+}
+
 void patter::action() {
     /** parse stdin for sam format lines (single- or pired-end).
      * Translate them to pat format, and output to stdout */
 
-    bool first_in_pair = true;
 //    std::ios_base::sync_with_stdio(false);
     std::vector <std::string> tokens1, tokens2;
     for (std::string line_str; std::getline(std::cin, line_str); line_i++) {
@@ -488,28 +497,29 @@ void patter::action() {
         print_progress();
 
         // skip empty lines
-        if (line_str.empty())
-            continue;
+        if (line_str.empty()) { continue; }
 
         initialize_patter(line_str);
 
-        // paired-end file, and current row is first out of a couple of rows
-        if (first_in_pair && is_paired_end) {
+        if (tokens1.empty()) {
             tokens1 = line2tokens(line_str);
-            first_in_pair = false;
-            readsStats.nr_pairs++;
+            if (!is_paired_end) { 
+                proc1line(tokens1);
+                tokens1.clear();
+            }
             continue;
         }
-
-        // otherwise (second row in couple, or not-paired-end), line is processed:
         tokens2 = line2tokens(line_str);
-        first_in_pair = true;   // next line will be first of couple.
-
-        // process couple of lines. write to stdout
-        // in case of single-end input file, tokens1 will be empty
-        proc2lines(tokens1, tokens2);
-
+        if (are_paired(tokens1, tokens2)) {
+            proc2lines(tokens1, tokens2);
+            readsStats.nr_pairs++;
+            tokens1.clear();
+        } else {
+            proc1line(tokens1);
+            tokens1 = tokens2;
+        }
     }
+    if (! tokens1.empty()) { proc1line(tokens1); }
     print_stats_msg();
     dump_mbias();
 }

@@ -10,6 +10,7 @@ from src.python.utils_wgbs import eprint, validate_single_file, IllegalArgumentE
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--targets', '-t', nargs='+', help='compile only these modules')
     parser.add_argument('--verbose', '-v', action='store_true')
     return parser.parse_args()
 
@@ -34,8 +35,17 @@ def compile_single(cmd, name, verbose):
     elif verbose:
         eprint(cmd)
         eprint(output.decode())
-    eprint('\033[01;32mSUCCESS\033[00m')
+    else:
+        eprint('\033[01;32mSUCCESS\033[00m')
 
+modules = {
+        'stdin2beta' : 'g++ -std=c++11 src/pat2beta/stdin2beta.cpp -o src/pat2beta/stdin2beta',
+        'pat_sampler' : 'g++ -std=c++11 src/pat_sampler/sampler.cpp -o src/pat_sampler/pat_sampler',
+        'patter' : 'g++ -std=c++11 src/pipeline_wgbs/patter.cpp -o src/pipeline_wgbs/patter',
+        'match_maker' : 'g++ -std=c++11 src/pipeline_wgbs/match_maker.cpp -o src/pipeline_wgbs/match_maker',
+        'segmentor' : 'g++ -std=c++11 src/segment_betas/main.cpp src/segment_betas/segmentor.cpp -o src/segment_betas/segmentor ',
+        'cview' : 'g++ -c -o src/cview/main.o src/cview/main.cpp -std=c++11; g++ -c -o src/cview/cview.o src/cview/cview.cpp -std=c++11; g++ -o src/cview/cview src/cview/main.o src/cview/cview.o -std=c++11'
+        }
 
 def compile_all(args):
     curdir = os.getcwd()
@@ -43,30 +53,10 @@ def compile_all(args):
         os.chdir(op.dirname(op.realpath(__file__)))
 
         # compile C++ files
-
-        # stdin2beta (pat2beta)
-        cmd = 'g++ -std=c++11 src/pat2beta/stdin2beta.cpp -o src/pat2beta/stdin2beta'
-        compile_single(cmd, 'stdin2beta', args.verbose)
-
-        # pat_sampler (pat view)
-        cmd = 'g++ -std=c++11 src/pat_sampler/sampler.cpp -o src/pat_sampler/pat_sampler'
-        compile_single(cmd, 'pat_sampler', args.verbose)
-
-        # patter (bam2pat)
-        cmd = 'g++ -std=c++11 src/pipeline_wgbs/patter.cpp -o src/pipeline_wgbs/patter'
-        compile_single(cmd, 'patter', args.verbose)
-
-        # match_maker (bam2pat)
-        cmd = 'g++ -std=c++11 src/pipeline_wgbs/match_maker.cpp -o src/pipeline_wgbs/match_maker'
-        compile_single(cmd, 'match_maker', args.verbose)
-
-        # segmentor (segment)
-        cmd = 'g++ -std=c++11 src/segment_betas/main.cpp src/segment_betas/segmentor.cpp -o src/segment_betas/segmentor '
-        compile_single(cmd, 'segmentor', args.verbose)
-
-        # cview (cview)
-        cmd = 'g++ -c -o src/cview/main.o src/cview/main.cpp -std=c++11; g++ -c -o src/cview/cview.o src/cview/cview.cpp -std=c++11; g++ -o src/cview/cview src/cview/main.o src/cview/cview.o -std=c++11'
-        compile_single(cmd, 'cview', args.verbose)
+        for module in modules.keys():
+            if args.targets and module not in args.targets:
+                continue
+            compile_single(modules[module], module, args.verbose)
 
     except RuntimeError as e:
         eprint(e)
@@ -74,19 +64,6 @@ def compile_all(args):
         return
 
     os.chdir(curdir)
-
-
-# def validate_index_file(bedfile):
-    # if not op.isfile(bedfile + '.tbi'):
-        # eprint(f'No tbi found for file {bedfile}. Attempting to index it...')
-        # from index_wgbs import Indxer
-        # Indxer(bedfile).run()
-
-
-# def validate_file(file):
-    # if file is None:
-        # return
-    # validate_single_file(file)
 
 
 # def config_file(args):
@@ -105,7 +82,6 @@ def compile_all(args):
 # 1. blocks file: make a symbolic link to references/genome/blocks.bed.gz[.tbi]
 #    Maybe even upload an ultra compressed (diffs) version of the latest hg19 blocks to GitHub.
 # 2. add shebang line to wgbs_tools.py. Maybe add it to PATH, or add instructions in the README.md
-# 3. Annotaions.gz file - same as blocks.
 
 def main():
     args = parse_args()

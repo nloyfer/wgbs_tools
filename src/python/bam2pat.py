@@ -92,7 +92,7 @@ def proc_chr(bam, out_path, region, genome, chr_offset, paired_end, ex_flags, ma
         cmd += ' | head -200 '
     if paired_end:
         # change reads order, s.t paired reads will appear in adjacent lines
-        cmd += f' | {match_maker_tool} '
+        cmd += f' | {match_maker_tool} -s '
 
     # first, if there are no reads in current region, return
     validation_cmd = cmd + ' | head -1'
@@ -255,7 +255,7 @@ class Bam2Pat:
     def validate_parts(self, pat_parts):
         # validate parts:
         for part in pat_parts:
-            if part is None:            # subprocess threw exception
+            if not part:            # subprocess threw exception or no reads found
                 eprint('[wt bam2pat] threads failed')
                 return False
             if op.getsize(part) == 0:   # empty pat was created
