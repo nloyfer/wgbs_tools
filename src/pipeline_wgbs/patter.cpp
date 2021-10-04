@@ -75,7 +75,7 @@ void patter::load_genome_ref() {
     std::string cmd = "tabix " + ref_path + " " + region + " | cut -f2-3";
     std::string cur_chr = exec(cmd.c_str());
     if (cur_chr.length() == 0) {
-        // TODO: maybe it's empty because there are no CpGs. check this in bam2pat before calling patter.
+        // If the region was empty due to lack of CpGs in range, bam2pat.py would have catched that earlier.
         throw std::invalid_argument("[ patter ] Error: Unable to read reference path: " + ref_path);
     }
     std::stringstream ss(cur_chr);
@@ -106,18 +106,26 @@ void patter::load_genome_ref() {
  *                                                             *
  ***************************************************************/
 
+void dump_mbias_helper(mbias_ss *mb, std::string outpath);
 void patter::dump_mbias() {
     /** dump mbias info. Not finished or tested. */
     if (mbias_path == "") { return; }
+    dump_mbias_helper(mbias_OT, mbias_path + ".OT.txt");
+    dump_mbias_helper(mbias_OB, mbias_path + ".OB.txt");
 
-    std::ofstream mbias_stream(mbias_path);
-    mbias_stream << "read1_meth\tread1_unmeth\tread2_meth\tread2_unmeth\n";
+}
+
+void dump_mbias_helper(mbias_ss *mb, std::string outpath) {
+    std::ofstream mbias_stream(outpath);
+    std::string sep = "";
+    mbias_stream << "r1m1\tr1u1\tr2m2\tr2u2\n";
     for (int pos = 0; pos < MAX_READ_LEN; pos++){
         for (int i = 0; i < 2; i++ ) {
-            mbias_stream << mbias[i].meth[pos] << "\t";
-            mbias_stream << mbias[i].unmeth[pos];
-            if (i < 1) { mbias_stream << "\t"; }
+            mbias_stream << sep << mb[i].meth[pos] ;
+            sep = "\t";
+            mbias_stream << sep << mb[i].unmeth[pos];
         }
+        sep = "";
         mbias_stream << "\n";
     }
     mbias_stream.close();
@@ -200,43 +208,51 @@ int strip_pat(std::string &pat) {
 
 int patter::compareSeqToRef(std::string &seq,
                             int start_locus,
-                            ReadOrient ro,
+                            int samflag,
                             std::string &meth_pattern) {
     /** compare seq string to ref string. generate the methylation pattern, and return
      * the CpG index of the first CpG site in the seq (or -1 if there is none) */
 
-    // sanity check: is read length larger than MAX_READ_LEN? 
-    // avoid segmentaion fault when updating mbias arrays
-    if (seq.length() > MAX_READ_LEN) {
-        throw std::invalid_argument("[ patter ] Error: read is too long");
-    }
-
     // ignore first/last 'margin' characters, since they are often biased
-    size_t margin = 3;
+    size_t margin = 0;
 
+    // get orientation 
+    bool bottom;
+    if (is_paired_end) {
+        bottom = ( ((samflag & 0x53) == 83) || ((samflag & 0xA3) == 163) );
+    } else {
+        bottom = ((samflag & 0x10) == 16);
+    }
+    ReadOrient ro = bottom ? OB : OT;
+
+    // get flag for mbias
+    int mbias_ind;
+    mbias_ss *mb;
+    bool skip_mbias = false;
+    if ((samflag & 0x53) == 0x53) {mb = mbias_OB; mbias_ind = 0;} // 83
+    else if ((samflag & 0xA3) == 0xA3) {mb = mbias_OB; mbias_ind = 1;} // 163
+    else if ((samflag & 0x63) == 0x63) {mb = mbias_OT; mbias_ind = 0;} // 99
+    else if ((samflag & 0x93) == 0x93) {mb = mbias_OT; mbias_ind = 1;} // 147
+    else { skip_mbias = true; }
+    
     // generate the methylation pattern (e.g 'CC.TC'),
     // by comparing the given sequence to reference at the CpG indexes
-    char REF_CHAR = ro.ref_chr;
-    char UNMETH_SEQ_CHAR = ro.unmeth_seq_chr;
-    int shift = ro.shift;
-    int mbias_ind = ro.mbias_ind;
-    //
-    // find CpG indexes on reference sequence
     char cur_status;
     int j;
     int nr_cpgs = 0;
     int first_ind = -1;
     for (unsigned long i = 0; i < seq.length(); i++) {
+        if (i >= MAX_READ_LEN) {skip_mbias = false;}
         if (conv[start_locus + i]) {
-            j = i + shift;
+            j = i + ro.shift;
             char s = seq[j];
             cur_status = UNKNOWN;
-            if (s == UNMETH_SEQ_CHAR) {
+            if (s == ro.unmeth_seq_chr) {
                 cur_status = UNMETH;
-                mbias[mbias_ind].unmeth[j]++;
-            } else if (s == REF_CHAR) {
+                if (!skip_mbias) mb[mbias_ind].unmeth[j]++;
+            } else if (s == ro.ref_chr) {
                 cur_status = METH;
-                mbias[mbias_ind].meth[j]++;
+                if (!skip_mbias) mb[mbias_ind].meth[j]++;
             }
             if (!((j >= margin) && (j < seq.size() - margin))) {
                 cur_status = UNKNOWN;
@@ -338,15 +354,8 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
 
         // build methylation pattern:
         std::string meth_pattern;
-        bool bottom;
-        if (is_paired_end) {
-            bottom = ( ((samflag & 0x53) == 83) || ((samflag & 0xA3) == 163) );
-        } else {
-            bottom = ((samflag & 0x10) == 16);
-        }
-        ReadOrient ro = bottom ? OB : OT;
 
-        int start_site = compareSeqToRef(seq, start_locus, ro, meth_pattern);
+        int start_site = compareSeqToRef(seq, start_locus, samflag, meth_pattern);
 
         // in case read contains no CpG sites:
         if (start_site < 1) {

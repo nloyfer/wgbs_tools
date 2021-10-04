@@ -70,7 +70,8 @@ public:
     std::vector <std::string> dummy_tokens;
     bool first_line(std::string &line);
 
-    mbias_ss mbias[2];
+    mbias_ss mbias_OT[2];
+    mbias_ss mbias_OB[2];
 
     patter(std::string refpath, std::string rgn, std::string mb, int mc):
             ref_path(refpath), region(rgn), mbias_path(mb), min_cpg(mc) {}
@@ -79,7 +80,7 @@ public:
     int find_cpg_inds_offset();
     std::vector<long> fasta_index();
 
-    int compareSeqToRef(std::string &seq, int start_locus, ReadOrient ro, std::string &meth_pattern);
+    int compareSeqToRef(std::string &seq, int start_locus, int samflag, std::string &meth_pattern);
     void print_stats_msg();
     void dump_mbias();
     void print_progress();
