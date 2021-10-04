@@ -200,7 +200,7 @@ int strip_pat(std::string &pat) {
 
 int patter::compareSeqToRef(std::string &seq,
                             int start_locus,
-                            bool reversed,
+                            ReadOrient ro,
                             std::string &meth_pattern) {
     /** compare seq string to ref string. generate the methylation pattern, and return
      * the CpG index of the first CpG site in the seq (or -1 if there is none) */
@@ -216,10 +216,10 @@ int patter::compareSeqToRef(std::string &seq,
 
     // generate the methylation pattern (e.g 'CC.TC'),
     // by comparing the given sequence to reference at the CpG indexes
-    char REF_CHAR = reversed ? 'G' : 'C';
-    char UNMETH_SEQ_CHAR = reversed ? 'A' : 'T';
-    int shift = reversed ? 1 : 0;
-    int mbias_ind = reversed ? 1 : 0;
+    char REF_CHAR = ro.ref_chr;
+    char UNMETH_SEQ_CHAR = ro.unmeth_seq_chr;
+    int shift = ro.shift;
+    int mbias_ind = ro.mbias_ind;
     //
     // find CpG indexes on reference sequence
     char cur_status;
@@ -299,7 +299,7 @@ std::vector <std::string> merge(std::vector<std::string> l1,
             merged_pat[adj_i] = UNKNOWN;
         }
     }
-    // strip merged pat:
+    // strip merged pat (remove trailing dots):
     int pos = strip_pat(merged_pat);
     if (pos < 0 ) { return {}; }
     l1[1] = std::to_string(start1 + pos);
@@ -344,7 +344,9 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
         } else {
             reversed = ((samflag & 0x0010) == 16);
         }
-        int start_site = compareSeqToRef(seq, start_locus, reversed, meth_pattern);
+        ReadOrient ro = reversed ? OB : OT;
+
+        int start_site = compareSeqToRef(seq, start_locus, ro, meth_pattern);
 
         // in case read contains no CpG sites:
         if (start_site < 1) {
@@ -384,7 +386,9 @@ void patter::proc2lines(std::vector <std::string> &tokens1,
 
     try {
         // sanity check: two lines must have the same QNAME
-        if (!(are_paired(tokens1, tokens2))) {
+        if ((!(tokens2.empty())) && 
+            (!(tokens1.empty())) &&
+            (tokens1[0] != tokens2[0])){
             readsStats.nr_invalid += 2;
             throw std::invalid_argument("lines are not complements!");
         }
