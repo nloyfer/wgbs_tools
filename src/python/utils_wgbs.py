@@ -26,6 +26,7 @@ homog_tool = SRC_DIR + 'homog/homog'
 
 match_maker_tool = SRC_DIR + 'pipeline_wgbs/match_maker'
 patter_tool = SRC_DIR + 'pipeline_wgbs/patter'
+allele_split_tool = SRC_DIR + 'pipeline_wgbs/snp_patter'
 
 # TODO: support hg38
 ilmn2cpg_dict = op.join(path.parent.parent.parent, 'references/hg19/ilmn2CpG.tsv.gz')
@@ -37,6 +38,9 @@ main_script = op.join(DIR, 'wgbs_tools.py')
 
 
 class IllegalArgumentError(ValueError):
+    pass
+
+class EmptyBamError(IllegalArgumentError):
     pass
 
 def get_genome_name(gname):
