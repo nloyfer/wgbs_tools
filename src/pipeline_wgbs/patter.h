@@ -32,6 +32,12 @@ struct reads_stats {
     int nr_bad_conv = 0;
 };
 
+struct ReadOrient { // OT or OB
+    char ref_chr;
+    char unmeth_seq_chr;
+    int shift;
+    int mbias_ind;
+};
 
 struct mbias_ss {
     int meth[MAX_READ_LEN] = {0};
@@ -48,7 +54,10 @@ public:
     std::string region;
     int offset = 0;
     //bool conv[1000000] = {false};
-    bool* conv = new bool[10000000]();
+    bool* conv;
+
+    ReadOrient OT{'C', 'T', 0, 0};
+    ReadOrient OB{'G', 'A', 1, 1};
 
     std::string mbias_path;
     int min_cpg = 0;
@@ -70,7 +79,7 @@ public:
     int find_cpg_inds_offset();
     std::vector<long> fasta_index();
 
-    int compareSeqToRef(std::string &seq, int start_locus, bool reversed, std::string &meth_pattern);
+    int compareSeqToRef(std::string &seq, int start_locus, ReadOrient ro, std::string &meth_pattern);
     void print_stats_msg();
     void dump_mbias();
     void print_progress();
