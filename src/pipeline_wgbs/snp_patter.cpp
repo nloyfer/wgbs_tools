@@ -479,9 +479,7 @@ void snp_patter::proc_sam_in_stream(std::istream& in){
         }// otherwise (second row in couple, or not-paired-end), line is processed:
 
         tokens2 = line2tokens(line_str);
-        if (tokens1[3] == "23530782" || tokens2[3] == "23530782"){
-            int x = 0;
-        }
+
         if ((!(tokens2.empty())) && (!(tokens1.empty()))
             && (tokens1[0] != tokens2[0])) {
             // process couple of lines. write to stdout
@@ -598,7 +596,7 @@ int main(int argc, char **argv) {
             throw std::invalid_argument("Usage: patter GENOME_PATH CPG_CHROM_SIZE_PATH [--bam] [--mbias MBIAS_PATH]");
         }
         snp_patter p(snp_pos, snp_let1, snp_let2);
-        p.action("/cs/cbio/jon/trial.sam");
+        p.action("");
 
     }
     catch (std::exception &e) {
