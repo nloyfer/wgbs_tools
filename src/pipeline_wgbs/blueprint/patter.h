@@ -15,11 +15,11 @@
 #include <unordered_map>
 #include <sstream>      // std::stringstream
 #include <iomanip>      // std::setprecision
-#include <fstream>
 //#include <string_view>
 #include <cstdio>
 #include <memory>
 #include <stdexcept>
+#include <array>        // std::array
 
 #define MAX_PAT_LEN 300
 #define MAX_READ_LEN 2000
