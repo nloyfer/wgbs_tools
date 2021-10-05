@@ -11,7 +11,7 @@ import uuid
 import re
 from multiprocessing import Pool
 from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, \
-    add_GR_args, eprint, add_multi_thread_args, EmptyBamError \
+    add_GR_args, eprint, add_multi_thread_args, EmptyBamError, \
     GenomeRefPaths, validate_single_file, delete_or_skip, check_executable
 from init_genome_ref_wgbs import chromosome_order
 from pat2beta import pat2beta
@@ -91,7 +91,9 @@ def proc_chr(bam, out_path, region, genome, chr_offset, paired_end, ex_flags, ma
         cmd += ' | head -200 '
     if paired_end:
         # change reads order, s.t paired reads will appear in adjacent lines
-        cmd += f' | {match_maker_tool} -s '
+        cmd += f' | {match_maker_tool} '
+        if blueprint:
+            cmd += ' --drop_singles '
 
     # first, if there are no reads in current region, return
     validation_cmd = cmd + ' | head -1'
@@ -328,8 +330,8 @@ def parse_bam2pat_args(parser):
                         nargs='?', const=True, default=False)
     parser.add_argument('--mbias', '-mb', action='store_true',
             help='Output mbias plots. Only paired-end data is supported')
-    # parser.add_argument('--blueprint', '-bp', action='store_true',  # TODO put it back
-            # help='filter bad bisulfite conversion reads if <90 percent of CHs are converted')
+    parser.add_argument('--blueprint', '-bp', action='store_true',  # TODO put it back
+            help='filter bad bisulfite conversion reads if <90 percent of CHs are converted')
 
 
 def add_args():
