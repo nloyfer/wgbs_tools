@@ -52,8 +52,9 @@ def subprocess_wrap(cmd, debug):
 
 def gen_pat_part(out_path, debug, temp_dir):
     try:
-        # if out_path is empty, return None
-        if op.getsize(out_path) == 0:
+        # if out_path is empty or missing, return None
+        if not op.isfile(out_path) or op.getsize(out_path) == 0:
+            eprint(f'[wt bam2pat] failed in patter')
             return
         # sort
         pat_path = out_path + PAT_SUFF
@@ -95,7 +96,7 @@ def is_region_empty(view_cmd, verbose):
 
 
 def proc_chr(bam, out_path, region, genome, chr_offset, paired_end, ex_flags, mapq, debug,
-             blueprint, temp_dir, blacklist, whitelist, min_cpg, mbias, verbose):
+             blueprint, clip, temp_dir, blacklist, whitelist, min_cpg, mbias, verbose):
     """ Convert a temp single chromosome file, extracted from a bam file, into pat """
 
     # Run patter tool on a single chromosome. out_path will have the following fields:
@@ -121,8 +122,8 @@ def proc_chr(bam, out_path, region, genome, chr_offset, paired_end, ex_flags, ma
 
     # run patter tool to convert bam reads to pat reads
     patter_cmd = f' | {patter_tool} {genome.dict_path} {extend_region(region)}'
-    patter_cmd += f' --min_cpg {min_cpg}'
-    if mbias:
+    patter_cmd += f' --min_cpg {min_cpg} --clip {clip}'
+    if mbias and paired_end:  # mbias for single-end is not yet implemented
         patter_cmd += f' --mbias {out_path}.mb'
 
     if blueprint:
@@ -248,7 +249,7 @@ class Bam2Pat:
                 out_path = f'{tmp_prefix}.{c}.out'
                 par = (self.bam_path, out_path, c, self.gr.genome, chr_offset,
                        is_pair_end(self.bam_path), self.args.exclude_flags,
-                       self.args.mapq, self.args.debug, self.args.blueprint,
+                       self.args.mapq, self.args.debug, self.args.blueprint, self.args.clip,
                        self.args.temp_dir, blist, wlist, self.args.min_cpg,
                        self.args.mbias, self.verbose)
                 params.append(par)
@@ -286,7 +287,7 @@ class Bam2Pat:
                 eprint('[wt bam2pat] threads failed')
                 return False
         if not ''.join(pat_parts):      # all parts are empty
-            eprint('[wt bam2pat] No reads found in bam file. No pat file is generated')
+            eprint('[wt bam2pat] No reads found. No pat file is generated')
             return False
         return True
 
@@ -351,6 +352,8 @@ def parse_bam2pat_args(parser):
             help='Output mbias plots. Only paired-end data is supported')
     parser.add_argument('--blueprint', '-bp', action='store_true',  # TODO put it back
             help='filter bad bisulfite conversion reads if <90 percent of CHs are converted')
+    parser.add_argument('--clip', type=int, default=3,
+                help='Clip for each read the first and last CLIP characters [3]')
 
 
 def add_args():

@@ -213,9 +213,6 @@ int patter::compareSeqToRef(std::string &seq,
     /** compare seq string to ref string. generate the methylation pattern, and return
      * the CpG index of the first CpG site in the seq (or -1 if there is none) */
 
-    // ignore first/last 'margin' characters, since they are often biased
-    size_t margin = 3;
-
     // get orientation 
     bool bottom;
     if (is_paired_end) {
@@ -254,7 +251,8 @@ int patter::compareSeqToRef(std::string &seq,
                 cur_status = METH;
                 if (!skip_mbias) mb[mbias_ind].meth[j]++;
             }
-            if (!((j >= margin) && (j < seq.size() - margin))) {
+            // ignore first/last 'clip_size' characters, since they are often biased
+            if (!((j >= clip_size) && (j < seq.size() - clip_size))) {
                 cur_status = UNKNOWN;
             }
             if ((first_ind < 0) && (cur_status != UNKNOWN)) {
@@ -586,16 +584,22 @@ int main(int argc, char **argv) {
         int min_cpg = 1;
         if (input.cmdOptionExists("--min_cpg")){
             std::string min_cpg_string = input.getCmdOption("--min_cpg");
-
             if ( !is_number(min_cpg_string) )
-                throw std::invalid_argument("invalid min_cpg argument. min_cpg should be a non-negative integer.");
-            min_cpg = std::stoi(input.getCmdOption("--min_cpg"));
+                throw std::invalid_argument("Invalid min_cpg argument. Should be a non-negative integer.");
+            min_cpg = std::stoi(min_cpg_string);
+        }
+        int clip = 0;
+        if (input.cmdOptionExists("--clip")){
+            std::string clip_str = input.getCmdOption("--clip");
+            if ( !is_number(clip_str) )
+                throw std::invalid_argument("Invalid clip argument. Should be a non-negative integer.");
+            clip = std::stoi(clip_str);
         }
         if (argc < 3) {
-            throw std::invalid_argument("Usage: patter CPG_DICT REGION [--bam] [--mbias MBIAS_PATH]");
+            throw std::invalid_argument("Usage: patter CPG_DICT REGION [--mbias MBIAS_PATH] [--clip CLIP]");
         }
         std::string mbias_path = input.getCmdOption("--mbias");
-        patter p(argv[1], argv[2], mbias_path, min_cpg);
+        patter p(argv[1], argv[2], mbias_path, min_cpg, clip);
         p.action();
 
     }

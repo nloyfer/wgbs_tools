@@ -61,6 +61,7 @@ public:
 
     std::string mbias_path;
     int min_cpg = 0;
+    int clip_size = 0;
     std::unordered_map<int, int> dict;
     std::string genome_ref;
     reads_stats readsStats;
@@ -73,8 +74,8 @@ public:
     mbias_ss mbias_OT[2];
     mbias_ss mbias_OB[2];
 
-    patter(std::string refpath, std::string rgn, std::string mb, int mc):
-            ref_path(refpath), region(rgn), mbias_path(mb), min_cpg(mc) {}
+    patter(std::string refpath, std::string rgn, std::string mb, int mc, int clip):
+            ref_path(refpath), region(rgn), mbias_path(mb), min_cpg(mc), clip_size(clip) {}
     ~patter() {delete[] conv;}
     void load_genome_ref();
     int find_cpg_inds_offset();
