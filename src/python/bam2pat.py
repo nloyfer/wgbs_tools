@@ -29,7 +29,7 @@ MAX_READ_SIZE = 1000 # extend samtools view region by this size
 
 CHROMS = ['X', 'Y', 'M', 'MT'] + list(range(1, 23))
 
-def extend_region(region, by):
+def extend_region(region, by=MAX_READ_SIZE):
     if ':' not in region:
         return region
     chrom, r = region.split(':')
@@ -68,6 +68,31 @@ def gen_pat_part(out_path, debug, temp_dir):
     except IllegalArgumentError as e:
         return None
 
+def blueprint_legacy(genome, region):
+    chrom = region[:region.find(':')]
+    # find offset per chrome - how many sites comes before this chromosome
+    cf = genome.get_chrom_cpg_size_table()
+    cf['size'] = [0] + list(np.cumsum(cf['size']))[:-1]
+    chr_offset = cf.set_index('chr').to_dict()['size']
+
+    bppatter_tool = patter_tool.replace('/patter', '/blueprint/patter')
+    patter_cmd = f' | {bppatter_tool} {genome.genome_path} {chr_offset[chrom]} '
+    patter_cmd += f' --blueprint'
+    match_cmd = f' | {match_maker_tool} --drop_singles '
+    return patter_cmd, match_cmd
+
+
+def is_region_empty(view_cmd, verbose):
+    # first, if there are no reads in current region, return
+    view_cmd += ' | head -1'
+    if not subprocess.check_output(view_cmd, shell=True,
+            stderr=subprocess.PIPE).decode().strip():
+        eprint(f'[wt bam2pat] Skipping region {region}, no reads found')
+        if verbose:
+            eprint('[wt bam2pat] ' + view_cmd)
+        return True
+    return False
+
 
 def proc_chr(bam, out_path, region, genome, chr_offset, paired_end, ex_flags, mapq, debug,
              blueprint, temp_dir, blacklist, whitelist, min_cpg, mbias, verbose):
@@ -79,36 +104,30 @@ def proc_chr(bam, out_path, region, genome, chr_offset, paired_end, ex_flags, ma
 
     # use samtools to extract only the reads from 'chrom'
     flag = '-f 3' if paired_end else ''
-    cmd = f'samtools view {bam} {region} -q {mapq} -F {ex_flags} {flag} '
+    view_cmd = f'samtools view {bam} {region} -q {mapq} -F {ex_flags} {flag} '
     if whitelist:
-        cmd += f' -M -L {whitelist} '
+        view_cmd += f' -M -L {whitelist} '
     elif blacklist:
         if not check_executable('bedtools'):
             eprint(f'[wt bam2pat] blacklist flag only works if bedtools is installed')
             raise IllegalArgumentError('Failed')
-        cmd += f' -b | bedtools intersect -sorted -v -abam stdin -b {blacklist} | samtools view '
-    if debug:
-        cmd += ' | head -200 '
-    if paired_end:
-        # change reads order, s.t paired reads will appear in adjacent lines
-        cmd += f' | {match_maker_tool} '
-        if blueprint:
-            cmd += ' --drop_singles '
+        view_cmd += f' -b | bedtools intersect -sorted -v -abam stdin -b {blacklist} | samtools view '
 
-    # first, if there are no reads in current region, return
-    validation_cmd = cmd + ' | head -1'
-    if not subprocess.check_output(validation_cmd, shell=True, stderr=subprocess.PIPE).decode().strip():
-        eprint(f'[wt bam2pat] Skipping region {region}, no reads found')
-        if verbose:
-            eprint('[wt bam2pat] ' + validation_cmd)
-        return ''
+    if is_region_empty(view_cmd, verbose):
+        return
 
-    region = extend_region(region, MAX_READ_SIZE)
-    cmd += f' | {patter_tool} {genome.dict_path} {region}'
-    cmd += f' --min_cpg {min_cpg}'
+    # change reads order, s.t paired reads will appear in adjacent lines
+    match_cmd = f' | {match_maker_tool} ' if paired_end else ''
+
+    # run patter tool to convert bam reads to pat reads
+    patter_cmd = f' | {patter_tool} {genome.dict_path} {extend_region(region)}'
+    patter_cmd += f' --min_cpg {min_cpg}'
     if mbias:
-        cmd += f' --mbias {out_path}.mb'
-    cmd += f' > {out_path}'
+        patter_cmd += f' --mbias {out_path}.mb'
+
+    if blueprint:
+        patter_cmd, match_cmd = blueprint_legacy(genome, region)
+    cmd = view_cmd + match_cmd + patter_cmd + f' > {out_path}'
     if verbose:
         print(cmd)
     subprocess_wrap(cmd, debug)
