@@ -195,7 +195,7 @@ void action(bool output_singles) {
 
 
 int main(int argc, char **argv) {
-    bool output_singles = (argc > 1) && (std::string(argv[1]) == "-s");
+    bool output_singles = (argc < 2) || (std::string(argv[1]) != "--drop_singles");
     // if output_singles is not set, output only pairs of reads, 
     // and ignore reads whose mate is absent.
     action(output_singles);
