@@ -214,7 +214,7 @@ int patter::compareSeqToRef(std::string &seq,
      * the CpG index of the first CpG site in the seq (or -1 if there is none) */
 
     // ignore first/last 'margin' characters, since they are often biased
-    size_t margin = 0;
+    size_t margin = 3;
 
     // get orientation 
     bool bottom;
@@ -486,6 +486,7 @@ void patter::initialize_patter(std::string &line_str) {
 
 void patter::print_progress(){
     if (line_i && !(line_i % 5000000)){
+        dump_mbias();
         clock_t tock = clock();
         double elapsed_secs = double(tock - tick) / (CLOCKS_PER_SEC * 60);
         tick = tock;
