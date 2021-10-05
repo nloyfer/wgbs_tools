@@ -22,7 +22,7 @@
 #include <stdexcept>
 
 #define MAX_PAT_LEN 300
-#define MAX_READ_LEN 2000
+#define MAX_READ_LEN 1000
 
 struct reads_stats {
     int nr_pairs = 0;
