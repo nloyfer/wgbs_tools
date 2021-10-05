@@ -352,8 +352,8 @@ def parse_bam2pat_args(parser):
             help='Output mbias plots. Only paired-end data is supported')
     parser.add_argument('--blueprint', '-bp', action='store_true',  # TODO put it back
             help='filter bad bisulfite conversion reads if <90 percent of CHs are converted')
-    parser.add_argument('--clip', type=int, default=3,
-                help='Clip for each read the first and last CLIP characters [3]')
+    parser.add_argument('--clip', type=int, default=0,
+                help='Clip for each read the first and last CLIP characters [0]')
 
 
 def add_args():
