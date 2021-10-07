@@ -23,16 +23,18 @@ def b2b_log(*args, **kwargs):
 
 def is_block_file_nice(df):
 
-    # no missing values / empty blocks (NAs)
+    # no empty blocks (noCpGs):
+    # no missing values (NAs)
     if df[['startCpG', 'endCpG']].isna().values.sum() > 0:
         msg = 'Some blocks are empty (NA)'
         return False, msg
 
-    # no empty blocks (startCpG==endCpG)
+    # no (startCpG==endCpG)
     if not (df['endCpG'] - df['startCpG'] > 0).all():
         msg = 'Some blocks are empty (startCpG==endCpG)'
         return False, msg
 
+    # blocks are sorted
     # startCpG and endCpG is monotonically increasing
     if not pd.Index(df['startCpG']).is_monotonic:
         msg = 'startCpG is not monotonically increasing'
