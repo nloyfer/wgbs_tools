@@ -10,12 +10,29 @@ import subprocess
 from utils_wgbs import IllegalArgumentError, eprint, segment_tool, add_GR_args, \
                        validate_file_list, validate_single_file, \
                        add_multi_thread_args, GenomeRefPaths
-from convert import add_bed_to_cpgs, is_block_file_nice
+from convert import add_bed_to_cpgs
 from genomic_region import GenomicRegion, index2chrom
 from beta_to_blocks import load_blocks_file
 
 
 DEF_CHUNK = 60000
+
+
+# TODO: remove it?
+def is_block_file_nice(df):
+
+    # no duplicated blocks
+    if (df.shape[0] != df.drop_duplicates().shape[0]):
+        msg = 'Some blocks are duplicated'
+        return False, msg
+
+    # no overlaps between blocks
+    sdf = df.sort_values(by='startCpG')
+    if not (sdf['startCpG'][1:].values - sdf['endCpG'][:sdf.shape[0] - 1].values  >= 0).all():
+        msg = 'Some blocks overlap'
+        return False, msg
+
+    return True, ''
 
 
 def segment_process(params):

@@ -116,7 +116,7 @@ def bedtools_conversion(bed_file, genome, drop_empty, add_anno, debug):
 
     # add annotations:
     if add_anno:
-        df = get_anno(df, genome)
+        df = get_anno(df, genome, bed_file)
 
     return df
 
@@ -199,7 +199,7 @@ def add_cpgs_to_bed(bed_file, genome, drop_empty, threads, add_anno):
 
     # add annotations:
     if add_anno:
-        r = get_anno(r, genome)
+        r = get_anno(r, genome, bed_file)
 
     # drop regions w/o CpGs
     if drop_empty:
@@ -309,43 +309,21 @@ def add_bed_to_cpgs(cpgs, genome, threads):
 #                                                                  #
 ####################################################################
 
-def get_anno(df, genome):
-    anno_path = GenomeRefPaths(genome).annotations
-    if anno_path is None:
-        return df
-    isnice, msg = is_block_file_nice(df)
-    if not isnice:
-        eprint(f'[wt convert] WARNING: No annotations added.\n'  \
-               f'             Incompatible input BED file.\n' \
-               f'             {msg}')
-        return df
+def get_anno(df, genome, bed_file):
     try:
-        from pybedtools import BedTool
-        bt = BedTool.from_dataframe(df.sort_values(by=['chr',
-            'start']).iloc[:, :3]).intersect(BedTool(anno_path), wao=True)
+        anno_path = GenomeRefPaths(genome).annotations
+        if anno_path is None:
+            return df
+        cmd = f'cut -f1-3 {bed_file} | sort -u | '
+        cmd += f'bedtools intersect -a - -b {anno_path} -wao | '
+        cmd += f'bedtools merge -i - -c 7,8 -o distinct,distinct'
         names = COORDS_COLS3 + ['type', 'gene']
-        annodf = bt.merge(c='7,8',o='distinct,distinct').to_dataframe(names=names)
-        return df.merge(annodf, how='left', on=COORDS_COLS3)
-    except ImportError as e:
-        eprint(f'[wt convert] WARNING: No annotations added.\n'  \
-               f'             install pybedtools to get annotations.\n')
+        rf = read_shell(cmd, names=names)
+        return df.merge(rf, how='left', on=COORDS_COLS3)
+    except Exception as e:
+        eprint(f'[wt convert] WARNING: No annotations added.')
+        eprint(e)
         return df
-
-
-def is_block_file_nice(df):
-
-    # no duplicated blocks
-    if (df.shape[0] != df.drop_duplicates().shape[0]):
-        msg = 'Some blocks are duplicated'
-        return False, msg
-
-    # no overlaps between blocks
-    sdf = df.sort_values(by='startCpG')
-    if not (sdf['startCpG'][1:].values - sdf['endCpG'][:sdf.shape[0] - 1].values  >= 0).all():
-        msg = 'Some blocks overlap'
-        return False, msg
-
-    return True, ''
 
 
 ####################################################################
