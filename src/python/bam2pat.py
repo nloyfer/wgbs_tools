@@ -29,6 +29,7 @@ MAX_READ_SIZE = 1000 # extend samtools view region by this size
 
 CHROMS = ['X', 'Y', 'M', 'MT'] + list(range(1, 23))
 
+
 def extend_region(region, by=MAX_READ_SIZE):
     if ':' not in region:
         return region
@@ -37,6 +38,7 @@ def extend_region(region, by=MAX_READ_SIZE):
     start = max(1, start - by)
     end += by
     return f'{chrom}:{start}-{end}'
+
 
 def subprocess_wrap(cmd, debug):
     if debug:
@@ -84,7 +86,7 @@ def blueprint_legacy(genome, region):
 
 
 def is_region_empty(view_cmd, verbose):
-    # first, if there are no reads in current region, return
+    # check if there are reads in the bam file for the requested region
     view_cmd += ' | head -1'
     if not subprocess.check_output(view_cmd, shell=True,
             stderr=subprocess.PIPE).decode().strip():
@@ -114,6 +116,7 @@ def proc_chr(bam, out_path, region, genome, chr_offset, paired_end, ex_flags, ma
             raise IllegalArgumentError('Failed')
         view_cmd += f' -b | bedtools intersect -sorted -v -abam stdin -b {blacklist} | samtools view '
 
+    # first, if there are no reads in current region, return
     if is_region_empty(view_cmd, verbose):
         return
 
@@ -350,7 +353,7 @@ def parse_bam2pat_args(parser):
                         nargs='?', const=True, default=False)
     parser.add_argument('--mbias', '-mb', action='store_true',
             help='Output mbias plots. Only paired-end data is supported')
-    parser.add_argument('--blueprint', '-bp', action='store_true',  # TODO put it back
+    parser.add_argument('--blueprint', '-bp', action='store_true',
             help='filter bad bisulfite conversion reads if <90 percent of CHs are converted')
     parser.add_argument('--clip', type=int, default=0,
                 help='Clip for each read the first and last CLIP characters [0]')
