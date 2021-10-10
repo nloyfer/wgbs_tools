@@ -314,7 +314,7 @@ def get_anno(df, genome, bed_file):
         anno_path = GenomeRefPaths(genome).annotations
         if anno_path is None:
             return df
-        cmd = f'cut -f1-3 {bed_file} | sort -u | '
+        cmd = f'cut -f1-3 {bed_file} | sort -k1,1 -k2,2n -u | '
         cmd += f'bedtools intersect -a - -b {anno_path} -wao | '
         cmd += f'bedtools merge -i - -c 7,8 -o distinct,distinct'
         names = COORDS_COLS3 + ['type', 'gene']
