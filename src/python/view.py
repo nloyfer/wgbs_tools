@@ -202,9 +202,7 @@ def get_beta_section(beta_path, gr):
     data = load_beta_data2(beta_path, gr=gr.sites)
     # load loci
     cmd = f'tabix {gr.genome.revdict_path} {gr.chrom}:{gr.sites[0]}-{gr.sites[1]-1} | cut -f1-2'
-    txt = subprocess.check_output(cmd, shell=True).decode()
-    names = ['chr', 'start']
-    df = pd.read_csv(StringIO(txt), sep='\t', header=None, names=names)
+    df = read_shell(cmd, names=['chr', 'start'])
     df['start'] = df['start'] - 1
     df['end'] = df['start'] + 2
     df['meth'] = data[:, 0]
