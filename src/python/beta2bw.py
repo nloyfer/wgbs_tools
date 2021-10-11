@@ -5,7 +5,7 @@ import os.path as op
 import sys
 import subprocess
 from utils_wgbs import delete_or_skip, load_beta_data2, validate_file_list, GenomeRefPaths, beta2vec, \
-    eprint, add_GR_args, IllegalArgumentError, load_dict_section, BedFileWrap
+    eprint, add_GR_args, IllegalArgumentError, load_dict_section, BedFileWrap, check_executable
 from genomic_region import GenomicRegion
 import os
 import numpy as np
@@ -55,13 +55,12 @@ class BetaToBigWig:
         """
 
         # Convert bedGraph to bigWig:
-        # TODO: check bedGraphToBigWig is in PATH
         subprocess.check_call(['bedGraphToBigWig', bed_graph, self.chrom_sizes, bigwig])
 
         # compress or delete the bedGraph:
-        # TODO: wrap gzip. Use pigz if pigz in PATH
         if self.args.bedGraph:
-            subprocess.check_call(['gzip', '-f', bed_graph])
+            compress = 'pigz' if check_executable('pigz') else 'gzip'
+            subprocess.check_call([compress, '-f', bed_graph])
         else:
             os.remove(bed_graph)
 
@@ -166,6 +165,8 @@ def main():
     """
     args = parse_args()
     validate_file_list(args.beta_paths, '.beta')
+    if not check_executable('bedGraphToBigWig', verbose=True):
+        return
 
     b = BetaToBigWig(args)
     for beta in args.beta_paths:
