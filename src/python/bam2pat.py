@@ -12,7 +12,7 @@ import re
 from multiprocessing import Pool
 from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, \
     add_GR_args, eprint, add_multi_thread_args, EmptyBamError, \
-    GenomeRefPaths, validate_single_file, delete_or_skip, check_executable
+    GenomeRefPaths, validate_single_file, delete_or_skip, check_executable, add_no_beta_arg
 from init_genome import chromosome_order
 from pat2beta import pat2beta
 from index import Indxer
@@ -343,7 +343,7 @@ class Bam2Pat:
 
 
 def parse_bam2pat_args(parser):
-    parser.add_argument('--no_beta', action='store_true', help='Do not generate a beta fils, only pat')
+    add_no_beta_arg(parser)
     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
     parser.add_argument('-T', '--temp_dir', help='passed to unix sort. Useful in case bam file is very large')
     lists = parser.add_mutually_exclusive_group()

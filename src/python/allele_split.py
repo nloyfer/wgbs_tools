@@ -4,21 +4,15 @@
 import os
 import os.path as op
 import argparse
-import numpy as np
 import subprocess
 import shutil
-import uuid
 import re
 from multiprocessing import Pool
 
 from bam2pat import Bam2Pat, add_args, parse_bam2pat_args
-from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, \
-    add_GR_args, eprint, add_multi_thread_args, mult_safe_remove, \
-    GenomeRefPaths, validate_single_file, delete_or_skip, check_executable, allele_split_tool
+from utils_wgbs import IllegalArgumentError, match_maker_tool, eprint, add_multi_thread_args, mult_safe_remove, \
+    GenomeRefPaths, validate_single_file, delete_or_skip, allele_split_tool, add_no_beta_arg
 from init_genome import chromosome_order
-from pat2beta import pat2beta
-from index import Indxer
-from genomic_region import GenomicRegion
 
 PAT_SUFF = '.pat.gz'
 
@@ -64,7 +58,7 @@ def gen_pat_part(out_path, debug, temp_dir):
         return None
 
 
-def proc_chr(bam, out_path, name, snp_pos, snp_let1, snp_let2, ex_flags, mapq, debug, verbose):
+def proc_chr(bam, out_path, name, snp_pos, snp_let1, snp_let2, ex_flags, mapq, debug, verbose, no_beta):
     """ Convert a temp single chromosome file, extracted from a bam file, into pat """
 
     # Run patter tool on a single chromosome. out_path will have the following fields:
@@ -79,36 +73,21 @@ def proc_chr(bam, out_path, name, snp_pos, snp_let1, snp_let2, ex_flags, mapq, d
     cmd = f'samtools view {bam} {region} -q {mapq} -F {ex_flags} ' #{flag} '
     if debug:
         cmd += ' | head -200 '
-    # if paired_end:
-    #     # change reads order, s.t paired reads will appear in adjacent lines
     cmd += f' | {match_maker_tool} - |'
-
-
-    # chrom = region
-    # if ':' in chrom:
-    #     chrom = chrom[:chrom.find(':')]
     bam_file_out = op.join(out_path, name) + ".bam"
     cmd += f' {allele_split_tool} --snp_pos {position} --snp_let1 \'{snp_let1}\' --snp_let2 \'{snp_let2}\' '
-    # bam_file_out = out_path[:-4] + ".bam"
     final_cmd = f'/bin/bash -c "cat <(samtools view -H {bam}) <({cmd}) | samtools view -h -b - | samtools sort -O bam -' \
                 f' > {bam_file_out} && samtools index {bam_file_out}"'
-    # cmd += f' --min_cpg {min_cpg}'
-    # if blueprint:
-    #     cmd += ' --blueprint '
-
-    # cmd += f' > {out_path}'
     if verbose:
         print(cmd)
     subprocess_wrap(final_cmd, debug)
     parser = add_args()
     parse_bam2pat_args(parser)
-    args = parser.parse_args([bam_file_out, "--out_dir", out_path, "-r", chrom, "--threads", "1", "--no_beta"])
+    bam2patargs_list = [bam_file_out, "--out_dir", out_path, "-r", chrom, "--threads", "1"]
+    if no_beta:
+        bam2patargs_list += ["--no_beta"]
+    args = parser.parse_args(bam2patargs_list)
     Bam2Pat(args, bam_file_out)
-
-        # index_cmd = f'/bin/bash -c "cat <(samtools view -H {bam}) <(cat {out_path}) | samtools view -h -b - | samtools sort -O bam - > {bam_file_out} && samtools index {bam_file_out}"'
-        # subprocess_wrap(index_cmd, debug)
-
-    # return gen_pat_part(out_path, debug, temp_dir)
 
 
 def validate_bam(bam):
@@ -146,9 +125,10 @@ class SNPSplit:
         self.verbose = args.verbose
         self.out_dir = args.out_dir
         self.bam_path = bam
-        self.snp_pos = args.snp_pos
-        self.snp_let1 = args.snp_let1
-        self.snp_let2 = args.snp_let2
+        self.snp_pos = args.pos
+        self.snp_let1 = args.alleles.split("/")[0]
+        self.snp_let2 = args.alleles.split("/")[1]
+        self.no_beta = args.no_beta
         # self.gr = GenomicRegion(args)
         self.start_threads()
         self.cleanup()
@@ -200,31 +180,15 @@ class SNPSplit:
         return blacklist, whitelist
 
     def start_threads(self):
-        """ Parse each chromosome file in a different process,
-            and concatenate outputs to pat files """
-
-        # blist, wlist = self.set_lists()
         name1 = op.basename(self.bam_path)[:-4] + f".{self.snp_pos}" + f".{self.snp_let1}"
         name2 = op.basename(self.bam_path)[:-4] + f".{self.snp_pos}" + f".{self.snp_let2}"
-        # build temp dir:
-        # name = op.splitext(op.basename(self.bam_path))[0]
-
-        # self.tmp_dir = op.join(self.out_dir,
-        #         f'{name}.{str(uuid.uuid4())[:8]}.PID{os.getpid()}')
-        # os.mkdir(self.tmp_dir)
-        # tmp_prefix = op.join(self.tmp_dir, name)
-
-        # find offset per chrome - how many sites comes before this chromosome
-        # cf = GenomeRefPaths(self.gr.genome_name).get_chrom_cpg_size_table()
-        # cf['size'] = [0] + list(np.cumsum(cf['size']))[:-1]
-        # chr_offset = cf.set_index('chr').to_dict()['size']
 
         params = [(self.bam_path, self.out_dir, name1, self.snp_pos, self.snp_let1, self.snp_let2, self.args.exclude_flags,
-                   self.args.mapq, self.args.debug, self.verbose),
+                   self.args.mapq, self.args.debug, self.verbose, self.no_beta),
                   (self.bam_path, self.out_dir, name2, self.snp_pos,
                    self.snp_let2, self.snp_let1,
                    self.args.exclude_flags,
-                   self.args.mapq, self.args.debug, self.verbose)]
+                   self.args.mapq, self.args.debug, self.verbose, self.no_beta)]
 
         p = Pool(self.args.threads)
         p.starmap(proc_chr, params)
@@ -236,66 +200,18 @@ class SNPSplit:
         # mult_safe_remove(pat_parts)
         x = 0
 
-    # def validate_parts(self, pat_parts):
-    #     # validate parts:
-    #     for part in pat_parts:
-    #         if part is None:            # subprocess threw exception
-    #             eprint('[wt bam2pat] threads failed')
-    #             return False
-    #         if op.getsize(part) == 0:   # empty pat was created
-    #             eprint('[wt bam2pat] threads failed')
-    #             return False
-    #     if not ''.join(pat_parts):      # all parts are empty
-    #         eprint('[wt bam2pat] No reads found in bam file. No pat file is generated')
-    #         return False
-    #     return True
-
-    # def concat_parts(self, name, pat_parts):
-    #
-    #     if not self.validate_parts(pat_parts):
-    #         return
-    #
-    #     # Concatenate chromosome files
-    #     pat_path = op.join(self.out_dir, name) + PAT_SUFF
-    #     os.system('cat ' + ' '.join(pat_parts) + ' > ' + pat_path)
-    #
-    #     if not op.isfile(pat_path):
-    #         eprint(f'[wt bam2pat] failed to generate {pat_path}')
-    #         return
-    #
-    #     # generate beta file and index the pat file
-    #     eprint('[wt bam2pat] indexing and generating beta file...')
-    #     Indxer(pat_path, threads=self.args.threads).run()
-    #     eprint(f'[wt bam2pat] generated {pat_path}')
-    #
-    #     beta_path = pat2beta(f'{pat_path}', self.out_dir, args=self.args)
-    #     eprint(f'[wt bam2pat] generated {beta_path}')
-
-
-# def parse_bam2pat_args(parser):
-#     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
-#     parser.add_argument('-T', '--temp_dir', help='passed to unix sort. Useful in case bam file is very large')
-#     lists = parser.add_mutually_exclusive_group()
-#     lists.add_argument('--blacklist', help='bed file. Ignore reads overlapping this bed file',
-#                         nargs='?', const=True, default=False)
-#     lists.add_argument('-L', '--whitelist', help='bed file. Consider only reads overlapping this bed file',
-#                         nargs='?', const=True, default=False)
-#     parser.add_argument('--blueprint', '-bp', action='store_true',
-#             help='filter bad bisulfite conversion reads if <90 percent of CHs are converted')
-
 
 def add_args_snp_splitt():
     parser = argparse.ArgumentParser(description=main.__doc__)
-    parser.add_argument('--bam', default='/cs/cbio/jon/grail_atlas/data/Prostate-Epithelial-Z0000045F.bam')
-    parser.add_argument('--snp_pos', default='chr20:57418071')
-    parser.add_argument('--snp_let1', default='C')
-    parser.add_argument('--snp_let2', default='T')
-    # add_GR_args(parser)
+    parser.add_argument('bam', help="The full path of the bam file to process")
+    parser.add_argument('pos', help="The position of the nucleotide from which to split the bam file. The format of "
+                                    "this argument should be 'chrXX:YYYY' where XX is the chromosome identifier and "
+                                    "YYYY is the position within the chromosome.")
+    parser.add_argument('alleles', help="The genoypes of the alleles on which to split the bam file in the format 'X/Y' where X and Y are characters 'A', 'C', 'G', or 'T' ")
+    add_no_beta_arg(parser)
     parser.add_argument('--out_dir', '-o', default='.')
-    parser.add_argument('--min_cpg', type=int, default=1,
-                help='Reads covering less than MIN_CPG sites are removed [1]')
-    parser.add_argument('--debug', '-d', action='store_true')
     parser.add_argument('--force', '-f', action='store_true', help='overwrite existing files if exists')
+    parser.add_argument('--debug', '-d', action='store_true')
     parser.add_argument('--verbose', '-v', action='store_true')
     parser.add_argument('-F', '--exclude_flags', type=int,
                         help='flags to exclude from bam file (samtools view parameter) ' \

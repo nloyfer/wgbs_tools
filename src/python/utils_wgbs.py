@@ -219,6 +219,10 @@ def add_multi_thread_args(parser):
                         help='Number of threads to use (default: all available CPUs)')
 
 
+def add_no_beta_arg(parser):
+    parser.add_argument('--no_beta', action='store_true', help='Do not generate a beta file')
+
+
 def beta2vec(data, min_cov=1, na=np.nan):
     cond = data[:, 1] >= min_cov
     vec = np.divide(data[:, 0], data[:, 1], where=cond)  # normalize to range [0, 1)
