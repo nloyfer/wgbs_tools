@@ -290,7 +290,7 @@ def load_borders(bpath, gr, genome):
     validate_single_file(bpath, '.bed.gz')
     if not op.isfile(bpath + '.tbi'):
         eprint(f'No tbi found for file {bpath}. Attempting to index it...')
-        from index_wgbs import Indxer
+        from index import Indxer
         Indxer(bpath).run()
 
     df = read_shell(f'tabix {bpath} {gr.region_str}', usecols=[3, 4])     # load borders section
@@ -346,7 +346,7 @@ def validate_single_file(fpath, suff=None):
 
     if fpath.endswith('.pat.gz') and not op.isfile(fpath + '.csi'):
         eprint(f'No csi found for file {fpath}. Attempting to index it...')
-        from index_wgbs import Indxer
+        from index import Indxer
         Indxer(fpath).run()
 
 

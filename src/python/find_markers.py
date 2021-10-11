@@ -10,7 +10,7 @@ import pandas as pd
 from difflib import get_close_matches
 
 from beta_to_blocks import load_blocks_file
-from betas_to_table import get_table, groups_load_wrap
+from beta_to_table import get_table, groups_load_wrap
 from dmb import load_gfile_helper, match_prefix_to_bin
 from utils_wgbs import validate_single_file, add_multi_thread_args, \
         validate_file_list, eprint, drop_dup_keep_order, IllegalArgumentError

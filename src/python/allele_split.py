@@ -15,9 +15,9 @@ from bam2pat import Bam2Pat, add_args, parse_bam2pat_args
 from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, \
     add_GR_args, eprint, add_multi_thread_args, mult_safe_remove, \
     GenomeRefPaths, validate_single_file, delete_or_skip, check_executable, allele_split_tool
-from init_genome_ref_wgbs import chromosome_order
+from init_genome import chromosome_order
 from pat2beta import pat2beta
-from index_wgbs import Indxer
+from index import Indxer
 from genomic_region import GenomicRegion
 
 PAT_SUFF = '.pat.gz'
