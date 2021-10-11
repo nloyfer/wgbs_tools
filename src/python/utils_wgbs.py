@@ -1,4 +1,3 @@
-import re
 import subprocess
 import os
 import os.path as op
