@@ -8,7 +8,7 @@ import pandas as pd
 from multiprocessing import Pool
 import sys
 import os.path as op
-from utils_wgbs import validate_file_list, add_GR_args, MAX_READ_LEN, splitextgz, BedFileWrap, eprint
+from utils_wgbs import validate_file_list, add_GR_args, splitextgz, eprint
 from genomic_region import GenomicRegion
 
 
@@ -123,7 +123,6 @@ def main():
     Output to stdout the histogram values if requested
     """
     args = parse_args()
-    # validate_file_list(args.pat_paths, '.pat.gz')
     validate_file_list(args.pat_paths, '.pat.gz')
     multi_FragLen(args)
 
