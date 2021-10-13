@@ -5,7 +5,7 @@ import os.path as op
 import sys
 import subprocess
 from utils_wgbs import delete_or_skip, load_beta_data2, validate_file_list, GenomeRefPaths, beta2vec, \
-    eprint, add_GR_args, IllegalArgumentError, load_dict_section, BedFileWrap, check_executable
+    add_GR_args, IllegalArgumentError, load_dict_section, BedFileWrap, check_executable
 from genomic_region import GenomicRegion
 import os
 import numpy as np
