@@ -60,7 +60,10 @@ def set_bg_tg_names(gf, targets, background):
         assert len(bg_names)
         assert len(tg_names)
         r[group] = tg_names, bg_names
-    return r
+    # filter from groups table samples not required by background or targets.
+    # this step will prevent MarkerFinder from loading beta files the user do not need
+    filt_gf = gf[gf['group'].isin(background + targets)].copy().reset_index(drop=True)
+    return r, filt_gf
 
 
 class MarkerFinder:
@@ -84,7 +87,7 @@ class MarkerFinder:
         self.targets = get_validate_targets(self.args.targets, groups)
         self.background = get_validate_targets(self.args.background, groups)
         self.res = {t: pd.DataFrame() for t in self.targets}
-        self.inds_dict = set_bg_tg_names(self.gf, self.targets, self.background)
+        self.inds_dict, self.gf = set_bg_tg_names(self.gf, self.targets, self.background)
 
     def run(self):
 
