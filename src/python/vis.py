@@ -35,6 +35,8 @@ def pat_args(parser):
 def beta_args(parser):
     # parser.add_argument('-d', '--dists', action='store_true',
                         # help='beta vis: print results with distances (kind of log scale)')
+    parser.add_argument('-c', '--min_cov', type=int, default=5,
+            help='beta vis: Minimal coverage to be considered (sites with less depth are displayed as missing values')
     parser.add_argument('-o', '--output', help='beta vis: save plot to file')
     parser.add_argument('--color_scheme', '-cs', type=int, default=256,
                         help='beta vis: Color scheme. Possible values: 16 or 256 [256]')

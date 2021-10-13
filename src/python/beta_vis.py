@@ -60,7 +60,7 @@ class BetaVis:
         with np.errstate(divide='ignore', invalid='ignore'):
             vec = np.round((data[:, 0] / data[:, 1] * 10), 0).astype(int)  # normalize to range [0, 10)
         vec[vec == 10] = 9
-        vec[data[:, 1] == 0] = -1
+        vec[data[:, 1] < self.args.min_cov] = -1
         vals = [MISSING_VAL if x == -1 else str(int(x)) for x in vec]
 
         # insert distances:
