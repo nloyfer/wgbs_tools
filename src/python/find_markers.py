@@ -38,8 +38,10 @@ def get_validate_targets(subset, groups):
     for group in subset:
         if group not in groups:
             # Invalid group. suggest the closest alternative and abort.
-            close = [c for c in get_close_matches(group, groups)][0]
-            eprint(f'Invalid group: {group}. Did you mean {close}?')
+            eprint(f'Invalid group: {group}')
+            close = [c for c in get_close_matches(group, groups)]
+            if close:
+                eprint(f'Did you mean {close[0]}?')
             eprint('All possible groups:', groups)
             raise IllegalArgumentError()
     return subset
