@@ -39,6 +39,7 @@ commands = [
     'bam_cpg_counts',
     'frag_len',
     'allele_split',
+    'test_bimodal'
 ]
 
 def main():
