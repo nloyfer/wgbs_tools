@@ -206,8 +206,8 @@ def read_blocks_and_test(tabixed_bed_file, cur_region, pat_file):
     return p_val_list
 
 
-def choose_blocks_by_fdr_bh(pvals, blocks):
-    rejected_list, corrected_p_vals, _, _ = multipletests(pvals, alpha=0.05, method='fdr_bh')
+def choose_blocks_by_fdr_bh(pvals, blocks, alpha=0.05):
+    rejected_list, corrected_p_vals, _, _ = multipletests(pvals, alpha=alpha, method='fdr_bh')
     index = 0
     for rejected in rejected_list:
         if not rejected:
@@ -235,7 +235,7 @@ def test_multiple_regions(tabixed_bed_file, pat_file, num_threads, out_file):
     region_p_val_list = sorted(region_p_val_list, key=lambda elem: elem[1])
     [block_lines, p_vals] = zip(*region_p_val_list)
     accepted_blocks, corrected_p_vals = choose_blocks_by_fdr_bh(p_vals, block_lines)
-    with open(out_file, 'w') as f_out:
+    with open(out_file, "w") if out_file != "-" else sys.stdout as f_out:
         for accepted_block, corrected_p_val in zip(accepted_blocks, corrected_p_vals):
             corrected_p_val = "{:,.1e}".format(corrected_p_val)
             f_out.write(f"{accepted_block}\t{corrected_p_val}\n")
@@ -247,7 +247,7 @@ def add_args():
     parser.add_argument('pat', help="The input pat file")
     add_GR_args(parser, bed_file=True, required=True)
     add_multi_thread_args(parser)
-    parser.add_argument('--out_file', '-o', default=sys.stdout, help="Output file name in which to write results")
+    parser.add_argument('--out_file', '-o', default="-", help="Output file name in which to write results")
     return parser
 
 
