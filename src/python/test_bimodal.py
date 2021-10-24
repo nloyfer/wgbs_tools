@@ -1,6 +1,9 @@
 import argparse
 import subprocess
+import sys
 import warnings
+
+from convert import COORDS_COLS5
 from genomic_region import GenomicRegion
 from utils_wgbs import add_GR_args, MAX_PAT_LEN, get_genome_name, GenomeRefPaths, add_multi_thread_args, \
     IllegalArgumentError
@@ -165,15 +168,8 @@ def pull_pat_file(region, file_name):
     return subprocess.check_output(cmd, shell=True).decode()
 
 
-def test_single_region(pat_file, chrom, region=None, sites=None, should_print=True):
-    if region is None and sites is None:
-        raise IllegalArgumentError("sites and regions cannot both be None")
-    if region is not None:
-        gr = GenomicRegion(region=region)
-        s1, s2 = gr.sites
-    else:
-        s1 = sites[0]
-        s2 = sites[1]
+def test_single_region(pat_file, chrom, sites, should_print=True):
+    s1, s2 = sites
     # chrom = region.split(":")[0]
     new_start = max(1, s1 - MAX_PAT_LEN)
     pat_region = f"{chrom}:{new_start}-{s2}"
@@ -191,7 +187,7 @@ def test_single_region(pat_file, chrom, region=None, sites=None, should_print=Tr
 
 def read_blocks_and_test(tabixed_bed_file, cur_region, pat_file):
     peek_df = pd.read_csv(tabixed_bed_file, sep='\t', nrows=1, header=None, comment='#')
-    names = ['chr', 'start', 'end', 'startCpG', 'endCpG']
+    names = COORDS_COLS5
     if len(peek_df.columns) < len(names):
         msg = f'Invalid blocks file: {tabixed_bed_file}. less than {len(names)} columns'
         raise IllegalArgumentError(msg)
@@ -203,7 +199,7 @@ def read_blocks_and_test(tabixed_bed_file, cur_region, pat_file):
             tokens = line.split("\t")
             # region_to_test = f"{tokens[0]}:{tokens[1]}-{tokens[2]}"
             sites = (int(tokens[3]), int(tokens[4]))
-            p_val = test_single_region(pat_file, tokens[0], sites=sites, should_print=False)
+            p_val = test_single_region(pat_file, tokens[0], sites, should_print=False)
             p_val = p_val.astype(np.float32)
             p_val_list.append((line, p_val))
     print(f"finished processesing {cur_region}")
@@ -243,16 +239,15 @@ def test_multiple_regions(tabixed_bed_file, pat_file, num_threads, out_file):
         for accepted_block, corrected_p_val in zip(accepted_blocks, corrected_p_vals):
             corrected_p_val = "{:,.1e}".format(corrected_p_val)
             f_out.write(f"{accepted_block}\t{corrected_p_val}\n")
-    x = 0
 
 
 
 def add_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('pat', help="The input pat file")
-    add_GR_args(parser, bed_file=True)
+    add_GR_args(parser, bed_file=True, required=True)
     add_multi_thread_args(parser)
-    parser.add_argument('--out_file', help="Output file name in which to write results")
+    parser.add_argument('--out_file', '-o', default=sys.stdout, help="Output file name in which to write results")
     return parser
 
 
@@ -268,13 +263,11 @@ def main():
     parser = add_args()
     args = parse_args(parser)
 
-    if args.region is not None:
-        test_single_region(args.pat, args.region.split(":")[0], region=args.region)
-    elif args.bed_file is not None:
-        if args.out_file is None:
-            raise IllegalArgumentError("If multi-region bed file is specified, then --out_file must be specified.")
+    if args.bed_file is not None:
         test_multiple_regions(args.bed_file, args.pat, args.threads, args.out_file)
-
+    else:
+        gr = GenomicRegion(args)
+        test_single_region(args.pat, gr.chrom, gr.sites)
 
 if __name__ == '__main__':
     main()
