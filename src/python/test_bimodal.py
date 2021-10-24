@@ -6,7 +6,7 @@ import warnings
 from convert import COORDS_COLS5
 from genomic_region import GenomicRegion
 from utils_wgbs import add_GR_args, MAX_PAT_LEN, get_genome_name, GenomeRefPaths, add_multi_thread_args, \
-    IllegalArgumentError
+    IllegalArgumentError, eprint
 from multiprocessing import Pool
 import pandas as pd
 try:
@@ -18,35 +18,6 @@ import numpy as np
 from scipy import stats
 
 
-# def region2sites(region):
-#     path = Path(op.realpath(__file__))
-#     refdir = op.join(op.join(path.parent.parent.parent, 'references'), 'default')
-#     refdir = str(Path(refdir).resolve())
-#     dictpath = op.join(refdir, 'CpG.bed.gz')
-#     regions_from = regions.split(":")[-1].split("-")
-#     # find CpG indexes in range of the region:
-#     cmd = f'tabix {dictpath} {region}'
-#     # cmd += 'awk \'(NR==1){first=$3} {lbp=$2} END{print first"-"$3+1}\''
-#
-#     # if bp_tuple[1] equals exactly a loci of a CpG site, this site is *not* included
-#     # e.g., in hg19, chr6:71046415-71046562 is 9718430-9718435 in sites
-#     cmd += f"awk -v b={self.bp_tuple[1]} "
-#     cmd += '\'(NR==1){first=$3} END{if ($2<b) {r+=1}; print first"-"$3+r}\''
-#     res = subprocess.check_output(cmd, shell=True).decode()
-#     # eprint(cmd)
-#
-#     if len(set(res.strip().split('-'))) == 1:
-#         res = '-1'
-#
-#     # throw error if there are no CpGs in range
-#     if res.strip() == '-1':
-#         raise IllegalArgumentError(f'Invalid genomic region: {self.region_str}. No CpGs in range')
-#
-#     s1, s2 = self._sites_str_to_tuple(res)
-#     # s2 += 1     # non-inclusive
-#     return s1, s2
-
-
 def read_pat_vis(pat_text, start):
     first_ind = 0
     max_ind = 0
@@ -55,7 +26,6 @@ def read_pat_vis(pat_text, start):
     ind_list = []
     counts_list = []
     is_first = True
-    # with open(filename, 'r') if filename is not "-" else sys.stdin as f:
     for line in pat_text.split("\n"):
         # line = line.strip()
         if len(line) > 1:
@@ -107,11 +77,8 @@ def em_pat_matrix(pat_matrix, should_print=True):
         p_alleles = np.array([0.5, 0.5])
         l_p_alleles = np.log2(p_alleles)
         ll = np.infty * -1
-        # jabba = np.zeros([2, num_cpgs])
-        # zabba = np.zeros([2, num_cpgs])
 
         ll_alleles = np.zeros([2, num_reads])
-        # ll_alleles_c = np.zeros([2, num_reads])
         ll_delta = 100
         while ll_delta > 0:
             # for row_ind in range(num_reads):
@@ -170,7 +137,6 @@ def pull_pat_file(region, file_name):
 
 def test_single_region(pat_file, chrom, sites, should_print=True):
     s1, s2 = sites
-    # chrom = region.split(":")[0]
     new_start = max(1, s1 - MAX_PAT_LEN)
     pat_region = f"{chrom}:{new_start}-{s2}"
     pat_text = pull_pat_file(pat_region, pat_file)
@@ -180,8 +146,7 @@ def test_single_region(pat_file, chrom, sites, should_print=True):
     test_stat = 2 * np.log(2) * (post_em_ll - ll0)
     pv = 1 - stats.chi2.cdf(test_stat, pat_mat.shape[1] - 1)
     if should_print:
-        pv_str = "{:,.3e}".format(pv)
-        print(f"pvalue: {pv_str}")
+        print(f"pvalue: {pv:,.3e}")
     return pv
 
 
@@ -190,29 +155,26 @@ def read_blocks_and_test(tabixed_bed_file, cur_region, pat_file, verbose=False):
     cur_blocks_lines = subprocess.check_output(tabix_cmd, shell=True).decode().split("\n")
     p_val_list = []
     for line in cur_blocks_lines:
-        if len(line) > 3:
-            tokens = line.split("\t")
-            # region_to_test = f"{tokens[0]}:{tokens[1]}-{tokens[2]}"
-            sites = (int(tokens[3]), int(tokens[4]))
-            p_val = test_single_region(pat_file, tokens[0], sites, should_print=False)
-            p_val = p_val.astype(np.float32)
-            p_val_list.append((line, p_val))
+        if not line.strip():
+            continue
+        tokens = line.split("\t")
+        # region_to_test = f"{tokens[0]}:{tokens[1]}-{tokens[2]}"
+        sites = (int(tokens[3]), int(tokens[4]))
+        p_val = test_single_region(pat_file, tokens[0], sites, should_print=False)
+        p_val = p_val.astype(np.float32)
+        p_val_list.append((line, p_val))
     if verbose:
-        print(f"finished processesing {cur_region}")
+        eprint(f"[wt bimodal] finished processesing {cur_region}")
     return p_val_list
 
 
 def choose_blocks_by_fdr_bh(pvals, blocks, alpha=0.05):
     rejected_list, corrected_p_vals, _, _ = multipletests(pvals, alpha=alpha, method='fdr_bh')
-    index = 0
-    for rejected in rejected_list:
-        if not rejected:
-            break
-        index += 1
-    if index > 0:
-        return blocks[0:index], corrected_p_vals[0:index]
-    else:
+    if not rejected_list[0]:
         return [], []
+    # keep only the first "index" values (the significant ones)
+    index = np.argmax(1 - rejected_list)
+    return blocks[:index], corrected_p_vals[:index]
 
 
 def test_multiple_regions(tabixed_bed_file, pat_file, num_threads, out_file, verbose):
@@ -233,15 +195,13 @@ def test_multiple_regions(tabixed_bed_file, pat_file, num_threads, out_file, ver
     p.close()
     p.join()
 
-    region_p_val_list = [p_reg for x in arr for p_reg in x]
+    region_p_val_list = [p_reg for x in arr for p_reg in x]  # flatten
     region_p_val_list = sorted(region_p_val_list, key=lambda elem: elem[1])
     [block_lines, p_vals] = zip(*region_p_val_list)
     accepted_blocks, corrected_p_vals = choose_blocks_by_fdr_bh(p_vals, block_lines)
     with open(out_file, "w") if out_file != "-" else sys.stdout as f_out:
         for accepted_block, corrected_p_val in zip(accepted_blocks, corrected_p_vals):
-            corrected_p_val = "{:,.1e}".format(corrected_p_val)
-            f_out.write(f"{accepted_block}\t{corrected_p_val}\n")
-
+            f_out.write(f"{accepted_block}\t{corrected_p_val:,.1e}\n")
 
 
 def add_args():
