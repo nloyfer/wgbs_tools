@@ -185,12 +185,7 @@ def test_single_region(pat_file, chrom, sites, should_print=True):
     return pv
 
 
-def read_blocks_and_test(tabixed_bed_file, cur_region, pat_file):
-    peek_df = pd.read_csv(tabixed_bed_file, sep='\t', nrows=1, header=None, comment='#')
-    names = COORDS_COLS5
-    if len(peek_df.columns) < len(names):
-        msg = f'Invalid blocks file: {tabixed_bed_file}. less than {len(names)} columns'
-        raise IllegalArgumentError(msg)
+def read_blocks_and_test(tabixed_bed_file, cur_region, pat_file, verbose=False):
     tabix_cmd = f"tabix {tabixed_bed_file} {cur_region}"
     cur_blocks_lines = subprocess.check_output(tabix_cmd, shell=True).decode().split("\n")
     p_val_list = []
@@ -202,7 +197,8 @@ def read_blocks_and_test(tabixed_bed_file, cur_region, pat_file):
             p_val = test_single_region(pat_file, tokens[0], sites, should_print=False)
             p_val = p_val.astype(np.float32)
             p_val_list.append((line, p_val))
-    print(f"finished processesing {cur_region}")
+    if verbose:
+        print(f"finished processesing {cur_region}")
     return p_val_list
 
 
@@ -219,12 +215,18 @@ def choose_blocks_by_fdr_bh(pvals, blocks, alpha=0.05):
         return [], []
 
 
-def test_multiple_regions(tabixed_bed_file, pat_file, num_threads, out_file):
+def test_multiple_regions(tabixed_bed_file, pat_file, num_threads, out_file, verbose):
     cf = GenomeRefPaths(get_genome_name(None)).get_chrom_cpg_size_table()
     chroms = sorted(set(cf.chr))
     params_list = []
     for chrom in chroms:
-        params_list.append((tabixed_bed_file, chrom, pat_file))
+        params_list.append((tabixed_bed_file, chrom, pat_file, verbose))
+
+    peek_df = pd.read_csv(tabixed_bed_file, sep='\t', nrows=1, header=None, comment='#')
+    names = COORDS_COLS5
+    if len(peek_df.columns) < len(names):
+        msg = f'Invalid blocks file: {tabixed_bed_file}. less than {len(names)} columns'
+        raise IllegalArgumentError(msg)
 
     p = Pool(num_threads)
     arr = p.starmap(read_blocks_and_test, params_list)
@@ -248,6 +250,7 @@ def add_args():
     add_GR_args(parser, bed_file=True, required=True)
     add_multi_thread_args(parser)
     parser.add_argument('--out_file', '-o', default="-", help="Output file name in which to write results")
+    parser.add_argument('--verbose', '-v', action='store_true')
     return parser
 
 
@@ -264,7 +267,7 @@ def main():
     args = parse_args(parser)
 
     if args.bed_file is not None:
-        test_multiple_regions(args.bed_file, args.pat, args.threads, args.out_file)
+        test_multiple_regions(args.bed_file, args.pat, args.threads, args.out_file, args.verbose)
     else:
         gr = GenomicRegion(args)
         test_single_region(args.pat, gr.chrom, gr.sites)
