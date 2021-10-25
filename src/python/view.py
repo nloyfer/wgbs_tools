@@ -197,44 +197,35 @@ def view_pat_bed_multiprocess(args):
 #                  #
 ####################
 
-def get_beta_section(beta_path, gr):
-    # load data
+def view_other_bin(bin_path, args):
+    gr = GenomicRegion(args)
     data = load_beta_data2(beta_path, gr=gr.sites)
-    # load loci
-    cmd = f'tabix {gr.genome.revdict_path} {gr.chrom}:{gr.sites[0]}-{gr.sites[1]-1} | cut -f1-2'
-    df = read_shell(cmd, names=['chr', 'start'])
-    df['start'] = df['start'] - 1
-    df['end'] = df['start'] + 2
-    df['meth'] = data[:, 0]
-    df['total'] = data[:, 1]
-    return df
+    np.savetxt('/dev/stdout', data, fmt='%s', delimiter='\t')
 
+def bview_build_cmd(beta_path, gr, bed_path):
+    cmd = f'{view_beta_script} {gr.genome.revdict_path} {beta_path} '
+    if not gr.is_whole():
+        cmd += f' {gr.chrom} {gr.sites[0]} {gr.nr_sites}'
+    if bed_path:
+        validate_single_file(bed_path)
+        cmd += f' | bedtools intersect -b {bed_path} -a stdin -wa '
+    return cmd
 
-def view_whole_beta(beta_path, gr, out_path):
-    cmd = f'{view_beta_script} {gr.genome.dict_path} {beta_path} {out_path}'
-    subprocess_wrap_sigpipe(cmd)
-
-
-def view_beta(beta_path, gr, opath, threads):
+def view_beta(beta_path, gr, opath, bed_path):
     """
-    View beta file in given region/sites range
+    View beta file in given region/sites range/s
     :param beta_path: beta file path
     :param gr: a GenomicRegion object
     :param opath: output path (or stdout)
+    :param bed_path: path to a bed file
     """
-    if opath is None:
-        opath = '/dev/stdout'
-    if not gr.is_whole():
-        df = get_beta_section(beta_path, gr)
-        df.to_csv(opath, sep='\t', index=None, header=None)
-        return
 
-    if beta_path.endswith('.beta'):
-        view_whole_beta(beta_path, gr, opath)
-    else:
-        data = load_beta_data2(beta_path, gr=gr.sites)
-        np.savetxt(opath, data, fmt='%s', delimiter='\t')
-
+    cmd = bview_build_cmd(beta_path, gr, bed_path)
+    if opath is not None:
+        if opath.endswith('.gz'):
+            cmd += ' | gzip -c '
+        cmd += f' > {opath}'
+    subprocess_wrap_sigpipe(cmd)
 
 ##########################
 #                        #
@@ -269,13 +260,11 @@ def main():
 
 
     try:
-        if op.splitext(input_file)[1] in ('.beta', '.lbeta', '.bin'):
-            if args.bed_file:
-                eprint('Error: -L flag is not supported for beta files')  #TODO implement with bedtools
-                exit(1)
+        if input_file.endswith('.beta'):
             gr = GenomicRegion(args)
-            view_beta(input_file, gr, args.out_path, args.threads)
-
+            view_beta(input_file, gr, args.out_path, args.bed_file)
+        elif op.splitext(input_file)[1] in ('.lbeta', '.bin'):
+            view_other_bin(input_file, args)
         elif input_file.endswith('.pat.gz'):
             if args.bed_file is None:
                 view_gr(input_file, args)
