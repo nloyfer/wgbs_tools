@@ -384,7 +384,7 @@ def delete_or_skip(output_file, force):
     :return: False iff file should be skipped
     """
     # if file already exists, delete it or skip it
-    if output_file is None or output_file == sys.stdout:
+    if output_file is None or output_file == sys.stdout or output_file == '/dev/stdout':
         return True
     if op.isfile(output_file):
         if force:
