@@ -7,6 +7,7 @@ import subprocess
 from utils_wgbs import delete_or_skip, validate_file_list, GenomeRefPaths, \
                        add_GR_args, IllegalArgumentError, check_executable
 from genomic_region import GenomicRegion
+from beta2bed import beta_to_bed
 import os
 import numpy as np
 
@@ -22,9 +23,9 @@ class BetaToBigWig:
         self.args = args
         self.gr = GenomicRegion(args)
         self.outdir = args.outdir
+        self.name = ''
         if not op.isdir(self.outdir):
             raise IllegalArgumentError('Invalid output directory: ' + self.outdir)
-
         self.chrom_sizes = GenomeRefPaths(args.genome).chrom_sizes
 
     def bed_graph_to_bigwig(self, bed_graph, bigwig):
@@ -35,6 +36,7 @@ class BetaToBigWig:
         """
 
         # Convert bedGraph to bigWig:
+        b2bw_log(f'[{self.name}] convert bed to bigwig...')
         subprocess.check_call(['bedGraphToBigWig', bed_graph, self.chrom_sizes, bigwig])
 
         # compress or delete the bedGraph:
@@ -46,9 +48,9 @@ class BetaToBigWig:
 
 
     def run_beta_to_bw(self, beta_path):
-        name = op.basename(beta_path)
+        self.name = op.basename(beta_path)
 
-        prefix = op.join(self.outdir, op.splitext(name)[0])
+        prefix = op.join(self.outdir, op.splitext(self.name)[0])
         out_bigwig = prefix + BW_EXT
         out_bed_graph = prefix + BG_EXT
 
@@ -57,8 +59,7 @@ class BetaToBigWig:
             return
 
         # convert beta to bed:
-        b2bw_log(f'[{name}] Dumping bed...')
-        from beta2bed import beta_to_bed
+        b2bw_log(f'[{self.name}] Dumping bed...')
         beta_to_bed(beta_path=beta_path,
                     gr=self.gr,
                     bed_file=self.args.bed_file,
@@ -70,8 +71,6 @@ class BetaToBigWig:
 
         # convert bedGraphs to bigWigs:
         self.bed_graph_to_bigwig(out_bed_graph, out_bigwig)
-
-
 
 
 def parse_args():
