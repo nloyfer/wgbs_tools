@@ -19,13 +19,11 @@ def beta2bed_build_cmd(beta_path, gr, bed_file, min_cov, mean, keep_na):
     return cmd
 
 
-def beta_to_bed(args, beta_path):
-    opath = args.outpath
-    if not delete_or_skip(opath, args.force):
+def beta_to_bed(beta_path, gr, bed_file, min_cov, mean, keep_na, force, opath):
+    if not delete_or_skip(opath, force):
         return
 
-    gr = GenomicRegion(args)
-    cmd = beta2bed_build_cmd(beta_path, gr, args.bed_file, args.min_cov, args.mean, args.keep_na)
+    cmd = beta2bed_build_cmd(beta_path, gr, bed_file, min_cov, mean, keep_na)
     if opath is not None:
         if opath.endswith('.gz'):
             cmd += ' | gzip -c '
@@ -59,7 +57,8 @@ def main():
     """
     args = parse_args()
     validate_single_file(args.beta_path, '.beta')
-    beta_to_bed(args, args.beta_path)
+    gr = GenomicRegion(args)
+    beta_to_bed(args.beta_path, gr, args.bed_file, args.min_cov, args.mean, args.keep_na, args.force, args.outpath)
 
 
 if __name__ == '__main__':
