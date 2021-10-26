@@ -67,7 +67,6 @@ def main():
 
 # todo:
 # bam2pat: Add reports to log file / stderr. e.g: % success, # sites covered, # reads extracted etc.
-# beta2bw & beta2bed: use view_beta.sh
 # pip install?
 
 def eprint(*args, **kwargs):
