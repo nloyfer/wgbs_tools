@@ -273,7 +273,7 @@ def main():
             if args.bed_file is None:
                 view_gr(input_file, args)
             else:
-                view_pat_bed_multiprocess(args)
+                view_pat_bed_multiprocess(args)  # TODO: deprecate it.
         else:
             raise IllegalArgumentError('Unknown input format:', input_file)
 
