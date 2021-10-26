@@ -198,11 +198,14 @@ def view_pat_bed_multiprocess(args):
 ####################
 
 def view_other_bin(bin_path, args):
+    # view lbeta or bin files. Minimal support. Works very slow for whole genome.
     gr = GenomicRegion(args)
     data = load_beta_data2(beta_path, gr=gr.sites)
     np.savetxt('/dev/stdout', data, fmt='%s', delimiter='\t')
 
+
 def bview_build_cmd(beta_path, gr, bed_path):
+    # compose a shell command to output a beta file to stdout
     cmd = f'{view_beta_script} {gr.genome.revdict_path} {beta_path} '
     if not gr.is_whole():
         cmd += f' {gr.chrom} {gr.sites[0]} {gr.nr_sites}'
@@ -210,6 +213,7 @@ def bview_build_cmd(beta_path, gr, bed_path):
         validate_single_file(bed_path)
         cmd += f' | bedtools intersect -b {bed_path} -a stdin -wa '
     return cmd
+
 
 def view_beta(beta_path, gr, opath, bed_path):
     """
