@@ -6,9 +6,9 @@ import sys
 import argparse
 import re
 from utils_wgbs import MAX_PAT_LEN, validate_file_list, splitextgz, IllegalArgumentError, \
-                       color_text, load_borders, drop_dup_keep_order
+                       color_text, load_borders, drop_dup_keep_order, read_shell
 from genomic_region import GenomicRegion
-from view import ViewPat
+from cview import view_gr
 
 
 FULL_CIRCLE = '\u25CF'
@@ -128,8 +128,9 @@ class PatVis:
         print(txt)
 
     def get_block(self):
-        df = ViewPat(self.pat_path, None, self.gr, self.args.strict,
-                min_len=self.args.min_len, strip=self.args.strip).perform_view()
+        cmd = view_gr(self.pat_path, self.args, get_cmd=True)
+        names = ['chr', 'start', 'pat', 'count']
+        df = read_shell(cmd, names=names)
         if not df.empty:
             return self.cyclic_print(df)
 
