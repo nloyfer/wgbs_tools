@@ -20,6 +20,7 @@
 #include <cstdio>
 #include <memory>
 #include <stdexcept>
+#include <array>
 
 #define MAX_PAT_LEN 300
 #define MAX_READ_LEN 2000
