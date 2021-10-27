@@ -174,7 +174,8 @@ class SegmentByChunks:
         df = add_bed_to_cpgs(df, self.genome.genome, self.args.threads)
 
         # add a header line
-        breakpoint()
+        # It's needed for tabix version >1.9. They have a bug when indexing a bed file 
+        # with 5 columns where the last column is numeric.
         with open(self.args.out_path, 'w') as f:
             f.write('#' + '\t'.join(df.columns) + '\n')
         df.to_csv(self.args.out_path, sep='\t', header=None, index=None, mode='a')
