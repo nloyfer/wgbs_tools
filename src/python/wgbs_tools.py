@@ -57,6 +57,8 @@ def main():
             importlib.import_module(args.command).main()
 
     except ModuleNotFoundError as e:
+        if args.command not in str(e):
+            raise e
         print_invalid_command(args.command)
         print_help()
 
