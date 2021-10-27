@@ -111,6 +111,17 @@ def check_executable(cmd, verbose=False):
     return False
 
 
+def validate_out_dir(out_dir, verbose=True):
+    if not out_dir:
+        out_dir = '.'
+    if not op.isdir(out_dir):
+        if verbose:
+            eprint(f'[wt] creating output directory {out_dir}')
+        os.mkdir(out_dir)
+    if not os.access(out_dir, os.W_OK | os.X_OK):
+        raise IllegalArgumentError('Output directory has no writing permissions')
+
+
 class BedFileWrap:
     def __init__(self, bed_path, genome=None):
         self.bed_path = bed_path

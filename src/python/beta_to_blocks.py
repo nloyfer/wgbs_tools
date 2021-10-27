@@ -10,7 +10,8 @@ from multiprocessing import Pool
 import sys
 from utils_wgbs import load_beta_data, trim_to_uint8, GenomeRefPaths, \
                         IllegalArgumentError, add_multi_thread_args, \
-                        splitextgz, validate_file_list, validate_single_file, eprint
+                        splitextgz, validate_file_list, validate_single_file, \
+                        eprint, validate_out_dir
 
 def b2b_log(*args, **kwargs):
     print('[ wt beta_to_blocks ]', *args, file=sys.stderr, **kwargs)
@@ -188,6 +189,7 @@ def main():
     args = parse_args()
     files = args.input_files
     validate_file_list(files, '.beta')
+    validate_out_dir(args.out_dir)
 
     if not args.force:
         files = filter_existing_files(files, args.out_dir, args.lbeta)
