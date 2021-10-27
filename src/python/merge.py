@@ -16,6 +16,7 @@ class MergePats:
     def __init__(self, pats, outpath, labels, args):
         self.args = args
         self.pats = pats
+        validate_file_list(self.pats, force_suff='.pat.gz')
         self.outpath = outpath
         self.labels = labels
 
@@ -66,7 +67,8 @@ class MergePats:
         # cmd += f' | bedtools groupby -g 1-3 -c 4'  # TODO: check how many columns in self.pats[0] and use groupby instead of collapse_pat_script
         cmd += f' | bgzip > {self.outpath}'
         cmd = f'/bin/bash -c "{cmd}"'
-        eprint(cmd)
+        if self.args.verbose:
+            eprint(cmd)
         subprocess.check_call(cmd, shell=True)
 
         if not op.isfile(self.outpath):
@@ -80,6 +82,7 @@ def merge_betas(betas, opath):
     :param betas: list of beta files
     :param opath: merged beta file
     """
+    validate_file_list(betas, force_suff='.beta')
     data = load_beta_data(betas[0]).astype(np.int)
     for b in betas[1:]:
         data += load_beta_data(b)
@@ -98,7 +101,7 @@ def parse_args():
     parser.add_argument('-p', '--prefix', help='Prefix of output file', required=True)
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing file if existed')
     parser.add_argument('-T', '--temp_dir', help='passed to "sort -m". Useful for merging very large pat files')
-    # parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--labels', nargs='+', help='labels for the mixed reads. '
                                                     'Default is None')
     add_GR_args(parser, bed_file=True)
@@ -123,14 +126,13 @@ def main():
 
     # validate input files
     input_files = args.input_files
-    validate_file_list(input_files, min_len=2)
 
     # construct output path
     out_path = args.prefix + splitextgz(args.input_files[0])[1]
 
     if op.realpath(out_path) in [op.realpath(p) for p in args.input_files]:
-        eprint('[merge] Error output path is identical ' \
-                'to one of the input files {}'.format(out_path))
+        eprint('[wt merge] Error output path is identical ' \
+                'to one of the input files {out_path}')
         return
 
     if not delete_or_skip(out_path, args.force):
