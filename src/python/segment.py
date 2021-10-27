@@ -172,7 +172,12 @@ class SegmentByChunks:
         eprint(f'[wt segment] found {nr_blocks_filt:,} blocks\n' \
                f'             (dropped {nr_dropped:,} short blocks)')
         df = add_bed_to_cpgs(df, self.genome.genome, self.args.threads)
-        df.to_csv(self.args.out_path, sep='\t', header=None, index=None)
+
+        # add a header line
+        breakpoint()
+        with open(self.args.out_path, 'w') as f:
+            f.write('#' + '\t'.join(df.columns) + '\n')
+        df.to_csv(self.args.out_path, sep='\t', header=None, index=None, mode='a')
 
 
 #############################################################
