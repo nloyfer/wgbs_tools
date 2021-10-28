@@ -12,7 +12,7 @@ def plot_hist(names, covs):
     import matplotlib.pyplot as plt
     plt.rcdefaults()
     plt.hist(covs)
-    plt.title('beta coverage histogram\nmean cov:{:.2f}'.format(np.mean(covs)))
+    plt.title('beta coverage histogram\nmean cov:{np.mean(covs):.2f}')
 
     plt.figure()
     y_pos = np.arange(len(covs))
