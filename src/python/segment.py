@@ -176,6 +176,7 @@ class SegmentByChunks:
         # add a header line
         # It's needed for tabix version >1.9. They have a bug when indexing a bed file 
         # with 5 columns where the last column is numeric.
+        # see https://github.com/samtools/htslib/issues/1347
         outpath = self.args.out_path
         with open(outpath, "w") if outpath != sys.stdout else sys.stdout as f:
             f.write('#' + '\t'.join(df.columns) + '\n')
@@ -190,7 +191,7 @@ class SegmentByChunks:
 
 def stitch_2_dfs(b1, b2, params):
 
-    # if b2 is not the direct extension of b2, we have a problem
+    # if b2 is not the direct extension of b1, we have a problem
     if b1[-1] != b2[0]:
         msg = '[wt segment] Patch stitching Failed! ' \
               '             patches are not supposed to be merged'
