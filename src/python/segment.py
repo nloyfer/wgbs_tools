@@ -176,9 +176,10 @@ class SegmentByChunks:
         # add a header line
         # It's needed for tabix version >1.9. They have a bug when indexing a bed file 
         # with 5 columns where the last column is numeric.
-        with open(self.args.out_path, 'w') as f:
+        outpath = self.args.out_path
+        with open(outpath, "w") if outpath != sys.stdout else sys.stdout as f:
             f.write('#' + '\t'.join(df.columns) + '\n')
-        df.to_csv(self.args.out_path, sep='\t', header=None, index=None, mode='a')
+            df.to_csv(f, sep='\t', header=None, index=None, mode='a')
 
 
 #############################################################
