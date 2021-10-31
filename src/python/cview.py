@@ -84,7 +84,7 @@ def view_bed(pat, args):
     cmd += f' | {cview_tool} {view_flags}'
     if args.sub_sample is not None:  # sub-sample reads
         cmd += f' | {pat_sampler} {args.sub_sample} '
-    cmd += f' | sort -k2,2n -k3,3 | {collapse_pat_script} - '  # todo: implement the sort & collapsing in cview_tool
+    cmd += f' | sort -k2,2n -k3,3 | {collapse_pat_script} - '
     # eprint(cmd)
     if args.out_path is not None:
         cmd += f' > {args.out_path}'
