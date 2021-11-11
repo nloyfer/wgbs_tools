@@ -55,9 +55,10 @@ def cwrap(beta_path, blocks_df, is_nice, min_cov, verbose):
         # eprint('[wt table]', op.splitext(op.basename(beta_path))[0])
     if beta_path.endswith('.beta'):
         r = collapse_process(beta_path, blocks_df, is_nice)
-        if r is not None:
-            d, v = r.popitem()
-            return {d: beta2vec(v, min_cov)}
+        if r is None:
+            return
+        name = op.splitext(op.basename(beta_path))[0]
+        return {name: beta2vec(r, min_cov)}
     else:
         return {op.basename(beta_path)[:-4] : load_uxm(beta_path, blocks_df, 'U', min_cov)}
 

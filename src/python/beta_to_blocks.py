@@ -135,6 +135,8 @@ def collapse_process(beta_path, df, is_nice, lbeta=False, out_dir=None, bedGraph
     try:
         # load beta file:
         reduced_data = reduce_data(beta_path, df.reset_index(drop=True), is_nice)
+        if out_dir is None:
+            return reduced_data
         return dump(df, reduced_data, beta_path, lbeta, out_dir, bedGraph)
 
     except Exception as e:
@@ -151,10 +153,8 @@ def collapse_process(beta_path, df, is_nice, lbeta=False, out_dir=None, bedGraph
 def dump(df, reduced_data, beta_path, lbeta, out_dir, bedGraph):
 
     bin_table = trim_to_uint8(reduced_data, lbeta)
-    name = op.splitext(op.basename(beta_path))[0]
-    if out_dir is None:
-        return {name: bin_table}
     # dump to binary file
+    name = op.splitext(op.basename(beta_path))[0]
     suff = '.lbeta' if lbeta else '.bin'
     prefix = op.join(out_dir, name)
     bin_table.tofile(prefix + suff)

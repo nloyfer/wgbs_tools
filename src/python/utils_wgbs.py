@@ -122,36 +122,6 @@ def validate_out_dir(out_dir, verbose=True):
         raise IllegalArgumentError('Output directory has no writing permissions')
 
 
-class BedFileWrap:
-    def __init__(self, bed_path, genome=None):
-        self.bed_path = bed_path
-        validate_single_file(bed_path)
-        self.df = pd.read_csv(self.bed_path, usecols=[0, 1, 2], sep='\t',
-                              names=['chr', 'start', 'end'], header=None, comment='#')
-
-        # drop header line, if exists:
-        if self.df.iloc[0, 0] == 'chr':
-            self.df.drop(self.df.index[0], inplace=True)
-            self.df.reset_index(inplace=True, drop=True)
-        self.genome = genome
-
-    def iter_grs(self):
-        from genomic_region import GenomicRegion
-        for _, r in self.df.iterrows():
-            yield GenomicRegion(region='{}:{}-{}'.format(*r))
-        # todo: check bed file has no overlaps?
-
-    def fast_iter_regions(self):
-        for _, r in self.df.iterrows():
-            yield '{}:{}-{}'.format(*r)
-
-    def cheat_sites(self):
-        df = pd.read_csv(self.bed_path, usecols=[3, 4], sep='\t',
-                          names=['startCpG', 'endCpG'], header=None, comment='#')
-        for _, r in df.iterrows():
-            yield (r[0], r[1])
-
-
 def drop_dup_keep_order(lst):
     seen = set()
     return [x for x in lst if not (x in seen or seen.add(x))]
