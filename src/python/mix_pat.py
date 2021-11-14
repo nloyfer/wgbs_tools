@@ -6,11 +6,12 @@ import pandas as pd
 import os.path as op
 from multiprocessing import Pool
 from utils_wgbs import validate_file_list, IllegalArgumentError, splitextgz, add_GR_args, delete_or_skip, \
-        BedFileWrap, eprint, validate_dir, add_multi_thread_args
+        eprint, validate_dir, add_multi_thread_args
 from genomic_region import GenomicRegion
 from merge import MergePats
 from pat2beta import pat2beta
 from beta_cov import beta_cov, beta_cov_by_bed
+from beta_to_blocks import load_blocks_file
 
 
 class Mixer:
@@ -21,7 +22,7 @@ class Mixer:
         self.gr = GenomicRegion(args)
         self.pats = args.pat_files
         self.dest_cov = args.cov
-        self.bed = None if not args.bed_file else BedFileWrap(args.bed_file)
+        self.bed = load_blocks_file(args.bed_file) if args.bed_file else None
         self.stats = pd.DataFrame(index=[splitextgz(op.basename(f))[0] for f in self.pats])
         self.nr_pats = len(self.pats)
         self.labels = self.validate_labels(args.labels)
@@ -109,7 +110,7 @@ class Mixer:
             if self.bed:
                 cov = beta_cov_by_bed(beta, self.bed)
             elif self.args.bed_cov:     # todo: this is messy. fix it
-                cov = beta_cov_by_bed(beta, BedFileWrap(self.args.bed_cov))
+                cov = beta_cov_by_bed(beta, load_blocks_file(self.args.bed_cov))
             else:
                 cov = beta_cov(beta, self.gr.sites, print_res=True)
             covs.append(cov)
@@ -187,6 +188,7 @@ def parse_args():
     out_or_pref.add_argument('-o', '--out_dir', help='Output directory [.]', default='.')
     parser.add_argument('-T', '--temp_dir', help='passed to "sort -m". Useful for merging very large pat files')
     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
+    parser.add_argument('-v', '--verbose', action='store_true')
     add_multi_thread_args(parser)
     args = parser.parse_args()
     return args

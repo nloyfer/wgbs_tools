@@ -23,7 +23,7 @@ def subprocess_wrap_sigpipe(cmd):
 #                 #
 ###################
 
-def view_gr(pat, args):
+def view_gr(pat, args, get_cmd=False):
     validate_single_file(pat, '.pat.gz')
     gr = GenomicRegion(args)
     if gr.is_whole():
@@ -38,11 +38,13 @@ def view_gr(pat, args):
     view_flags = set_view_flags(args)
     cmd = f"""/bin/bash -c 'cat <(echo "{s}\t{e}") <(echo "-1") <({cmd}) | {cview_tool}'"""
     cmd = cmd.rstrip("'") + f" {view_flags} ' "
-    if args.sub_sample is not None:  # sub-sample reads
+    if hasattr(args, 'sub_sample') and args.sub_sample is not None:  # sub-sample reads
         cmd += f' | {pat_sampler} {args.sub_sample} '
     if not gr.is_whole():
         cmd += f' | sort -k2,2n -k3,3 '
     cmd += f' | {collapse_pat_script} - '
+    if get_cmd:
+        return cmd
     if args.out_path is not None:
         cmd += f' > {args.out_path}'
     subprocess_wrap_sigpipe(cmd)
@@ -82,7 +84,7 @@ def view_bed(pat, args):
     cmd += f' | {cview_tool} {view_flags}'
     if args.sub_sample is not None:  # sub-sample reads
         cmd += f' | {pat_sampler} {args.sub_sample} '
-    cmd += f' | sort -k2,2n -k3,3 | {collapse_pat_script} - '  # todo: implement the sort & collapsing in cview_tool
+    cmd += f' | sort -k2,2n -k3,3 | {collapse_pat_script} - '
     # eprint(cmd)
     if args.out_path is not None:
         cmd += f' > {args.out_path}'

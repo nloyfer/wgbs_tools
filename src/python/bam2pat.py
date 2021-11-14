@@ -72,6 +72,9 @@ def gen_pat_part(out_path, debug, temp_dir):
         return None
 
 def blueprint_legacy(genome, region):
+    if not op.isfile(genome.genome_path):
+        eprint(f'[ wt bam2pat ] Error: not genome reference fasta file: {genome_path}')
+        raise IllegalArgumentError('Failed')
     chrom = region[:region.find(':')]
     # find offset per chrome - how many sites comes before this chromosome
     cf = genome.get_chrom_cpg_size_table()

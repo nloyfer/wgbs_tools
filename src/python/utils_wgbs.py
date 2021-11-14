@@ -59,7 +59,7 @@ class GenomeRefPaths:
         self.chrom_cpg_sizes = self.join('CpG.chrome.size')
         self.chrom_sizes = self.join('chrome.size')
         self.revdict_path = self.join('rev.CpG.bed.gz')
-        self.genome_path = self.join('genome.fa')
+        self.genome_path = self.join('genome.fa', validate=False)
         self.annotations = self.join('annotations.bed.gz', validate=False)
         self.blocks = self.join('blocks.bed.gz', validate=False)
         self.blacklist = self.join('blacklist.bed', validate=False)
@@ -111,34 +111,15 @@ def check_executable(cmd, verbose=False):
     return False
 
 
-class BedFileWrap:
-    def __init__(self, bed_path, genome=None):
-        self.bed_path = bed_path
-        validate_single_file(bed_path)
-        self.df = pd.read_csv(self.bed_path, usecols=[0, 1, 2], sep='\t',
-                              names=['chr', 'start', 'end'], header=None, comment='#')
-
-        # drop header line, if exists:
-        if self.df.iloc[0, 0] == 'chr':
-            self.df.drop(self.df.index[0], inplace=True)
-            self.df.reset_index(inplace=True, drop=True)
-        self.genome = genome
-
-    def iter_grs(self):
-        from genomic_region import GenomicRegion
-        for _, r in self.df.iterrows():
-            yield GenomicRegion(region='{}:{}-{}'.format(*r))
-        # todo: check bed file has no overlaps?
-
-    def fast_iter_regions(self):
-        for _, r in self.df.iterrows():
-            yield '{}:{}-{}'.format(*r)
-
-    def cheat_sites(self):
-        df = pd.read_csv(self.bed_path, usecols=[3, 4], sep='\t',
-                          names=['startCpG', 'endCpG'], header=None, comment='#')
-        for _, r in df.iterrows():
-            yield (r[0], r[1])
+def validate_out_dir(out_dir, verbose=True):
+    if not out_dir:
+        out_dir = '.'
+    if not op.isdir(out_dir):
+        if verbose:
+            eprint(f'[wt] creating output directory {out_dir}')
+        os.mkdir(out_dir)
+    if not os.access(out_dir, os.W_OK | os.X_OK):
+        raise IllegalArgumentError('Output directory has no writing permissions')
 
 
 def drop_dup_keep_order(lst):
@@ -384,7 +365,7 @@ def delete_or_skip(output_file, force):
     :return: False iff file should be skipped
     """
     # if file already exists, delete it or skip it
-    if output_file is None or output_file == sys.stdout:
+    if output_file is None or output_file == sys.stdout or output_file == '/dev/stdout':
         return True
     if op.isfile(output_file):
         if force:

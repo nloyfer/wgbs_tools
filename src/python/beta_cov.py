@@ -3,16 +3,18 @@
 import numpy as np
 import os.path as op
 import argparse
-from utils_wgbs import load_beta_data, add_GR_args, BedFileWrap, eprint
-import multiprocessing
+from utils_wgbs import load_beta_data, add_GR_args, eprint, \
+        add_multi_thread_args
+from multiprocessing import Pool
 from genomic_region import GenomicRegion
+from beta_to_blocks import collapse_process, is_block_file_nice, load_blocks_file
 
 
 def plot_hist(names, covs):
     import matplotlib.pyplot as plt
     plt.rcdefaults()
     plt.hist(covs)
-    plt.title('beta coverage histogram\nmean cov:{:.2f}'.format(np.mean(covs)))
+    plt.title('beta coverage histogram\nmean cov:{np.mean(covs):.2f}')
 
     plt.figure()
     y_pos = np.arange(len(covs))
@@ -29,6 +31,7 @@ def parse_args():
     parser.add_argument('betas', nargs='+', help='one or more beta files')
     parser.add_argument('--plot', action='store_true', help='Plot histogram of coverages')
     add_GR_args(parser, bed_file=True)
+    add_multi_thread_args(parser)
     args = parser.parse_args()
     return args
 
@@ -37,29 +40,20 @@ def pretty_name(beta_path):
     return op.splitext(op.basename(beta_path))[0]
 
 
-def beta_cov_by_bed2(beta_path, bed_wrapper):
-    nr_sites = 0
-    total_cov = 0
-    for gr in bed_wrapper.iter_grs():
-        table = load_beta_data(beta_path, gr.sites)[:, 1]
-        nr_sites += table.size
-        total_cov += table.sum()
-    return total_cov / nr_sites if nr_sites else 0
-
-def beta_cov_by_bed(beta_path, bed_wrapper):
-    nr_sites = 0
-    total_cov = 0
-    vec = load_beta_data(beta_path)[:, 1].flatten()
-    for sites in bed_wrapper.cheat_sites():
-        start, end = sites
-        nr_sites += end - start
-        total_cov += np.sum(vec[start - 1:end - 1])
-    return total_cov / nr_sites if nr_sites else 0
+def beta_cov_by_bed(beta_path, blocks_df):
+    nr_sites_covered = (blocks_df['endCpG'] - blocks_df['startCpG']).sum()
+    if not nr_sites_covered:
+        return 0
+    is_nice = is_block_file_nice(blocks_df)[0]
+    data = collapse_process(beta_path, blocks_df, is_nice)
+    total_cov = data[:, 1].sum()
+    return total_cov / nr_sites_covered
 
 
-def beta_cov(beta_path, sites=None, bed_wrapper=None, print_res=False):
-    if bed_wrapper:
-        res = beta_cov_by_bed(beta_path, bed_wrapper)
+def beta_cov(beta_path, sites=None, blocks_df=None, print_res=False):
+    if blocks_df is not None:
+        res = beta_cov_by_bed(beta_path, blocks_df)
+        print(res)
     else:
         res = np.mean(load_beta_data(beta_path, sites)[:, 1])
     if print_res:
@@ -75,16 +69,18 @@ def main():
 
     args = parse_args()
 
-    bedw = BedFileWrap(args.bed_file) if args.bed_file else None
 
-    processes = []
-    with multiprocessing.Pool(multiprocessing.cpu_count()) as p:
-        for beta in args.betas:
-            params = (beta, GenomicRegion(args).sites, bedw, False)
-            processes.append(p.apply_async(beta_cov, params))
-        p.close()
-        p.join()
-    covs = [pr.get() for pr in processes]
+    sites = GenomicRegion(args).sites
+
+    blocks_df = load_blocks_file(args.bed_file) if args.bed_file else None
+
+    params = [(beta, sites, blocks_df, False) for beta in args.betas]
+    covs = [beta_cov(*p) for p in params]
+    return
+    p = Pool(args.threads)
+    covs = p.starmap(beta_cov, params)
+    p.close()
+    p.join()
 
     for cov, beta_path in zip(covs, args.betas):
         print('{}\t{:.2f}'.format(pretty_name(beta_path), cov))

@@ -82,6 +82,7 @@ $ wgbstools segment --betas *beta --min_cpg 3 --max_bp 2000 -r $region -o blocks
 [wt segment] found 9 blocks
              (dropped 8 short blocks)
 $ cat blocks.small.bed
+#chr    start   end     startCpG        endCpG
 chr3    119527929       119528187       5394767 5394772
 chr3    119528217       119528243       5394774 5394777
 chr3    119528246       119528309       5394777 5394781

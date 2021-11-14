@@ -29,6 +29,8 @@ def pat_args(parser):
             help='Pat vis: output colored text instead of shapes')
     parser.add_argument('--strike', action='store_true',
             help='Pat vis: add strikethrough to reads')
+    parser.add_argument('--sub_sample', type=float, metavar='[0.0, 1.0]',
+                        help='Pat vis: subsample from reads.')
     parser.add_argument('--yebl', action='store_true',
             help='color yellow-blue instead of green-red')
 
@@ -75,6 +77,8 @@ def main():
     args = parser.parse_args()
     if args.uxm and not (0.5 <= args.uxm <= 1):
         parser.error("uxm value must be between 0.5 and 1")
+    if args.sub_sample is not None and not 1 >= args.sub_sample >= 0:
+        parser.error('[wt vis] sub-sampling rate must be within [0.0, 1.0]')
 
     # print title
     if args.title:

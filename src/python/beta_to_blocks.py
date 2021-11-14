@@ -10,7 +10,8 @@ from multiprocessing import Pool
 import sys
 from utils_wgbs import load_beta_data, trim_to_uint8, GenomeRefPaths, \
                         IllegalArgumentError, add_multi_thread_args, \
-                        splitextgz, validate_file_list, validate_single_file, eprint
+                        splitextgz, validate_file_list, validate_single_file, \
+                        eprint, validate_out_dir
 
 def b2b_log(*args, **kwargs):
     print('[ wt beta_to_blocks ]', *args, file=sys.stderr, **kwargs)
@@ -134,6 +135,8 @@ def collapse_process(beta_path, df, is_nice, lbeta=False, out_dir=None, bedGraph
     try:
         # load beta file:
         reduced_data = reduce_data(beta_path, df.reset_index(drop=True), is_nice)
+        if out_dir is None:
+            return reduced_data
         return dump(df, reduced_data, beta_path, lbeta, out_dir, bedGraph)
 
     except Exception as e:
@@ -150,10 +153,8 @@ def collapse_process(beta_path, df, is_nice, lbeta=False, out_dir=None, bedGraph
 def dump(df, reduced_data, beta_path, lbeta, out_dir, bedGraph):
 
     bin_table = trim_to_uint8(reduced_data, lbeta)
-    name = op.splitext(op.basename(beta_path))[0]
-    if out_dir is None:
-        return {name: bin_table}
     # dump to binary file
+    name = op.splitext(op.basename(beta_path))[0]
     suff = '.lbeta' if lbeta else '.bin'
     prefix = op.join(out_dir, name)
     bin_table.tofile(prefix + suff)
@@ -188,6 +189,7 @@ def main():
     args = parse_args()
     files = args.input_files
     validate_file_list(files, '.beta')
+    validate_out_dir(args.out_dir)
 
     if not args.force:
         files = filter_existing_files(files, args.out_dir, args.lbeta)

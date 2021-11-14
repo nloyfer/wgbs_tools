@@ -57,6 +57,8 @@ def main():
             importlib.import_module(args.command).main()
 
     except ModuleNotFoundError as e:
+        if args.command not in str(e):
+            raise e
         print_invalid_command(args.command)
         print_help()
 
@@ -67,8 +69,6 @@ def main():
 
 # todo:
 # bam2pat: Add reports to log file / stderr. e.g: % success, # sites covered, # reads extracted etc.
-# Change wgbs_tools.py to new name, update the print_help method.
-# beta2bw & beta2bed: use view_beta.sh
 # pip install?
 
 def eprint(*args, **kwargs):

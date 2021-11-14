@@ -40,7 +40,7 @@ def read_reference(ref):
     missing_sites = mf[mf['cpg'].isna()]
     if not missing_sites.empty:
         msg = 'WARNING: Skipping some unrecognized Illumina IDs \n'
-        msg += '(not found in the map table {})\n'.format(ilmn2cpg_dict)
+        msg += f'(not found in the map table {ilmn2cpg_dict})\n'
         if not missing_sites['ilmn'].empty:
             eprint(missing_sites['ilmn'])
             eprint(list(missing_sites['ilmn']))
