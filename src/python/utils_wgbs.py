@@ -25,7 +25,9 @@ homog_tool = SRC_DIR + 'homog/homog'
 
 match_maker_tool = SRC_DIR + 'pipeline_wgbs/match_maker'
 patter_tool = SRC_DIR + 'pipeline_wgbs/patter'
+add_cpg_count_tool = SRC_DIR + 'pipeline_wgbs/add_cpg_counts'
 allele_split_tool = SRC_DIR + 'pipeline_wgbs/snp_patter'
+bam_meth_split_tool = SRC_DIR + 'pipeline_wgbs/bam_split.sh'
 
 # TODO: support hg38
 ilmn2cpg_dict = op.join(path.parent.parent.parent, 'references/hg19/ilmn2CpG.tsv.gz')

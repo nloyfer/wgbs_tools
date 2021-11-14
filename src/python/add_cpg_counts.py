@@ -2,16 +2,13 @@
 
 import os
 import os.path as op
-import argparse
 import subprocess
 import shlex
 import re
 import datetime
-import multiprocessing
 from multiprocessing import Pool
-from utils_wgbs import IllegalArgumentError, patter_tool, match_maker_tool, add_GR_args, eprint
+from utils_wgbs import IllegalArgumentError, match_maker_tool, eprint, add_cpg_count_tool
 from bam2pat import add_args, subprocess_wrap, CHROMS, validate_bam, is_pair_end
-from init_genome_ref_wgbs import chromosome_order
 from genomic_region import GenomicRegion
 
 
@@ -43,7 +40,7 @@ def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end,
     if paired_end:
         # change reads order, s.t paired reads will appear in adjacent lines
         cmd += f'{match_maker_tool} | '
-    cmd += f'{patter_tool.replace("patter", "bpatter")} {genome.genome_path} {genome.chrom_cpg_sizes} --bam '
+    cmd += f'{add_cpg_count_tool} {genome.genome_path} {genome.chrom_cpg_sizes} '
     if min_cpg is not None:
         cmd += f'--min_cpg {str(min_cpg)}'
     cmd += f' | cat {header_path} - | samtools view -b - > {unsorted_bam}'
@@ -105,11 +102,10 @@ class BamMethylData:
                 filt_chroms = [c for c in nofilt_chroms if c in CHROMS]
             else:
                 filt_chroms = [c for c in filt_chroms if re.match(r'^chr([\d]+|[XYM])$', c)]
-            chroms = list(sorted(filt_chroms, key=chromosome_order))
-            if not chroms:
+            if not filt_chroms:
                 eprint('Failed retrieving valid chromosome names')
                 raise IllegalArgumentError('Failed')
-            return chroms
+            return filt_chroms
 
     def intermediate_bam_file_view(self, name):
         return '<(samtools view {})'.format(name)

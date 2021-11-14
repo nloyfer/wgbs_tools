@@ -36,9 +36,9 @@ commands = [
     'compare_betas',
     'homog',
     'find_markers',
-    'bam_cpg_counts',
+    'add_cpg_counts',
     'frag_len',
-    'allele_split',
+    'split_by_allele',
     'test_bimodal'
 ]
 
