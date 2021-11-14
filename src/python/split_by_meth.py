@@ -49,6 +49,12 @@ def validate_bam(bam):
         eprint('bam file must be sorted by coordinate')
         return False
 
+    # check if bam has YI:Z flag:
+    peek_cmd = f'samtools view {bam} | head -1'
+    if 'YI:Z' not in subprocess.check_output(peek_cmd, shell=True).decode():
+        eprint('bam file must contain CpG counts info. Please run `wgbstools add_cpg_counts`')
+        return False
+
     # check if bam is indexed:
     if not (op.isfile(bam + '.bai')):
         eprint('[wt bam2pat] bai file was not found! Generating...')
