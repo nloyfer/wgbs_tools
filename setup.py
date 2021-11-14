@@ -46,7 +46,8 @@ modules = {
         'snp_patter' : 'g++ -std=c++11 src/pipeline_wgbs/snp_patter.cpp -o src/pipeline_wgbs/snp_patter',
         'match_maker' : 'g++ -std=c++11 src/pipeline_wgbs/match_maker.cpp -o src/pipeline_wgbs/match_maker',
         'segmentor' : 'g++ -std=c++11 src/segment_betas/main.cpp src/segment_betas/segmentor.cpp -o src/segment_betas/segmentor ',
-        'cview' : 'g++ -c -o src/cview/main.o src/cview/main.cpp -std=c++11; g++ -c -o src/cview/cview.o src/cview/cview.cpp -std=c++11; g++ -o src/cview/cview src/cview/main.o src/cview/cview.o -std=c++11'
+        'cview' : 'g++ -c -o src/cview/main.o src/cview/main.cpp -std=c++11; g++ -c -o src/cview/cview.o src/cview/cview.cpp -std=c++11; g++ -o src/cview/cview src/cview/main.o src/cview/cview.o -std=c++11',
+        'add_cpg_counts' : 'g++ -std=c++11 src/pipeline_wgbs/add_cpg_counts.cpp -o src/pipeline_wgbs/add_cpg_counts'
         }
 
 def compile_all(args):
