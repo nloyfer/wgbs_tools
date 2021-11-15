@@ -75,8 +75,8 @@ def main():
     blocks_df = load_blocks_file(args.bed_file) if args.bed_file else None
 
     params = [(beta, sites, blocks_df, False) for beta in args.betas]
-    covs = [beta_cov(*p) for p in params]
-    return
+    # covs = [beta_cov(*p) for p in params]
+    # return
     p = Pool(args.threads)
     covs = p.starmap(beta_cov, params)
     p.close()
