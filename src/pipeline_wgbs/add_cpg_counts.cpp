@@ -3,7 +3,7 @@
 //
 
 #include "add_cpg_counts.h"
-#include <string_view>
+//#include <string_view>
 
 char METH = 'C';
 char UNMETH = 'T';
