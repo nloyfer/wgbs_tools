@@ -120,27 +120,36 @@ class BamMethylData:
         name = op.join(self.out_dir, op.basename(self.bam_path)[:-4])
         header_path = name + '.header'
         proc_header(self.bam_path, header_path, self.debug)
-        processes = []
-        with Pool(self.args.threads) as p:
-            for c in self.set_regions():
-                out_path_name = name + '_' + c
-                params = (self.bam_path, out_path_name, c, self.gr.genome,
-                        header_path, is_pair_end(self.bam_path), self.args.exclude_flags,
-                        self.args.mapq, self.debug, self.args.min_cpg)
-                processes.append(p.apply_async(proc_chr, params))
-            if not processes:
-                raise IllegalArgumentError('Empty bam file')
-            p.close()
-            p.join()
-        res = [pr.get() for pr in processes]    # [(pat_path, unq_path) for each chromosome]
-        print('finished patter')
+        if self.gr.region_str is None:
+            final_path = name + BAM_SUFF
+            processes = []
+            with Pool(self.args.threads) as p:
+                for c in self.set_regions():
+                    out_path_name = name + '_' + c
+                    params = (self.bam_path, out_path_name, c, self.gr.genome,
+                            header_path, is_pair_end(self.bam_path), self.args.exclude_flags,
+                            self.args.mapq, self.debug, self.args.min_cpg)
+                    processes.append(p.apply_async(proc_chr, params))
+                if not processes:
+                    raise IllegalArgumentError('Empty bam file')
+                p.close()
+                p.join()
+            res = [pr.get() for pr in processes]   # [(pat_path, unq_path) for each chromosome]
+        else:
+            region_str_for_name = self.gr.region_str.replace(":", "_").replace("-", "_")
+            final_path = name + f".{region_str_for_name}" + BAM_SUFF
+            out_path_name = name + '_' + "1"
+            res = [proc_chr(self.bam_path, out_path_name, self.gr.region_str, self.gr.genome, header_path,
+                            is_pair_end(self.bam_path), self.args.exclude_flags, self.args.mapq, self.debug,
+                            self.args.min_cpg)]
+        print('finished adding CpG counts')
         if None in res:
             print('threads failed')
             return
 
         print(datetime.datetime.now().isoformat() + ": finished processing each chromosome")
         # Concatenate chromosome files
-        final_path = name + BAM_SUFF
+
         out_directory = os.path.dirname(final_path)
         # cmd = '/bin/bash -c "cat <({})'.format(get_header_command(self.bam_path)) + ' ' +\
         #       ' '.join([self.intermediate_bam_file_view(p) for p in res]) + ' | samtools view -b - > ' + final_path_unsorted + '"'

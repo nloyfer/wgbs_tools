@@ -4,7 +4,9 @@ import os.path as op
 import argparse
 import subprocess
 from multiprocessing import Pool
-from utils_wgbs import IllegalArgumentError, eprint, add_multi_thread_args, bam_meth_split_tool
+
+from genomic_region import GenomicRegion
+from utils_wgbs import IllegalArgumentError, eprint, add_multi_thread_args, bam_meth_split_tool, add_GR_args
 
 
 def subprocess_wrap(cmd, debug):
@@ -14,11 +16,13 @@ def subprocess_wrap(cmd, debug):
     os.system(cmd)
 
 
-def proc_chr(bam, name, is_meth, homog_prop, min_cpg, ex_flags, mapq, debug, verbose):
+def proc_chr(bam, name, region, is_meth, homog_prop, min_cpg, ex_flags, mapq, debug, verbose):
     # use samtools to extract only the reads from 'chrom'
     # flag = '-f 3' if paired_end else ''
     prop_to_use = float(homog_prop) if is_meth else (1 - float(homog_prop))
     view_cmd = f"samtools view {bam} "
+    if region is not None:
+        view_cmd = view_cmd + f"{region} "
     if mapq is not None:
         view_cmd = view_cmd + f"-q {mapq} "
     if ex_flags is not None:
@@ -73,17 +77,21 @@ class MethSplit:
         self.bam_path = bam
         self.homog_prop = args.homog_prop
         self.min_cpg = args.min_cpg
-        # self.gr = GenomicRegion(args)
+        self.gr = GenomicRegion(args)
         self.start_threads()
 
 
     def start_threads(self):
-        meth_name = op.join(self.out_dir, op.basename(self.bam_path)[:-4] + ".M.bam")
-        unmeth_name = op.join(self.out_dir, op.basename(self.bam_path)[:-4] + ".U.bam")
+        base_name = op.basename(self.bam_path)[:-4]
+        if self.gr.region_str is not None:
+            new_region_str = self.gr.region_str.replace(":", "_").replace("-", "_")
+            base_name = base_name + f".{new_region_str}"
+        meth_name = op.join(self.out_dir, base_name + ".M.bam")
+        unmeth_name = op.join(self.out_dir, base_name + ".U.bam")
 
-        params = [(self.bam_path, meth_name, True, self.homog_prop, self.min_cpg, self.args.exclude_flags,
+        params = [(self.bam_path, meth_name, self.gr.region_str, True, self.homog_prop, self.min_cpg, self.args.exclude_flags,
                    self.args.mapq, self.args.debug, self.verbose),
-                  (self.bam_path, unmeth_name, False, self.homog_prop, self.min_cpg,
+                  (self.bam_path, unmeth_name, self.gr.region_str, False, self.homog_prop, self.min_cpg,
                    self.args.exclude_flags,
                    self.args.mapq, self.args.debug, self.verbose)]
 
@@ -113,6 +121,7 @@ def add_args():
     parser.add_argument('-q', '--mapq', type=int,
                         help=f'Minimal mapping quality (samtools view parameter)',
                         default=None)
+    add_GR_args(parser)
     add_multi_thread_args(parser)
 
     return parser
