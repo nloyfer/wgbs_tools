@@ -8,6 +8,7 @@ It converts data from standard formats (e.g., bam, bed) into tailored compact ye
 These can be visualized in terminal, or analyzed in different ways - subsample, merge, slice, mix, segment and more.
 
 ![alt text](docs/img/wgbstools_overview.png "wgbstools overview")
+This project is developed in [Prof. Tommy Kaplan's lab](https://www.cs.huji.ac.il/~tommy/) at the Hebrew University, Jerusalem, Israel.
 
 ## Quick start
 ### Installation
