@@ -68,7 +68,8 @@ def load_blocks_file(blocks_path, nrows=None):
 
         names = ['chr', 'start', 'end', 'startCpG', 'endCpG']
         if len(peek_df.columns) < len(names):
-            msg = f'Invalid blocks file: {blocks_path}. less than {len(names)} columns'
+            msg = f'Invalid blocks file: {blocks_path}. less than {len(names)} columns.\n'
+            msg += f'Run wgbstools convert -L {blocks_path} -o OUTPUT_REGION_FILE to add the CpG columns'
             raise IllegalArgumentError(msg)
 
         # load 
