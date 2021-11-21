@@ -94,9 +94,13 @@ def homog_process(pat, blocks, args):
 
     # generate rate_cmd:
     l = args.rlen
-    th1 = round(1 - (l - 1) / l, 3) + 0.001
-    th2 = round((l - 1) / l, 3)
-    rate_cmd = f' -l {l} -r 0,{th1},{th2},1 '
+    rate_cmd = f' -l {l} -r '
+    if args.thresholds:
+        rate_cmd += f'0,{args.thresholds},1'
+    else:
+        th1 = round(1 - (l - 1) / l, 3) + 0.001
+        th2 = round((l - 1) / l, 3)
+        rate_cmd += f'0,{th1},{th2},1 '
 
     # for a long marker file (>10K marker), 
     # parse the whole pat file instead of running "cview -L BED"
@@ -133,6 +137,13 @@ def main():
         raise IllegalArgumentError('nr_bits must be in {8, 16}')
     if args.rlen < 3:
         raise IllegalArgumentError('rlen must be >= 3')
+    if args.thresholds is not None:
+        th = args.thresholds.split(',')
+        if not len(th) == 2: # and th[0].is_number():
+            raise IllegalArgumentError('Invalid thresholds')
+        th = float(th[0]), float(th[1])
+        if not (1 > th[1] > th[0] > 0):
+            raise IllegalArgumentError('Invalid thresholds')
     pats = args.input_files
     validate_file_list(pats, '.pat.gz')
 
@@ -159,6 +170,8 @@ def parse_args():
     parser.add_argument('--nr_bits', type=int, default=8,
             help='For binary output, specify number of bits for the output format - 8 or 16. ' \
                  '(e.g. 8 statnds for uint8, which means values are trimmed to [0, 255])')
+    parser.add_argument('--thresholds', '-t',
+            help='UXM thresholds, LOW,HIGH. E.g, "0.3334,0.666".\n')
     parser.add_argument('--rlen', '-l', type=int, default=3,
             help='Minimal read length (in CpGs) to consider. Default is 3')
     parser.add_argument('--debug', '-d', action='store_true')
