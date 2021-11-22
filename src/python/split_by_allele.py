@@ -9,7 +9,7 @@ import shutil
 import re
 from multiprocessing import Pool
 
-from bam2pat import Bam2Pat, add_args, parse_bam2pat_args
+from bam2pat import Bam2Pat, add_args, parse_bam2pat_args, extend_region
 from utils_wgbs import IllegalArgumentError, match_maker_tool, eprint, add_multi_thread_args, mult_safe_remove, \
     GenomeRefPaths, validate_single_file, delete_or_skip, allele_split_tool, add_no_beta_arg
 from init_genome import chromosome_order
@@ -67,9 +67,9 @@ def proc_chr(bam, out_path, name, snp_pos, snp_let1, snp_let2, ex_flags, mapq, d
 
     # use samtools to extract only the reads from 'chrom'
     # flag = '-f 3' if paired_end else ''
-    position = snp_pos.split(":")[-1]
-    chrom = snp_pos.split(":")[0]
-    region = chrom + ":" + position + "-" + position
+    chrom, position = snp_pos.split(":")
+    region = f"{snp_pos}-{int(position) + 1}"
+    region = extend_region(region)
     cmd = f'samtools view {bam} {region} -q {mapq} -F {ex_flags} ' #{flag} '
     if debug:
         cmd += ' | head -200 '

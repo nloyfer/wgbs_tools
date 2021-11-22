@@ -176,46 +176,42 @@ int strip_pat(std::string &pat) {
 
 char snp_patter::compareSeqToRef(std::string &seq,
                                 std::string &ref,
-                                bool reversed,
+                                bool bottom,
                                 std::string &meth_pattern,
                                 int start_pos) {
     /** compare seq string to ref string. generate the methylation pattern, and return
      * the CpG index of the first CpG site in the seq (or -1 if there is none) */
 
     char snp_letter = 'Z';
-    if (start_pos == 57418067){
-        int x = 0;
-    }
     int snp_index = snp_pos - start_pos;
     if (snp_index >= seq.length()) {
         return snp_letter;
     }
     char snp_val = seq[snp_index];
-    if (((snp_let1 == 'C' && snp_let2 == 'T') || (snp_let2 == 'C' && snp_let1 == 'T')) && !reversed){
+    if (((snp_let1 == 'C' && snp_let2 == 'T') || (snp_let2 == 'C' && snp_let1 == 'T')) && !bottom){
         return snp_letter;
     }
-    if (((snp_let1 == 'G' && snp_let2 == 'A') || (snp_let2 == 'G' && snp_let1 == 'A')) && reversed){
+    if (((snp_let1 == 'G' && snp_let2 == 'A') || (snp_let2 == 'G' && snp_let1 == 'A')) && bottom){
         return snp_letter;
     }
     std::set<char> allowed_letters1;
-    if (snp_let1 == 'C' && snp_let2 != 'T') {
+    if (snp_let1 == 'C' && snp_let2 != 'T' && !bottom) {
         allowed_letters1 = {'C', 'T'};
-    } else if (snp_let1 == 'G' && snp_let2 != 'A') {
+    } else if (snp_let1 == 'G' && snp_let2 != 'A' && bottom) {
         allowed_letters1 = {'G', 'A'};
     } else {
         allowed_letters1 = {snp_let1};
     }
     std::set<char> allowed_letters2;
-    if (snp_let2 == 'C' && snp_let1 != 'T') {
+    if (snp_let2 == 'C' && snp_let1 != 'T' && !bottom) {
         allowed_letters2 = {'C', 'T'};
-    } else if (snp_let2 == 'G' && snp_let1 != 'A') {
+    } else if (snp_let2 == 'G' && snp_let1 != 'A' && bottom) {
         allowed_letters2 = {'G', 'A'};
     } else {
         allowed_letters2 = {snp_let2};
     }
     if (allowed_letters1.find(snp_val) != allowed_letters1.end()){
         snp_letter = snp_let1;
-
     } else if (allowed_letters2.find(snp_val) != allowed_letters1.end()) {
         snp_letter = snp_let2;
     }
@@ -312,17 +308,17 @@ char snp_patter::samLineToPatVec(std::vector <std::string> tokens) {
 
         // build methylation pattern:
         std::string meth_pattern;
-        bool reversed;
+        bool bottom;
         if (is_paired_end) {
-            reversed = ( ((samflag & 0x53) == 83) || ((samflag & 0xA3) == 163) );
+            bottom = (((samflag & 0x53) == 83) || ((samflag & 0xA3) == 163) );
         } else {
-            reversed = ((samflag & 0x0010) == 16);
+            bottom = ((samflag & 0x0010) == 16);
         }
         if ((samflag & 0x400) == 1024){
             return 'Z';
         }
 
-        return compareSeqToRef(seq, ref, reversed, meth_pattern, start_locus);
+        return compareSeqToRef(seq, ref, bottom, meth_pattern, start_locus);
     }
     catch (std::exception &e) {
         std::string msg = "[ " + chr + " ] " + "Exception while processing line "

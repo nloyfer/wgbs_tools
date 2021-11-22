@@ -62,7 +62,7 @@ public:
     snp_patter(long sp, char sl1, char sl2):
             snp_pos(sp), snp_let1(sl1), snp_let2(sl2) {}
 
-    char compareSeqToRef(std::string &seq, std::string &ref, bool reversed, std::string &meth_pattern, int start_pos);
+    char compareSeqToRef(std::string &seq, std::string &ref, bool bottom, std::string &meth_pattern, int start_pos);
     void print_stats_msg();
     void print_progress();
     std::string clean_CIGAR(std::string seq, std::string CIGAR);
