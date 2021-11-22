@@ -78,33 +78,46 @@ class GenomicRegion:
         df = pd.read_csv(self.genome.chrom_sizes, sep='\t', header=None, names=['chr', 'size'])
         return int(df[df['chr'] == self.chrom]['size'])
 
-    def parse_region(self, region):
-        """ Parse input of the type -r / --region (e.g chr11:200-300) """
+
+    def find_region_format(self, region):
         region = region.replace(',', '')  # remove commas
-        chrome_match = re.match(r'^chr([\d]+|[XYM])$', region)
-        region_match = re.match(r'chr([\d]+|[XYM]):([\d]+)-([\d]+)', region)
 
         # In case region is a whole chromosome
+        chrome_match = re.match(r'^chr([\d]+|[XYM])$', region)
         if chrome_match:
             self.chrom = 'chr' + chrome_match.group(1)
-            region_from = 1
-            region_to = self._chrome_size()
+            return region, 1, self._chrome_size()
+
+        # match region string to format chrom:from
+        uni_region_match = re.match(r'^chr([\d]+|[XYM]):([\d]+)$', region)
+        if uni_region_match:
+            region_from = uni_region_match.group(2)
+            region += f'{region_from}-{int(region_from) + 1}'
 
         # match region string to format chrom:from-to
-        elif region_match:
-            self.chrom = 'chr' + region_match.group(1)
-            region_from = int(region_match.group(2))
-            region_to = int(region_match.group(3))
-            if region_to <= region_from:
-                raise IllegalArgumentError(f'Invalid genomic region: {region}. end before start')
-            if region_to > self._chrome_size() or region_from < 1:
-                raise IllegalArgumentError(f'Invalid genomic region: {region}. Out of range')
-
-        else:
+        region_match = re.match(r'^chr([\d]+|[XYM]):([\d]+)-([\d]+)$', region)
+        if not region_match:
             raise IllegalArgumentError(f'Invalid genomic region: {region}')
 
+        self.chrom = 'chr' + region_match.group(1)
+        region_from = int(region_match.group(2))
+        region_to = int(region_match.group(3))
+
+        return region, region_from, region_to
+
+
+    def parse_region(self, region):
+        """ Parse input of the type -r / --region (e.g chr11:200-300) """
+
+        self.region_str, region_from, region_to = self.find_region_format(region)
+
+        # validate region range:
+        if region_to <= region_from:
+            raise IllegalArgumentError(f'Invalid genomic region: {region}. end before start')
+        if region_to > self._chrome_size() or region_from < 1:
+            raise IllegalArgumentError(f'Invalid genomic region: {region}. Out of range')
+
         # Update GR fields:
-        self.region_str = region
         self.bp_tuple = (region_from, region_to)
         self.sites = self._region_str2sites()
 
