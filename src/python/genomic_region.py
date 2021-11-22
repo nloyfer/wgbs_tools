@@ -92,7 +92,7 @@ class GenomicRegion:
         uni_region_match = re.match(r'^chr([\d]+|[XYM]):([\d]+)$', region)
         if uni_region_match:
             region_from = uni_region_match.group(2)
-            region += f'{region_from}-{int(region_from) + 1}'
+            region += f'-{int(region_from) + 1}'
 
         # match region string to format chrom:from-to
         region_match = re.match(r'^chr([\d]+|[XYM]):([\d]+)-([\d]+)$', region)
