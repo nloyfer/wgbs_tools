@@ -126,7 +126,7 @@ def homog_process(pat, blocks, args):
     return df
 
 
-def main():
+def main():  # TODO: this is 8x slower than simply running the CPP tool on a single thread. Fix this.
     """
     Generage homog files. Given a blocks file and pat[s],
     count the number of U,X,M reads for each block for each file

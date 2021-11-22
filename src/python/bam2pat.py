@@ -30,6 +30,8 @@ MAX_READ_SIZE = 1000 # extend samtools view region by this size
 CHROMS = ['X', 'Y', 'M', 'MT'] + list(range(1, 23))
 
 
+# TODO: extend regsion in the samtools view call!
+# currently we are missing the far mates
 def extend_region(region, by=MAX_READ_SIZE):
     if ':' not in region:
         return region
