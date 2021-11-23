@@ -3,10 +3,9 @@ import subprocess
 import sys
 import warnings
 import re
-from convert import COORDS_COLS5
 from genomic_region import GenomicRegion
-from utils_wgbs import add_GR_args, MAX_PAT_LEN, get_genome_name, GenomeRefPaths, add_multi_thread_args, \
-    IllegalArgumentError, eprint
+from utils_wgbs import add_GR_args, MAX_PAT_LEN, GenomeRefPaths, add_multi_thread_args, \
+    IllegalArgumentError, eprint, COORDS_COLS5
 from multiprocessing import Pool
 import pandas as pd
 try:
@@ -203,17 +202,16 @@ def choose_blocks_by_fdr_bh(pvals, blocks, alpha=0.05):
 
 
 def test_multiple_regions(tabixed_bed_file, pat_file, num_threads, out_file, is_strict, min_len, verbose):
-    cf = GenomeRefPaths(get_genome_name(None)).get_chrom_cpg_size_table()
-    chroms = sorted(set(cf.chr))
-    params_list = []
-    for chrom in chroms:
-        params_list.append((tabixed_bed_file, chrom, pat_file, is_strict, min_len, verbose))
 
     peek_df = pd.read_csv(tabixed_bed_file, sep='\t', nrows=1, header=None, comment='#')
     names = COORDS_COLS5
     if len(peek_df.columns) < len(names):
-        msg = f'Invalid blocks file: {tabixed_bed_file}. less than {len(names)} columns'
+        msg = f'Invalid blocks file: {blocks_path}. less than {len(names)} columns.\n'
+        msg += f'Run wgbstools convert -L {blocks_path} -o OUTPUT_REGION_FILE to add the CpG columns'
         raise IllegalArgumentError(msg)
+
+    chroms = GenomeRefPaths().get_chroms()
+    params_list = ((tabixed_bed_file, c, pat_file, is_strict, min_len, verbose) for c in chroms)
 
     p = Pool(num_threads)
     arr = p.starmap(read_blocks_and_test, params_list)
@@ -221,6 +219,10 @@ def test_multiple_regions(tabixed_bed_file, pat_file, num_threads, out_file, is_
     p.join()
 
     region_p_val_list = [p_reg for x in arr for p_reg in x]  # flatten
+    if not region_p_val_list:
+        if verbose:
+            eprint(f'[wt bimodal] empty list')
+        return
     region_p_val_list = sorted(region_p_val_list, key=lambda elem: elem[1])
     [block_lines, p_vals] = zip(*region_p_val_list)
     accepted_blocks, corrected_p_vals = choose_blocks_by_fdr_bh(p_vals, block_lines)

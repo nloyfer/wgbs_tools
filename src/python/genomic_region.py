@@ -1,15 +1,26 @@
 import re
 import subprocess
 import sys
+import os
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import os.path as op
-from utils_wgbs import IllegalArgumentError, GenomeRefPaths, eprint, get_genome_name
+from utils_wgbs import IllegalArgumentError, GenomeRefPaths, eprint
 
 
 def index2chrom(site, genome):
     chrs_sz = genome.get_chrom_cpg_size_table()
     return chrs_sz['chr'].iloc[np.searchsorted(np.cumsum(chrs_sz['size'].values), site)]
+
+
+def get_genome_name(gname):
+    if gname is None or gname == 'default':
+        path = Path(op.realpath(__file__))
+        refdir = op.join(op.join(path.parent.parent.parent, 'references'), 'default')
+        return os.readlink(refdir)
+    else:
+        return gname
 
 
 class GenomicRegion:
@@ -75,7 +86,7 @@ class GenomicRegion:
         self.bp_tuple = (region_from, region_to)
 
     def _chrome_size(self):
-        df = pd.read_csv(self.genome.chrom_sizes, sep='\t', header=None, names=['chr', 'size'])
+        df = self.genome.get_chrom_size_table()
         return int(df[df['chr'] == self.chrom]['size'])
 
 
@@ -83,25 +94,29 @@ class GenomicRegion:
         region = region.replace(',', '')  # remove commas
 
         # In case region is a whole chromosome
-        chrome_match = re.match(r'^chr([\d]+|[XYM])$', region)
+        chrome_match = re.match(r'^(chr)?([\d]+|[XYM]|(MT))$', region)
         if chrome_match:
-            self.chrom = 'chr' + chrome_match.group(1)
+            if region not in self.genome.get_chroms():
+                raise IllegalArgumentError(f'Unknown chromosome: {region}')
+            self.chrom = region
             return region, 1, self._chrome_size()
 
         # match region string to format chrom:from
-        uni_region_match = re.match(r'^chr([\d]+|[XYM]):([\d]+)$', region)
+        uni_region_match = re.match(r'^(chr)?([\d]+|[XYM]|(MT)):([\d]+)$', region)
         if uni_region_match:
-            region_from = uni_region_match.group(2)
+            region_from = uni_region_match.group(4)
             region += f'-{int(region_from) + 1}'
 
         # match region string to format chrom:from-to
-        region_match = re.match(r'^chr([\d]+|[XYM]):([\d]+)-([\d]+)$', region)
+        region_match = re.match(r'^((chr)?([\d]+|[XYM]|(MT))):([\d]+)-([\d]+)$', region)
         if not region_match:
             raise IllegalArgumentError(f'Invalid genomic region: {region}')
 
-        self.chrom = 'chr' + region_match.group(1)
-        region_from = int(region_match.group(2))
-        region_to = int(region_match.group(3))
+        self.chrom = region_match.group(1)
+        if self.chrom not in self.genome.get_chroms():
+            raise IllegalArgumentError(f'Unknown chromosome: {region}')
+        region_from = int(region_match.group(5))
+        region_to = int(region_match.group(6))
 
         return region, region_from, region_to
 
@@ -162,9 +177,9 @@ class GenomicRegion:
         else:
             raise IllegalArgumentError(f'sites must be of format: "start-end" or "site" .\nGot: {sites_str}')
         # validate sites are in range:
-        if not self.genome.nr_sites + 1 >= site2 >= site1 >= 1:
+        if not self.genome.get_nr_sites() + 1 >= site2 >= site1 >= 1:
             msg = 'sites violate the constraints: '
-            msg += f'{self.genome.nr_sites + 1} >= {site2} > {site1} >= 1'
+            msg += f'{self.genome.get_nr_sites() + 1} >= {site2} > {site1} >= 1'
             raise IllegalArgumentError(msg)
         if site1 == site2:
             site2 += 1
@@ -178,7 +193,7 @@ class GenomicRegion:
         """
         index = int(index)
         # validate input
-        if not self.genome.nr_sites + 1 >= index >= 1:
+        if not self.genome.get_nr_sites() + 1 >= index >= 1:
             eprint('Invalid site index:', index)
             raise IllegalArgumentError('Out of range site index:', index)
 

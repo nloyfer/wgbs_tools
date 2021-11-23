@@ -5,7 +5,7 @@ import os
 import tempfile
 from utils_wgbs import add_GR_args, eprint, GenomeRefPaths, delete_or_skip, \
                        load_dict_section, add_multi_thread_args, IllegalArgumentError, \
-                       read_shell, check_executable
+                       read_shell, check_executable, COORDS_COLS3, COORDS_COLS5
 from genomic_region import GenomicRegion
 import pandas as pd
 import numpy as np
@@ -13,9 +13,6 @@ from multiprocessing import Pool
 import sys
 import subprocess
 from io import StringIO
-
-COORDS_COLS3 = ['chr', 'start', 'end']
-COORDS_COLS5 = COORDS_COLS3 + ['startCpG', 'endCpG']
 
 
 def parse_args():

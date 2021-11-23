@@ -6,8 +6,7 @@ import sys
 import subprocess
 import multiprocessing
 from utils_wgbs import delete_or_skip, splitextgz, IllegalArgumentError, eprint, \
-        add_multi_thread_args, validate_single_file
-from convert import COORDS_COLS5
+        add_multi_thread_args, validate_single_file, COORDS_COLS5
 
 class Pat:
     def __init__(self):

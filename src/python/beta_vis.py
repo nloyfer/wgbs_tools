@@ -12,7 +12,6 @@ FULL_SQUARE = '\u25A0'
 MISSING_VAL_SIGN = ' '
 NR_CHARS_PER_FNAME = 50
 MISSING_VAL = '.'
-DISTS_STEPS = [10 ** i for i in range(6)]
 
 
 class BetaVis:
@@ -21,10 +20,6 @@ class BetaVis:
         self.start, self.end = self.gr.sites
         self.nr_sites = self.end - self.start
         self.args = args
-
-        # load distances
-        # self.distances = self.load_pairwise_dists() if args.dists else None # TODO: implement or remove
-        self.distances = None
 
         # drop duplicated files, while keeping original order
         self.files = drop_dup_keep_order(args.input_files)
@@ -42,11 +37,6 @@ class BetaVis:
         if self.args.plot:
             self.plot_all()
 
-    def load_pairwise_dists(self):
-        """load distances between consecutive sites:"""
-        pairwise_dists = load_dists(self.start, self.nr_sites, self.gr.genome)
-        return [np.searchsorted(np.array(DISTS_STEPS), bp_dist) for bp_dist in pairwise_dists]
-
     def load_data(self):
         # raw table from *beta files:
         dsets = np.zeros((len(self.files), self.nr_sites, 2))
@@ -62,10 +52,6 @@ class BetaVis:
         vec[vec == 10] = 9
         vec[data[:, 1] < self.args.min_cov] = -1
         vals = [MISSING_VAL if x == -1 else str(int(x)) for x in vec]
-
-        # insert distances:
-        if self.distances is not None:
-            vals = [c + ' ' * d for d, c in zip(self.distances, vals)]
 
         # insert borders:
         if self.borders.size:
@@ -121,19 +107,6 @@ class BetaVis:
         if self.args.output is not None:
             plt.savefig(self.args.output)
         plt.show()
-
-
-def load_dists(start, nr_sites, genome):
-    """ load and return distance differences between adjacent sites """
-
-    with open(genome.revdict_path, 'rb') as f:
-        f.seek((start - 1) * 4)
-        dists = np.fromfile(f, dtype=np.int32, count=nr_sites + 1)
-
-    dists = dists[1:] - dists[:-1]
-    dists[0] = 0
-    dists[dists < 0] = 1e6 # cross chromosome hack
-    return dists
 
 
 def generate_colors_dict(scheme=16):

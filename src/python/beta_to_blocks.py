@@ -5,13 +5,12 @@ import os
 import numpy as np
 import os.path as op
 import pandas as pd
-import multiprocessing
 from multiprocessing import Pool
 import sys
 from utils_wgbs import load_beta_data, trim_to_uint8, GenomeRefPaths, \
                         IllegalArgumentError, add_multi_thread_args, \
                         splitextgz, validate_file_list, validate_single_file, \
-                        eprint, validate_out_dir
+                        eprint, validate_out_dir, COORDS_COLS5
 
 def b2b_log(*args, **kwargs):
     print('[ wt beta_to_blocks ]', *args, file=sys.stderr, **kwargs)
@@ -66,7 +65,7 @@ def load_blocks_file(blocks_path, nrows=None):
         peek_df = pd.read_csv(blocks_path, sep='\t', nrows=1, header=None, comment='#')
         header = None if str(peek_df.iloc[0, 1]).isdigit() else 0
 
-        names = ['chr', 'start', 'end', 'startCpG', 'endCpG']
+        names = COORDS_COLS5
         if len(peek_df.columns) < len(names):
             msg = f'Invalid blocks file: {blocks_path}. less than {len(names)} columns.\n'
             msg += f'Run wgbstools convert -L {blocks_path} -o OUTPUT_REGION_FILE to add the CpG columns'

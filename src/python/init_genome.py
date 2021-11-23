@@ -94,8 +94,6 @@ class InitGenome:
                 shutil.rmtree(out_dir)
         os.makedirs(out_dir, exist_ok=True)
         eprint(f'[wt init] Setting up genome reference files in {out_dir}')
-        if not self.args.no_default:
-            set_def_ref(self.name)
         return out_dir
 
     def load_fai(self):
@@ -129,7 +127,7 @@ class InitGenome:
 
     def find_cpgs_loci(self):
         p = Pool(self.args.threads)
-        params = [(self.ref_path, c) for c in self.fai_df['chr']]
+        params = [(self.ref_path, c, self.args.debug) for c in self.fai_df['chr']]
         arr = p.starmap(load_seq_by_chrom, params)
         p.close()
         p.join()
@@ -142,6 +140,8 @@ class InitGenome:
         df = self.find_cpgs_loci()
         eprint('[wt init] Building CpG-Index dictionary...')
         df['site'] = df.index + 1
+        # if not df.head()['chr'].unique()[0].startswith('chr'):
+            # df['chr'] = 'chr' + df['chr']
         self.dump_df(df, 'CpG.bed')
         cpg_dict = self.bgzip_tabix_dict(op.join(self.out_dir, 'CpG.bed'))
 
@@ -165,6 +165,10 @@ class InitGenome:
         self.validate_nr_sites(df.shape[0])
         self.add_supp()  # add supplemental files for hg19
         eprint(f'[wt init] Finished initialization of genome {self.name}')
+
+        # setup as default genome
+        if not self.args.no_default:
+            set_def_ref(self.name)
 
     def add_supp(self):
         if self.name != 'hg19':
@@ -216,11 +220,13 @@ class InitGenome:
         df.to_csv(path, index=None, header=False, sep='\t')
 
 
-def load_seq_by_chrom(ref_path, chrom):
-    eprint(f'[wt init] {chrom}')
+def load_seq_by_chrom(ref_path, chrom, debug=False):
+    eprint(f'[wt init] chromosome: {chrom}')
 
     # load the chromosome's subsequence from fasta
     cmd = f'samtools faidx {ref_path} {chrom} | tail -n +2'
+    if debug:
+        cmd += ' | head -200'
     txt = subprocess.check_output(cmd, shell=True).decode()
     seq = ''.join(s.strip() for s in txt.split('\n')).upper()
 
@@ -240,14 +246,14 @@ def chromosome_order(c):
         return 10000
     elif c == 'Y':
         return 10001
-    elif c == 'M':
+    elif c in ('M', 'MT'):
         return 10002
     return 10003
 
 
 def is_valid_chrome(chrome):
     # A chromosome is valid if it has the form "chrX", where X is digit(s) or (X,Y,M)
-    return bool(re.match(r'^chr([\d]+|[XYM])$', chrome))
+    return bool(re.match(r'^(chr)?([\d]+|[XYM]|(MT))$', chrome))
 
 
 def parse_args():

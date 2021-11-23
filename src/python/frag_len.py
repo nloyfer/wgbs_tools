@@ -38,7 +38,7 @@ class FragLen:
         return f'tabix {self.pat} {chrom} {self.awk_hist_cmd}'
 
     def run_whole_genome(self):
-        chroms = list(pd.read_csv(self.gr.genome.chrom_sizes, sep='\t', header=None, usecols=[0])[0])
+        chroms = self.gr.genome.get_chroms()
         with Pool() as p:
             pr = [p.apply_async(awk_wrap, (self.chrom_cmd(c),)) for c in chroms]
             p.close()

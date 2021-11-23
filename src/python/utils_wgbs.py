@@ -35,6 +35,10 @@ ilmn2cpg_dict = op.join(path.parent.parent.parent, 'references/hg19/ilmn2CpG.tsv
 MAX_PAT_LEN = 150  # maximal read length in sites
 MAX_READ_LEN = 1000  # maximal read length in bp
 
+COORDS_COLS3 = ['chr', 'start', 'end']
+COORDS_COLS5 = COORDS_COLS3 + ['startCpG', 'endCpG']
+
+
 main_script = op.join(DIR, 'wgbs_tools.py')
 
 
@@ -43,14 +47,6 @@ class IllegalArgumentError(ValueError):
 
 class EmptyBamError(IllegalArgumentError):
     pass
-
-def get_genome_name(gname):
-    if gname is None or gname == 'default':
-        path = Path(op.realpath(__file__))
-        refdir = op.join(op.join(path.parent.parent.parent, 'references'), 'default')
-        return os.readlink(refdir)
-    else:
-        return gname
 
 class GenomeRefPaths:
     def __init__(self, name=None):
@@ -66,9 +62,11 @@ class GenomeRefPaths:
         self.blocks = self.join('blocks.bed.gz', validate=False)
         self.blacklist = self.join('blacklist.bed', validate=False)
         self.whitelist = self.join('whitelist.bed', validate=False)
-        self.nr_sites = self.count_nr_sites()
+        self._chrom_cpg_size_table = None
+        self._chrome_size_table = None
+        self._chroms = None
 
-    def count_nr_sites(self):
+    def get_nr_sites(self):
         return int(self.get_chrom_cpg_size_table()['size'].sum())
 
     def join(self, fpath, validate=True):
@@ -97,7 +95,22 @@ class GenomeRefPaths:
         return refdir
 
     def get_chrom_cpg_size_table(self):
-        return pd.read_csv(self.chrom_cpg_sizes, header=None, names=['chr', 'size'], sep='\t')
+        if self._chrom_cpg_size_table is None:
+            self._chrom_cpg_size_table = pd.read_csv(self.chrom_cpg_sizes,
+                    header=None, names=['chr', 'size'], sep='\t')
+        return self._chrom_cpg_size_table
+
+    def get_chrom_size_table(self):
+        if self._chrome_size_table is None:
+            self._chrome_size_table = pd.read_csv(self.chrom_sizes,
+                    header=None, names=['chr', 'size'], sep='\t')
+        return self._chrome_size_table
+
+    def get_chroms(self):
+        if self._chroms is None:
+            self._chroms = tuple(pd.read_csv(self.chrom_sizes,
+                    header=None, names=['chr'], usecols=[0], sep='\t')['chr'].values)
+        return self._chroms
 
 
 def eprint(*args, **kwargs):
@@ -181,7 +194,8 @@ def add_GR_args(parser, required=False, bed_file=False, no_anno=False):
     region_or_sites.add_argument('-s', '--sites', help='a CpG index range, of the form: "450000-450050"')
     region_or_sites.add_argument('-r', '--region', help='genomic region of the form "chr1:10,000-10,500"')
     if bed_file:
-        region_or_sites.add_argument('-L', '--bed_file', help='Bed file. Columns <chr, start, end>')
+        region_or_sites.add_argument('-L', '--bed_file', help='Bed file. Columns <chr, start, end>. '\
+                'For some features columns 4-5 should be <startCpG, endCpG> (run wgbstools convert -L BED_PATH)')
     parser.add_argument('--genome', help='Genome reference name. Default is "default".', default='default')
     if no_anno:
         parser.add_argument('--no_anno', help='Do not print genomic annotations', action='store_true')

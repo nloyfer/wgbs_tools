@@ -12,7 +12,7 @@ import re
 from multiprocessing import Pool
 from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, \
     add_GR_args, eprint, add_multi_thread_args, EmptyBamError, \
-    GenomeRefPaths, validate_single_file, delete_or_skip, check_executable, add_no_beta_arg
+    validate_single_file, delete_or_skip, check_executable, add_no_beta_arg
 from init_genome import chromosome_order
 from pat2beta import pat2beta
 from index import Indxer
@@ -27,10 +27,7 @@ MAPQ = 10
 FLAGS_FILTER = 1796  # filter flags with these bits
 MAX_READ_SIZE = 1000 # extend samtools view region by this size
 
-CHROMS = ['X', 'Y', 'M', 'MT'] + list(range(1, 23))
-
-
-# TODO: extend regsion in the samtools view call!
+# TODO: extend regsion in the samtools view call
 # currently we are missing the far mates
 def extend_region(region, by=MAX_READ_SIZE):
     if ':' not in region:
@@ -90,7 +87,7 @@ def blueprint_legacy(genome, region):
     return patter_cmd, match_cmd
 
 
-def is_region_empty(view_cmd, verbose):
+def is_region_empty(view_cmd, region, verbose):
     # check if there are reads in the bam file for the requested region
     view_cmd += ' | head -1'
     if not subprocess.check_output(view_cmd, shell=True,
@@ -102,7 +99,7 @@ def is_region_empty(view_cmd, verbose):
     return False
 
 
-def proc_chr(bam, out_path, region, genome, chr_offset, paired_end, ex_flags, mapq, debug,
+def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
              blueprint, clip, temp_dir, blacklist, whitelist, min_cpg, mbias, verbose):
     """ Convert a temp single chromosome file, extracted from a bam file, into pat """
 
@@ -122,7 +119,7 @@ def proc_chr(bam, out_path, region, genome, chr_offset, paired_end, ex_flags, ma
         view_cmd += f' -b | bedtools intersect -sorted -v -abam stdin -b {blacklist} | samtools view '
 
     # first, if there are no reads in current region, return
-    if is_region_empty(view_cmd, verbose):
+    if is_region_empty(view_cmd, region, verbose):
         return
 
     # change reads order, s.t paired reads will appear in adjacent lines
@@ -191,9 +188,11 @@ class Bam2Pat:
             shutil.rmtree(self.tmp_dir)
 
     def set_regions(self):
+        # if user specified a region, just use it
         if self.gr.region_str:
             return [self.gr.region_str]
 
+        # get all chromosomes present in the bam file header
         cmd = f'samtools idxstats {self.bam_path} | cut -f1 '
         p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, error = p.communicate()
@@ -202,27 +201,29 @@ class Bam2Pat:
             eprint(cmd)
             eprint('[wt bam2pat] falied to find chromosomes')
             return []
-        nofilt_chroms = output.decode()[:-1].split('\n')
-        filt_chroms = [c for c in nofilt_chroms if 'chr' in c]
-        if filt_chroms:
-            filt_chroms = [c for c in filt_chroms if re.match(r'^chr([\d]+|[XYM])$', c)]
-        else:
-            filt_chroms = [c for c in nofilt_chroms if c in CHROMS]
-        chroms = list(sorted(filt_chroms, key=chromosome_order))
-        if not chroms:
-            eprint('[wt bam2pat] Failed retrieving valid chromosome names')
+        bam_chroms = output.decode()[:-1].split('\n')
+
+        # get all chromosomes from the reference genome:
+        ref_chroms = self.gr.genome.get_chroms()
+        # intersect the chromosomes from the bam and from the reference
+        intersected_chroms = list(set(bam_chroms) & set(ref_chroms))
+
+        if not intersected_chroms:
+            msg = '[wt bam2pat] Failed retrieving valid chromosome names. '
+            msg += 'Perhaps you are using a wrong genome reference. '
+            msg += 'Try running:\n\t\twgbstools set_default_ref -ls'
             raise IllegalArgumentError('Failed')
 
-        return chroms
+        return list(sorted(intersected_chroms, key=chromosome_order))  # todo use the same order as in ref_chroms instead of resorting it
 
     def set_lists(self):
         # black/white lists:
         blacklist = self.args.blacklist
         whitelist = self.args.whitelist
         if blacklist == True:
-            blacklist = GenomeRefPaths(self.args.genome).blacklist
+            blacklist = self.gr.genome.blacklist
         elif whitelist == True:
-            whitelist = GenomeRefPaths(self.args.genome).whitelist
+            whitelist = self.gr.genome.whitelist
         if blacklist:
             validate_single_file(blacklist)
         elif whitelist:
@@ -245,17 +246,12 @@ class Bam2Pat:
         os.mkdir(self.tmp_dir)
         tmp_prefix = op.join(self.tmp_dir, name)
 
-        # find offset per chrome - how many sites comes before this chromosome
-        cf = GenomeRefPaths(self.gr.genome_name).get_chrom_cpg_size_table()
-        cf['size'] = [0] + list(np.cumsum(cf['size']))[:-1]
-        chr_offset = cf.set_index('chr').to_dict()['size']
-
         params = []
         cur_regions = self.set_regions()
         try:
             for c in cur_regions:
                 out_path = f'{tmp_prefix}.{c}.out'
-                par = (self.bam_path, out_path, c, self.gr.genome, chr_offset,
+                par = (self.bam_path, out_path, c, self.gr.genome,
                        is_pair_end(self.bam_path), self.args.exclude_flags,
                        self.args.mapq, self.args.debug, self.args.blueprint, self.args.clip,
                        self.args.temp_dir, blist, wlist, self.args.min_cpg,
@@ -290,14 +286,14 @@ class Bam2Pat:
         for part in pat_parts:
             if not part:            # subprocess threw exception or no reads found
                 eprint('[wt bam2pat] threads failed')
-                return False
+                return []
             if op.getsize(part) == 0:   # empty pat was created
                 eprint('[wt bam2pat] threads failed')
-                return False
+                return []
         if not ''.join(pat_parts):      # all parts are empty
             eprint('[wt bam2pat] No reads found. No pat file is generated')
-            return False
-        return True
+            return []
+        return pat_parts
 
     def mbias_merge(self, name, pat_parts):
         if not self.args.mbias:
@@ -325,7 +321,8 @@ class Bam2Pat:
 
     def concat_parts(self, name, pat_parts):
 
-        if not self.validate_parts(pat_parts):
+        pat_parts = self.validate_parts(pat_parts)
+        if not pat_parts:
             return
 
         # Concatenate chromosome files

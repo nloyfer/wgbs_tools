@@ -8,7 +8,7 @@ import re
 import datetime
 from multiprocessing import Pool
 from utils_wgbs import IllegalArgumentError, match_maker_tool, eprint, add_cpg_count_tool
-from bam2pat import add_args, subprocess_wrap, CHROMS, validate_bam, is_pair_end
+from bam2pat import add_args, subprocess_wrap, validate_bam, is_pair_end, MAPQ
 from genomic_region import GenomicRegion
 
 
@@ -17,9 +17,7 @@ BAM_SUFF = '.counts.bam'
 # Minimal Mapping Quality to consider.
 # 10 means include only reads w.p. >= 0.9 to be mapped correctly.
 # And missing values (255)
-MAPQ = 10
 
-# todo: unsorted / sorted by name
 
 
 def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end, ex_flags, mapq, debug, min_cpg):
@@ -84,28 +82,57 @@ class BamMethylData:
         if not (op.isdir(self.out_dir)):
             raise IllegalArgumentError('Invalid output dir: {}'.format(self.out_dir))
 
+    # def set_regions(self):
+        # if self.gr.region_str:
+            # return [self.gr.region_str]
+        # else:
+            # cmd = 'samtools idxstats {} | cut -f1 '.format(self.bam_path)
+            # p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            # output, error = p.communicate()
+            # if p.returncode or not output:
+                # print(cmd)
+                # print("Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
+                # print('falied to find chromosomes')
+                # return []
+            # nofilt_chroms = output.decode()[:-1].split('\n')
+            # filt_chroms = [c for c in nofilt_chroms if 'chr' in c]
+            # if not filt_chroms:
+                # filt_chroms = [c for c in nofilt_chroms if c in CHROMS]
+            # else:
+                # filt_chroms = [c for c in filt_chroms if re.match(r'^chr([\d]+|[XYM])$', c)]
+            # if not filt_chroms:
+                # eprint('Failed retrieving valid chromosome names')
+                # raise IllegalArgumentError('Failed')
+            # return filt_chroms
+
     def set_regions(self):
+        # if user specified a region, just use it
         if self.gr.region_str:
             return [self.gr.region_str]
-        else:
-            cmd = 'samtools idxstats {} | cut -f1 '.format(self.bam_path)
-            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            output, error = p.communicate()
-            if p.returncode or not output:
-                print(cmd)
-                print("Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
-                print('falied to find chromosomes')
-                return []
-            nofilt_chroms = output.decode()[:-1].split('\n')
-            filt_chroms = [c for c in nofilt_chroms if 'chr' in c]
-            if not filt_chroms:
-                filt_chroms = [c for c in nofilt_chroms if c in CHROMS]
-            else:
-                filt_chroms = [c for c in filt_chroms if re.match(r'^chr([\d]+|[XYM])$', c)]
-            if not filt_chroms:
-                eprint('Failed retrieving valid chromosome names')
-                raise IllegalArgumentError('Failed')
-            return filt_chroms
+
+        # get all chromosomes present in the bam file header
+        cmd = f'samtools idxstats {self.bam_path} | cut -f1 '
+        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output, error = p.communicate()
+        if p.returncode or not output:
+            eprint("[wt acc] Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
+            eprint(cmd)
+            eprint('[wt acc] falied to find chromosomes')
+            return []
+        bam_chroms = output.decode()[:-1].split('\n')
+
+        # get all chromosomes from the reference genome:
+        ref_chroms = self.gr.genome.get_chroms()
+        # intersect the chromosomes from the bam and from the reference
+        intersected_chroms = list(set(bam_chroms) & set(ref_chroms))
+
+        if not intersected_chroms:
+            msg = '[wt acc] Failed retrieving valid chromosome names. '
+            msg += 'Perhaps you are using a wrong genome reference. '
+            msg += 'Try running:\n\t\twgbstools set_default_ref -ls'
+            raise IllegalArgumentError('Failed')
+
+        return list(sorted(intersected_chroms, key=chromosome_order))  # todo use the same order as in ref_chroms instead of resorting it
 
     def intermediate_bam_file_view(self, name):
         return '<(samtools view {})'.format(name)

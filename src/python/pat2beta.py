@@ -29,7 +29,7 @@ def pat2beta(pat_path, out_dir, args, force=True):
     if args.threads > 1 and pat_path.endswith('.pat.gz') and op.isfile(pat_path + '.csi'):
         arr = mult_pat2beta(pat_path, args)
     else:
-        nr_sites = GenomeRefPaths(args.genome).nr_sites
+        nr_sites = GenomeRefPaths(args.genome).get_nr_sites()
         cmd += f' {pat_path} | {PAT2BETA_TOOL} {1} {nr_sites + 1}'
         x = subprocess.check_output(cmd, shell=True).decode()
         arr = np.fromstring(x, dtype=int, sep=' ').reshape((-1, 2))

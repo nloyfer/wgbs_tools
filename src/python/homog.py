@@ -10,9 +10,9 @@ import sys
 import subprocess
 from io import StringIO
 from beta_to_blocks import load_blocks_file, is_block_file_nice
-from convert import COORDS_COLS5
 from utils_wgbs import IllegalArgumentError, add_multi_thread_args, \
-        homog_tool, main_script, splitextgz, GenomeRefPaths, validate_file_list
+        homog_tool, main_script, splitextgz, GenomeRefPaths, validate_file_list \
+        COORDS_COLS5
 
 
 def homog_log(*args, **kwargs):
