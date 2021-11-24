@@ -70,7 +70,7 @@ def gen_pat_part(out_path, debug, temp_dir):
     except IllegalArgumentError as e:
         return None
 
-def blueprint_legacy(genome, region):
+def blueprint_legacy(genome, region, paired_end):
     if not op.isfile(genome.genome_path):
         eprint(f'[ wt bam2pat ] Error: not genome reference fasta file: {genome_path}')
         raise IllegalArgumentError('Failed')
@@ -83,7 +83,7 @@ def blueprint_legacy(genome, region):
     bppatter_tool = patter_tool.replace('/patter', '/blueprint/patter')
     patter_cmd = f' | {bppatter_tool} {genome.genome_path} {chr_offset[chrom]} '
     patter_cmd += f' --blueprint'
-    match_cmd = f' | {match_maker_tool} --drop_singles '
+    match_cmd = f' | {match_maker_tool} --drop_singles ' if paired_end else ''
     return patter_cmd, match_cmd
 
 
@@ -132,7 +132,7 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
         patter_cmd += f' --mbias {out_path}.mb'
 
     if blueprint:
-        patter_cmd, match_cmd = blueprint_legacy(genome, region)
+        patter_cmd, match_cmd = blueprint_legacy(genome, region, paired_end)
     cmd = view_cmd + match_cmd + patter_cmd + f' > {out_path}'
     if verbose:
         print(cmd)
