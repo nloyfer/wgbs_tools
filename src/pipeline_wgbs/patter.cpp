@@ -92,7 +92,7 @@ void patter::load_genome_ref() {
     }
     offset = loci.at(0);
     //std::cerr << "offset: " << offset << std::endl;
-    int bsize = loci.at(loci.size() - 1);
+    bsize = loci.at(loci.size() - 1);
 
     conv = new bool[bsize]();
     for (int locus: loci) {
@@ -239,6 +239,12 @@ int patter::compareSeqToRef(std::string &seq,
     int nr_cpgs = 0;
     int first_ind = -1;
     for (unsigned long i = 0; i < seq.length(); i++) {
+        
+        // this deals with the case where a read exceeds
+        // the last CpG of the chromosome. Ignore the rest of the read.
+        if (start_locus + 1 > (bsize - 1)) {
+            continue;  
+        }
         if (i >= MAX_READ_LEN) {skip_mbias = false;}
         if (conv[start_locus + i]) {
             j = i + ro.shift;

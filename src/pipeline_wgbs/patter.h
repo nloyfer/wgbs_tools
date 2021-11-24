@@ -62,6 +62,7 @@ public:
     std::string mbias_path;
     int min_cpg = 0;
     int clip_size = 0;
+    int bsize = 0;  // position of the last CpG in the current chromosome
     std::unordered_map<int, int> dict;
     std::string genome_ref;
     reads_stats readsStats;
