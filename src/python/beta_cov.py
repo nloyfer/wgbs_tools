@@ -14,7 +14,7 @@ def plot_hist(names, covs):
     import matplotlib.pyplot as plt
     plt.rcdefaults()
     plt.hist(covs)
-    plt.title('beta coverage histogram\nmean cov:{np.mean(covs):.2f}')
+    plt.title(f'beta coverage histogram\nmean cov:{np.mean(covs):.2f}')
 
     plt.figure()
     y_pos = np.arange(len(covs))
@@ -23,6 +23,7 @@ def plot_hist(names, covs):
     plt.subplots_adjust(bottom=0.15)
     plt.ylabel('Coverage')
     plt.title('Coverage bar chart')
+    plt.tight_layout()
     plt.show()
 
 
@@ -53,7 +54,6 @@ def beta_cov_by_bed(beta_path, blocks_df):
 def beta_cov(beta_path, sites=None, blocks_df=None, print_res=False):
     if blocks_df is not None:
         res = beta_cov_by_bed(beta_path, blocks_df)
-        print(res)
     else:
         res = np.mean(load_beta_data(beta_path, sites)[:, 1])
     if print_res:
