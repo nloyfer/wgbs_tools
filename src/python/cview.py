@@ -136,8 +136,8 @@ def main():
     # validate input file
     pat = args.pat
     validate_single_file(pat)
-    if args.sub_sample is not None and not 1 >= args.sub_sample >= 0:
-        parser.error('[wt view] sub-sampling rate must be within [0.0, 1.0]')
+    if (args.sub_sample is not None) and (args.sub_sample < 0):
+        parser.error('[wt view] sub-sampling rate must be >= 0')
     cview(pat, args)
 
 
