@@ -24,9 +24,25 @@ std::vector<std::string> line2tokens(std::string &line) {
     return result;
 }
 
+void output_read(std::vector <std::string> &tokens) {
+    unsigned int i = 0;
+    for (; i < tokens.size() - 1; i++) {
+        std::cout << tokens[i] << "\t";
+    }
+    std::cout << tokens[i] << std::endl;
+}
 
 void consider_line(std::vector<std::string> &tokens, double rate) {
     int count = std::stoi(tokens[3]);
+
+    while (rate >= 1.0) {
+        output_read(tokens);
+        rate -= 1.0;
+    }
+    if (rate <= 0) {
+        return;
+    }
+
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine generator (seed);
 
@@ -35,11 +51,7 @@ void consider_line(std::vector<std::string> &tokens, double rate) {
     int newcount = distribution(generator);
     if (newcount) {
         tokens[3] = std::to_string(newcount);
-        unsigned int i = 0;
-        for (; i < tokens.size() - 1; i++) {
-            std::cout << tokens[i] << "\t";
-        }
-        std::cout << tokens[i] << std::endl;
+        output_read(tokens);
     }
 }
 
