@@ -126,8 +126,7 @@ class Mixer:
         for i in range(self.nr_pats):
             adjr = self.dest_rates[i] * self.dest_cov / self.covs[i]
             if adjr > 1:
-                self.print_rates()
-                raise IllegalArgumentError('File {} has too low coverage'.format(self.pats[i]))
+                eprint(f'[wt mix] WARNING: {self.pats[i]} has low coverage. Reads will be duplicated')
             adj_rates.append(adjr)
 
         self.add_stats_col('AdjRates', adj_rates)
