@@ -112,6 +112,15 @@ std::vector<long> patter::fasta_index() {
     if (!(index_file)) {
         throw std::invalid_argument(" Error: Unable to read index (fai) path: " + ref_path + ".fai");
     }
+    int inputSize = ref_path.size();
+    if (inputSize < 3){
+        throw std::invalid_argument(" Error: Unable to read genome file: " + ref_path);
+    }
+
+    std::string file_extension = ref_path.substr(inputSize - 3);
+    if (file_extension != ".fa") {
+        throw std::invalid_argument(" Error: An uncompressed genome.fa file is required. Please run:\n gunzip -c genome.fa.gz > genome.fa\nsamtools faidx genome.fa\nin your wgbs_tools genome directory (default is: wgbs_tools/references/default directory)");
+    }
     std::vector<long> fai_numbers;
     // parse index file, load the right chromosome
     for (std::string line_str; std::getline(index_file, line_str);) {
@@ -368,23 +377,6 @@ std::vector <std::string> merge(std::vector <std::string> l1, std::vector <std::
     return l1;
 }
 
-void patter::merge_and_print(std::vector <std::string> l1, std::vector <std::string> l2) {
-    /** Merge 2 complementary lines to a single output.
-     * each line has the following fields: [chr, startCpG, pat, start_bp, read_len_bp]
-     * One or more of the lines may be empty */
-
-    //  First line is empty
-    if (l1.empty()) {
-        return vec2string(l2);
-    }
-    // Second line is empty
-    if (l2.empty()) {
-        return vec2string(l1);
-    }
-    l1 = merge(l1, l2);
-    vec2string(l1);
-}
-
 patter::MethylData meth_pattern_count(std::string meth_pattern) {
     patter::MethylData res;
     int countMethyl = 0;
@@ -570,36 +562,6 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
     return res; // return empty vector
 }
 
-
-void patter::proc2lines(std::vector <std::string> tokens1,
-                        std::vector <std::string> tokens2) {
-
-    std::vector <std::string> l1, l2;
-
-    /** print result to stdout */
-    try {
-        // sanity check: two lines must have the same QNAME
-        if ((!(tokens2.empty())) && (!(tokens1.empty()))
-            && (tokens1[0] != tokens2[0])) {
-            readsStats.nr_invalid += 2;
-            throw std::invalid_argument("lines are not complements!");
-        }
-        l1 = samLineToPatVec(tokens1);
-        l2 = samLineToPatVec(tokens2);
-
-        merge_and_print(l1, l2);
-    }
-    catch (std::exception &e) {
-        std::string msg = "[ " + chr + " ] Exception while merging. lines ";
-        msg += std::to_string(line_i) + ". Line content: \n";
-        std::cerr << msg;
-        print_vec(tokens1);
-        print_vec(tokens2);
-        std::cerr << e.what() << std::endl;
-        return;
-    }
-}
-
 void patter::procPairAddMethylData(std::vector <std::string> tokens1,
                                    std::vector <std::string> tokens2, std::string line1, std::string line2) {
 
@@ -763,50 +725,6 @@ void patter::initialize_patter(std::string &line_str) {
         is_paired_end = first_line(line_str);
         load_genome_ref();
     }
-}
-
-void patter::action() {
-    /** parse stdin for sam format lines (single- or pired-end).
-     * Translate them to pat format, and output to stdout */
-
-    if (DEBUG)
-        std::cerr << "DEBUG mode ON" << std::endl;
-
-    bool first_in_pair = true;
-//    std::ios_base::sync_with_stdio(false);
-    std::vector <std::string> tokens1, tokens2;
-    for (std::string line_str; std::getline(std::cin, line_str); line_i++) {
-
-        print_progress();
-
-        // DEBUG - break after a few lines
-        if (DEBUG && (line_i > 10000))
-            break;
-
-        // skip empty lines
-        if (line_str.empty())
-            continue;
-
-        initialize_patter(line_str);
-
-        // paired-end file, and current row is first out of a couple of rows
-        if (first_in_pair && is_paired_end) {
-            tokens1 = line2tokens(line_str);
-            first_in_pair = false;
-            readsStats.nr_pairs++;
-            continue;
-        }
-
-        // otherwise (second row in couple, or not-paired-end), line is processed:
-        tokens2 = line2tokens(line_str);
-        first_in_pair = true;   // next line will be first of couple.
-
-        // process couple of lines. write to stdout
-        // in case of single-end input file, tokens1 will be empty
-        proc2lines(tokens1, tokens2);
-
-    }
-    print_stats_msg();
 }
 
 bool is_number(const std::string& s)
