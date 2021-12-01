@@ -4,9 +4,10 @@ import os
 import os.path as op
 import subprocess
 import shlex
-import re
 import datetime
 from multiprocessing import Pool
+
+from init_genome import chromosome_order
 from utils_wgbs import IllegalArgumentError, match_maker_tool, eprint, add_cpg_count_tool
 from bam2pat import add_args, subprocess_wrap, validate_bam, is_pair_end, MAPQ
 from genomic_region import GenomicRegion
