@@ -31,8 +31,8 @@ def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end,
     out_directory = os.path.dirname(out_path)
 
     # use samtools to extract only the reads from 'chrom'
-    flag = '-f 3' if paired_end else ''
-    cmd = "samtools view {} {} -q {} -F {} {} | ".format(input_path, region, mapq, ex_flags, flag)
+    # flag = '-f 3' if paired_end else ''
+    cmd = "samtools view {} {} -q {} -F {} | ".format(input_path, region, mapq, ex_flags)
     if debug:
         cmd += ' head -200 | '
     if paired_end:

@@ -113,38 +113,6 @@ int patter::find_cpg_inds_offset() {
 
 }
 
-std::vector<long> patter::fasta_index() {
-    /**
-     * Read the genome.fa.fai file
-     * It has 5 columns: NAME, LENGTH, OFFSET, LINEBASES, LINEWIDTH, QUALOFFSET
-     * Find the line corresponding to 'chr', and return LENGTH and OFFSET.
-     */
-    std::ifstream index_file(ref_path + ".fai", std::ios::in);
-    if (!(index_file)) {
-        throw std::invalid_argument(" Error: Unable to read index (fai) path: " + ref_path + ".fai");
-    }
-    int inputSize = ref_path.size();
-    if (inputSize < 3){
-        throw std::invalid_argument(" Error: Unable to read genome file: " + ref_path);
-    }
-
-    std::string file_extension = ref_path.substr(inputSize - 3);
-    if (file_extension != ".fa") {
-        throw std::invalid_argument(" Error: An uncompressed genome.fa file is required. Please run:\n gunzip -c genome.fa.gz > genome.fa\nsamtools faidx genome.fa\nin your wgbs_tools genome directory (default is: wgbs_tools/references/default directory)");
-    }
-    std::vector<long> fai_numbers;
-    // parse index file, load the right chromosome
-    for (std::string line_str; std::getline(index_file, line_str);) {
-        std::vector <std::string> tokens = line2tokens(line_str);
-        if (tokens[0] == chr) {
-            fai_numbers.push_back(std::stol(tokens[1]));
-            fai_numbers.push_back(std::stol(tokens[2]));
-            return fai_numbers;
-        }
-    }
-    throw std::invalid_argument(" Error: chromosome not found in fai file: " + chr);
-}
-
 std::string exec(const char* cmd) {
     /** Execute a command and load output to string */
     std::array<char, 128> buffer;
@@ -184,7 +152,6 @@ void patter::load_genome_ref() {
     offset = loci.at(0);
     //std::cerr << "offset: " << offset << std::endl;
     bsize = loci.at(loci.size() - 1);
-
     conv = new bool[bsize]();
     for (int locus: loci) {
         conv[locus] = true;
@@ -400,9 +367,14 @@ patter::MethylData patter::merge_and_count_methyl_data(std::vector <std::string>
     if (l2.empty()) {
         return meth_pattern_count(l1[2]);
     }
-
-    l1 = merge(l1, l2);
-    patter::MethylData res = meth_pattern_count(l1[2]);
+    std::vector <std::string> l1a = merge(l1, l2);
+    if (l1a.empty()){
+        patter::MethylData res;
+        res.countMethyl = 0;
+        res.countUnmethyl = 0;
+        return res;
+    }
+    patter::MethylData res = meth_pattern_count(l1a[2]);
     //2 is the index of the meth_pattern
     return res;
 }
@@ -535,7 +507,6 @@ bool patter::first_line(std::string &line) {
 
 void patter::print_stats_msg() {
     /** print informative summary message */
-
     int sucess = line_i ? int((1.0 - ((double) readsStats.nr_invalid / line_i)) * 100.0) : 0;
 
     std::string msg = "[ " + chr + " ] ";
@@ -605,6 +576,7 @@ void patter::proc_sam_in_stream(std::istream& in) {
         }
 
     }
+    if (! tokens1.empty()) { proc1line(tokens1, line1); }
 }
 
 void patter::action_sam(std::string samFilePath) {
@@ -650,10 +622,12 @@ int main(int argc, char **argv) {
     clock_t begin = clock();
     try {
 //        std::string genome_name = "/cs/cbio/netanel/tools/wgbs_tools/references/hg19/genome.fa";
-//        std::string chrom_dict_path = "/cs/cbio/netanel/tools/wgbs_tools/references/hg19/CpG.bed.gz";
-//        std::string bam_path = "/cs/cbio/jon/small.match_made.sam";
-//        std::string rgn = "chr19";
-//        patter p(chrom_dict_path, rgn, 3, 0);
+//        std::string chrom_dict_path = "/cs/cbio/jon/projects/PyCharmProjects/wgbs_tools/references/hg19/CpG.bed.gz";
+//
+////        std::string chrom_dict_path = "/cs/cbio/netanel/tools/wgbs_tools/references/hg19/CpG.bed.gz";
+//        std::string bam_path = "/cs/zbio/jrosensk/twist_out/small_match_made.sam";
+//        std::string rgn = "chr1";
+//        patter p(chrom_dict_path, rgn, 0, 0);
 //        p.action_sam(bam_path);
         InputParser input(argc, argv);
         int min_cpg = 1;
@@ -677,7 +651,6 @@ int main(int argc, char **argv) {
 
             throw std::invalid_argument("Usage: add_cpg_counts CPG_CHROM_SIZE_PATH bam_input [--min_cpg MIN_CPG_PER_READ] [--clip CLIP]");
         }
-
     }
     catch (std::exception &e) {
         std::cerr << "Failed! exception:" << std::endl;
