@@ -6,10 +6,10 @@ import subprocess
 import shlex
 import datetime
 from multiprocessing import Pool
-
+import argparse
 from init_genome import chromosome_order
 from utils_wgbs import IllegalArgumentError, match_maker_tool, eprint, add_cpg_count_tool
-from bam2pat import add_args, subprocess_wrap, validate_bam, is_pair_end, MAPQ
+from bam2pat import add_args, subprocess_wrap, validate_bam, is_pair_end, MAPQ, extend_region
 from genomic_region import GenomicRegion
 
 
@@ -20,8 +20,7 @@ BAM_SUFF = '.counts.bam'
 # And missing values (255)
 
 
-
-def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end, ex_flags, mapq, debug, min_cpg):
+def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end, ex_flags, mapq, debug, min_cpg, clip):
     """ Convert a temp single chromosome file, extracted from a bam file,
         into a sam formatted (no header) output file."""
 
@@ -39,7 +38,7 @@ def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end,
     if paired_end:
         # change reads order, s.t paired reads will appear in adjacent lines
         cmd += f'{match_maker_tool} | '
-    cmd += f'{add_cpg_count_tool} {genome.genome_path} {genome.chrom_cpg_sizes} '
+    cmd += f'{add_cpg_count_tool} {genome.dict_path} {extend_region(region)} --clip {clip} '
     if min_cpg is not None:
         cmd += f'--min_cpg {str(min_cpg)}'
     cmd += f' | cat {header_path} - | samtools view -b - > {unsorted_bam}'
@@ -156,7 +155,7 @@ class BamMethylData:
                     out_path_name = name + '_' + c
                     params = (self.bam_path, out_path_name, c, self.gr.genome,
                             header_path, is_pair_end(self.bam_path), self.args.exclude_flags,
-                            self.args.mapq, self.debug, self.args.min_cpg)
+                            self.args.mapq, self.debug, self.args.min_cpg, self.args.clip)
                     processes.append(p.apply_async(proc_chr, params))
                 if not processes:
                     raise IllegalArgumentError('Empty bam file')
@@ -169,7 +168,7 @@ class BamMethylData:
             out_path_name = name + '_' + "1"
             res = [proc_chr(self.bam_path, out_path_name, self.gr.region_str, self.gr.genome, header_path,
                             is_pair_end(self.bam_path), self.args.exclude_flags, self.args.mapq, self.debug,
-                            self.args.min_cpg)]
+                            self.args.min_cpg, self.args.clip)]
         print('finished adding CpG counts')
         if None in res:
             print('threads failed')
@@ -211,7 +210,8 @@ def main():
     Add to bam file an extra field, YI:Z:{nr_meth},{nr_unmeth},
     to count Cytosine retention at CpG context.
     """
-    parser = add_args()
+    parser = argparse.ArgumentParser(description=main.__doc__)
+    parser = add_args(parser)
     args = parser.parse_args()
     for bam in args.bam:
         BamMethylData(args, bam).start_threads()

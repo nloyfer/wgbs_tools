@@ -359,12 +359,10 @@ def parse_bam2pat_args(parser):
             help='Output mbias plots. Only paired-end data is supported')
     parser.add_argument('--blueprint', '-bp', action='store_true',
             help='filter bad bisulfite conversion reads if <90 percent of CHs are converted')
-    parser.add_argument('--clip', type=int, default=0,
-                help='Clip for each read the first and last CLIP characters [0]')
 
 
-def add_args():
-    parser = argparse.ArgumentParser(description=main.__doc__)
+
+def add_args(parser):
     parser.add_argument('bam', nargs='+')
     add_GR_args(parser)
     parser.add_argument('--out_dir', '-o', default='.')
@@ -379,6 +377,8 @@ def add_args():
     parser.add_argument('-q', '--mapq', type=int,
                         help=f'Minimal mapping quality (samtools view parameter) [{MAPQ}]',
                         default=MAPQ)
+    parser.add_argument('--clip', type=int, default=0,
+                        help='Clip for each read the first and last CLIP characters [0]')
     add_multi_thread_args(parser)
 
     return parser
@@ -394,7 +394,8 @@ def main():
     """
     Run the WGBS pipeline to generate pat & beta files out of an input bam file
     """
-    parser = add_args()
+    parser = argparse.ArgumentParser(description=main.__doc__)
+    parser = add_args(parser)
     args = parse_args(parser)
     # validate output dir:
     if not op.isdir(args.out_dir):
