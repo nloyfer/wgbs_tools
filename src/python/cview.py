@@ -105,20 +105,22 @@ def cview(pat, args):
 #                        #
 ##########################
 
-def add_view_flags(parser):
+def add_view_flags(parser, sub_sample=True, out_path=True):
     add_GR_args(parser, bed_file=True)
-    parser.add_argument('-o', '--out_path', help='Output path. [stdout]')
-    parser.add_argument('--sub_sample', type=float, metavar='[0.0, 1.0]',
-                        help='pat: subsample from reads. Only supported for pat')
+    add_multi_thread_args(parser)
     parser.add_argument('--strict', action='store_true',
                         help='pat: Truncate reads that start/end outside the given region. '
                              'Only relevant if "region", "sites" '
                              'or "bed_file" flags are given.')
     parser.add_argument('--strip', action='store_true',
                         help='pat: Remove trailing dots (from beginning/end of reads).')
-    add_multi_thread_args(parser)
     parser.add_argument('--min_len', type=int, default=1,
                         help='pat: Display only reads covering at least MIN_LEN CpG sites [1]')
+    if sub_sample:
+        parser.add_argument('--sub_sample', type=float, metavar='[0.0, 1.0]',
+                            help='pat: subsample from reads. Only supported for pat')
+    if out_path:
+        parser.add_argument('-o', '--out_path', help='Output path. [stdout]')
     return parser
 
 
