@@ -9,6 +9,7 @@ from utils_wgbs import validate_file_list, IllegalArgumentError, splitextgz, add
         eprint, validate_dir, add_multi_thread_args
 from genomic_region import GenomicRegion
 from merge import MergePats
+from cview import add_view_flags
 from pat2beta import pat2beta
 from beta_cov import beta_cov, beta_cov_by_bed
 from beta_to_blocks import load_blocks_file
@@ -65,6 +66,10 @@ class Mixer:
             v = ' '
             if self.args.strict:
                 v += ' --strict'
+            if self.args.strip:
+                v += ' --strip'
+            if self.args.min_len:
+                v += f' --min_len {self.args.min_len}'
             if self.args.bed_file is not None:
                 v += ' -L {}'.format(self.args.bed_file)
             elif not self.gr.is_whole():
@@ -107,9 +112,9 @@ class Mixer:
             if not op.isfile(beta):
                 eprint('No {} file compatible to {} was found. Generate it...'.format(suff, pat))
                 pat2beta(pat, op.dirname(pat), args=self.args, force=True)
-            if self.bed:
+            if self.bed is not None:
                 cov = beta_cov_by_bed(beta, self.bed)
-            elif self.args.bed_cov:     # todo: this is messy. fix it
+            elif self.args.bed_cov:     # todo: this is messy. fix it. Better read coverage from pat file.
                 cov = beta_cov_by_bed(beta, load_blocks_file(self.args.bed_cov))
             else:
                 cov = beta_cov(beta, self.gr.sites, print_res=True)
@@ -164,7 +169,6 @@ def parse_args():
                              'Only supported if corresponding beta files are in the same '
                              'directory with the pat files. '
                              'Otherwise, they will be created.')
-    add_GR_args(parser, bed_file=True)
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing files if existed')
 
     parser.add_argument('--reps', type=int, default=1, help='nr or repetitions [1]')
@@ -178,17 +182,13 @@ def parse_args():
                                                     'Default is the basenames of the pat files,'
                                                     'lowercased and trimmed by the first "-"')
 
-    parser.add_argument('--strict', action='store_true', help='Truncate reads that start/end outside the given region. '
-                                                              'Only relevant if "region", "sites" '
-                                                              'or "bed_file" flags are given.')
-
     out_or_pref = parser.add_mutually_exclusive_group()
     out_or_pref.add_argument('-p', '--prefix', help='Prefix of output file.')
     out_or_pref.add_argument('-o', '--out_dir', help='Output directory [.]', default='.')
     parser.add_argument('-T', '--temp_dir', help='passed to "sort -m". Useful for merging very large pat files')
     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
     parser.add_argument('-v', '--verbose', action='store_true')
-    add_multi_thread_args(parser)
+    add_view_flags(parser, sub_sample=False, out_path=False)
     args = parser.parse_args()
     return args
 

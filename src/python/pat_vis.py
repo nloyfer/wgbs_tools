@@ -5,6 +5,7 @@ import os.path as op
 import sys
 import argparse
 import re
+from operator import itemgetter
 from utils_wgbs import MAX_PAT_LEN, validate_file_list, splitextgz, IllegalArgumentError, \
                        color_text, load_borders, drop_dup_keep_order, read_shell
 from genomic_region import GenomicRegion
@@ -93,15 +94,14 @@ class PatVis:
         if not res:
             return
         if res['score'] != 'NA':
-            to_print = 'Methylation average: {}%'.format(res['score'])
+            to_print = f'Methylation average: {res["score"]}%'
             if self.uxm:
                 u_thresh = round(self.uxm * 100, 2)
                 m_thresh = round((1 - self.uxm) * 100, 2)
-                if int(u_thresh) == u_thresh:
-                    u_thresh = int(u_thresh)
-                    m_thresh = int(m_thresh)
-                to_print += f', UXM {u_thresh} / {m_thresh} '
-                to_print += '[{}/{}/{}]'.format(res['uxm']['U'], res['uxm']['X'], res['uxm']['M'])
+                to_print += f'\nUXM {u_thresh:g}/{m_thresh:g} '
+                arr = np.array(itemgetter(*list('UXM'))(res['uxm']))
+                to_print += '[{}/{}/{}]'.format(*arr)
+                to_print += ' [{:.1%}/{:.1%}/{:.1%}]'.format(*(arr/arr.sum()))
             print(to_print)
 
         # Markers for sites of interest:
@@ -125,7 +125,7 @@ class PatVis:
                 txt = txt.replace(FULL_CIRCLE, FULL_CIRCLE + '\u0336')  # strikethrough
                 # txt = txt.replace(FULL_CIRCLE, '\u0336' + FULL_CIRCLE)  # strikethrough
         print(markers)
-        print(txt)
+        print(txt, flush=True)  # the flush is needed to handle BrokenPipeError
 
     def get_block(self):
         cmd = view_gr(self.pat_path, self.args, get_cmd=True)
@@ -236,3 +236,4 @@ def main(args):
     for pat_file in input_files:
         print(splitextgz(op.basename(pat_file))[0])     # print file name
         PatVis(args, pat_file).print_results()
+
