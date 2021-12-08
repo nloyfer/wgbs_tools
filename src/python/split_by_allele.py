@@ -81,7 +81,8 @@ def proc_chr(bam, out_path, name, snp_pos, snp_let1, snp_let2, ex_flags, mapq, d
     if verbose:
         print(cmd)
     subprocess_wrap(final_cmd, debug)
-    parser = add_args()
+    parser = argparse.ArgumentParser()
+    parser = add_args(parser)
     parse_bam2pat_args(parser)
     bam2patargs_list = [bam_file_out, "--out_dir", out_path, "-r", chrom, "--threads", "1"]
     if no_beta:
