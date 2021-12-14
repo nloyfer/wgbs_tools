@@ -13,14 +13,15 @@ from bam2pat import add_args, subprocess_wrap, validate_bam, is_pair_end, MAPQ, 
 from genomic_region import GenomicRegion
 
 
-BAM_SUFF = '.counts.bam'
+BAM_SUFF = '.bam'
 
 # Minimal Mapping Quality to consider.
 # 10 means include only reads w.p. >= 0.9 to be mapped correctly.
 # And missing values (255)
 
 
-def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end, ex_flags, mapq, debug, min_cpg, clip):
+def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end, ex_flags, mapq, debug, min_cpg, clip,
+             bed_file):
     """ Convert a temp single chromosome file, extracted from a bam file,
         into a sam formatted (no header) output file."""
 
@@ -32,7 +33,11 @@ def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end,
 
     # use samtools to extract only the reads from 'chrom'
     # flag = '-f 3' if paired_end else ''
-    cmd = "samtools view {} {} -q {} -F {} | ".format(input_path, region, mapq, ex_flags)
+    cmd = "samtools view {} {} -q {} -F {} ".format(input_path, region, mapq, ex_flags)
+    if bed_file is not None:
+        cmd += f"-M -L {bed_file} | "
+    else:
+        cmd += "| "
     if debug:
         cmd += ' head -200 | '
     if paired_end:
@@ -148,14 +153,14 @@ class BamMethylData:
         header_path = name + '.header'
         proc_header(self.bam_path, header_path, self.debug)
         if self.gr.region_str is None:
-            final_path = name + BAM_SUFF
+            final_path = name + f".{self.args.suffix}" + BAM_SUFF
             processes = []
             with Pool(self.args.threads) as p:
                 for c in self.set_regions():
                     out_path_name = name + '_' + c
                     params = (self.bam_path, out_path_name, c, self.gr.genome,
                             header_path, is_pair_end(self.bam_path), self.args.exclude_flags,
-                            self.args.mapq, self.debug, self.args.min_cpg, self.args.clip)
+                            self.args.mapq, self.debug, self.args.min_cpg, self.args.clip, self.args.regions_file)
                     processes.append(p.apply_async(proc_chr, params))
                 if not processes:
                     raise IllegalArgumentError('Empty bam file')
@@ -164,7 +169,7 @@ class BamMethylData:
             res = [pr.get() for pr in processes]   # [(pat_path, unq_path) for each chromosome]
         else:
             region_str_for_name = self.gr.region_str.replace(":", "_").replace("-", "_")
-            final_path = name + f".{region_str_for_name}" + BAM_SUFF
+            final_path = name + f".{region_str_for_name}" + f".{self.args.suffix}" + BAM_SUFF
             out_path_name = name + '_' + "1"
             res = [proc_chr(self.bam_path, out_path_name, self.gr.region_str, self.gr.genome, header_path,
                             is_pair_end(self.bam_path), self.args.exclude_flags, self.args.mapq, self.debug,
@@ -205,6 +210,15 @@ class BamMethylData:
         list(map(os.remove, [l for l in res]))
 
 
+def add_cpg_args(parser):
+    parser.add_argument('--regions_file',  default=None,
+                        help='A bed file of genomic regions. These regions will be used to filter the input bam.')
+    parser.add_argument('--suffix', default="counts",
+                        help='The output file suffix. The output file will be [in_file].[suffix].bam. By default the '
+                             'suffix is "counts".')
+    return parser
+
+
 def main():
     """
     Add to bam file an extra field, YI:Z:{nr_meth},{nr_unmeth},
@@ -212,6 +226,7 @@ def main():
     """
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser = add_args(parser)
+    parser = add_cpg_args(parser)
     args = parser.parse_args()
     for bam in args.bam:
         BamMethylData(args, bam).start_threads()

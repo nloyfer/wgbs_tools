@@ -361,7 +361,6 @@ def parse_bam2pat_args(parser):
             help='filter bad bisulfite conversion reads if <90 percent of CHs are converted')
 
 
-
 def add_args(parser):
     parser.add_argument('bam', nargs='+')
     add_GR_args(parser)
