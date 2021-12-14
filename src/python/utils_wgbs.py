@@ -276,7 +276,7 @@ def load_beta_data(beta_path, sites=None):
             f.seek((start - 1) * 2 * sizet)  # fix base-1 annotations
             data = np.fromfile(f, dtype=dtype, count=((end - start) * 2)).reshape((-1, 2))
 
-    assert data.size, 'Data table is empty!'
+    assert data.size, beta_path + ': Data table is empty!'
     return data
 
 
