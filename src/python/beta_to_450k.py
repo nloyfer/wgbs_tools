@@ -15,7 +15,7 @@ from multiprocessing import Pool
 
 def single_beta(beta_path, indices, cov_thresh):
     return op.splitext(op.basename(beta_path))[0], \
-           beta2vec(load_beta_data(beta_path)[indices - 1], min_cov=cov_thresh).astype(np.float16)
+           beta2vec(load_beta_data(beta_path)[indices - 1], min_cov=cov_thresh)
 
 
 def read_reference(ref):
@@ -71,7 +71,7 @@ def betas2csv(args):
 
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
-    parser.add_argument('input_files', nargs='+', help='one or more beta files')
+    parser.add_argument('input_files', nargs='+', help='one or more beta files')   # TODO: accept pat files (useful for small mixed files)
     parser.add_argument('-o', '--out_path', type=argparse.FileType('w'), default=sys.stdout,
                         help='Output path. [stdout]')
     parser.add_argument('-c', '--cov_thresh', type=int, default=3,
