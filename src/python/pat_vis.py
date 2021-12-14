@@ -129,8 +129,9 @@ class PatVis:
 
     def get_block(self):
         cmd = view_gr(self.pat_path, self.args, get_cmd=True)
+        df = read_shell(cmd, index_col=None)
         names = ['chr', 'start', 'pat', 'count']
-        df = read_shell(cmd, names=names)
+        df.columns = names + list(df.columns)[len(names):]
         if not df.empty:
             return self.cyclic_print(df)
 
@@ -189,7 +190,7 @@ class PatVis:
         first_to_show = df.loc[0, 'start']
 
         for _, read in df.iterrows():
-            self.insert_read_to_table(read, table, first_to_show)
+            self.insert_read_to_table(read[:4], table, first_to_show)
 
         nr_lines = int(np.argmin(table[:, 0]))
         width = np.max(np.argmin(table, axis=1))
