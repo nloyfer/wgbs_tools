@@ -242,7 +242,7 @@ int patter::compareSeqToRef(std::string &seq,
         
         // this deals with the case where a read exceeds
         // the last CpG of the chromosome. Ignore the rest of the read.
-        if (start_locus + 1 > (bsize - 1)) {
+        if ((start_locus + i) > (bsize - 1)) {
             continue;  
         }
         if (i >= MAX_READ_LEN) {skip_mbias = false;}
