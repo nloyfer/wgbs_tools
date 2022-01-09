@@ -2,8 +2,8 @@
 // Created by nloyfer on 5/27/19.
 //
 
-#ifndef PATS_READS_LENS_PAT2RLEN_H
-#define PATS_READS_LENS_PAT2RLEN_H
+#ifndef CVIEW_H
+#define CVIEW_H
 
 #include <vector>
 #include <sstream>
@@ -11,10 +11,11 @@
 #include <fstream>
 #include <stdexcept>
 #include <math.h>
-#include <boost/iostreams/filtering_streambuf.hpp>
-#include <boost/iostreams/copy.hpp>
 #include <string>
 #include <stdlib.h>
+#include <array>
+#include <algorithm> // find in main
+#include <memory>    // unique_ptr
 
 
 #define SEP "\t"
@@ -28,7 +29,6 @@ struct Block {
 class Cview {
     int32_t *counts;
 
-
     bool debug;
     bool verbose;
     std::vector<Block> borders;
@@ -37,7 +37,8 @@ class Cview {
     int min_cpgs = 0;
     bool strip;
     bool strict;
-
+    std::string blocks_path;
+    std::string sites;
 
     int read_blocks();
 
@@ -51,12 +52,14 @@ class Cview {
     void strip_read(std::vector <std::string> &tokens);
 
 public:
-    Cview(bool in_strict, bool in_strip, int in_min_cpgs, bool deb, bool ver):
-        strict(in_strict), strip(in_strip), min_cpgs(in_min_cpgs), debug(deb), verbose(ver) {}
+    Cview(std::string bpath, std::string in_sites, bool in_strict, 
+            bool in_strip, int in_min_cpgs, bool deb, bool ver):
+        blocks_path(bpath), sites(in_sites), strict(in_strict), 
+        strip(in_strip), min_cpgs(in_min_cpgs), debug(deb), verbose(ver) {}
 
     ~Cview() {}
 
     void parse();
 };
 
-#endif //PATS_READS_LENS_PAT2RLEN_H
+#endif //CVIEW_H

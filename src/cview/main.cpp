@@ -83,6 +83,8 @@ int main(int argc, char *argv[]) {
         //return 1;
     //}
     int min_cpgs = std::stoi(get_param_str(input, "--min_cpgs", "1"));
+    std::string blocks_path = get_param_str(input, "--blocks_path", "");
+    std::string sites = get_param_str(input, "--sites", "");
 
     bool debug = input.cmdOptionExists("-d");
     bool verbose = input.cmdOptionExists("-v");
@@ -90,7 +92,7 @@ int main(int argc, char *argv[]) {
     bool strip = input.cmdOptionExists("--strip");
 
     try {
-        Cview(strict, strip, min_cpgs, debug, verbose).parse();
+        Cview(blocks_path, sites, strict, strip, min_cpgs, debug, verbose).parse();
     }
     catch (std::exception &e) {
         std::cerr << e.what() << std::endl;

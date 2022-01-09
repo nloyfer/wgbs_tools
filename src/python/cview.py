@@ -36,8 +36,9 @@ def view_gr(pat, args, get_cmd=False):
         cmd = f'tabix {pat} {gr.chrom}:{ms}-{e - 1} '
 
     view_flags = set_view_flags(args)
-    cmd = f"""/bin/bash -c 'cat <(echo "{s}\t{e}") <(echo "-1") <({cmd}) | {cview_tool}'"""
-    cmd = cmd.rstrip("'") + f" {view_flags} ' "
+    # cmd = f"""/bin/bash -c 'cat <(echo "{s}\t{e}") <(echo "-1") <({cmd}) | {cview_tool}'"""
+    cmd += f' | {cview_tool} --sites "{s}\t{e}" ' + view_flags
+    # cmd = cmd.rstrip("'") + f" {view_flags} ' "
     if hasattr(args, 'sub_sample') and args.sub_sample is not None:  # sub-sample reads
         validate_local_exe(pat_sampler)
         cmd += f' | {pat_sampler} {args.sub_sample} '
@@ -69,25 +70,20 @@ def view_bed(pat, args):
     bpath = args.bed_file
 
     # validate blocks file. If it's long, and starts with "chr1", use gunzip instead of tabix.
-    tabix_cmd = ''
     df = load_blocks_file(bpath, nrows=1e6)
     if df.shape[0] == 1e6 and df.iloc[0, 0] in ('1', 'chr1'):
         tabix_cmd = f'gunzip -c {pat} '
+    else:
+        # extended blocks:
+        tabix_cmd = 'gunzip -c' if bpath.endswith('.gz') else 'cat'
+        tabix_cmd += f' {bpath} | {cview_extend_blocks_script} | tabix -R - {pat} '
 
-    # extended blocks:
-    cat_cmd = ('gunzip -c' if bpath.endswith('.gz') else 'cat') + f' {bpath}'
-    if not tabix_cmd:
-        tabix_cmd = cat_cmd + f' | {cview_extend_blocks_script} | tabix -R - {pat} '
-
-    blocks_cmd = cat_cmd + f' | cut -f4-5 | sort -k1,1n '
-    cmd = f'/bin/bash -c \"cat <({blocks_cmd}) <(echo -1) <({tabix_cmd}) \" '
     view_flags = set_view_flags(args)
-    cmd += f' | {cview_tool} {view_flags}'
+    cmd = tabix_cmd + f' | {cview_tool} {view_flags} --blocks_path {bpath}'
     if args.sub_sample is not None:  # sub-sample reads
         validate_local_exe(pat_sampler)
         cmd += f' | {pat_sampler} {args.sub_sample} '
     cmd += f' | sort -k2,2n -k3,3 | {collapse_pat_script} - '
-    # eprint(cmd)
     if args.out_path is not None:
         cmd += f' > {args.out_path}'
     subprocess_wrap_sigpipe(cmd)

@@ -2,10 +2,19 @@
 
 #include "cview.h"
 
-
-//  g++ -std=c++11 pat2rlen.cpp -o pat2rlen
-//  g++ -std=c++11 pat2rlen.cpp -o pat2rlen -lz -lboost_iostreams
-
+std::string exec(const char* cmd) {
+    /** Execute a command and load output to string */
+    std::array<char, 128> buffer;
+    std::string result;
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+    if (!pipe) {
+        throw std::runtime_error("[ cview ] popen() failed!");
+    }
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+        result += buffer.data();
+    }
+    return result;
+}
 
 std::vector <std::string> line2tokens(std::string &line) {
     /**
@@ -64,19 +73,42 @@ void Cview::output_vec(std::vector <std::string> &tokens) {
     std::cout << std::endl;
 }
 
+std::stringstream load_blocks(std::string blocks_path, std::string sites) {
+    // Load the CpG blocks
+
+    std::string block_data = "";
+    if (blocks_path == "") {
+        block_data = sites;
+    }
+    else {
+        std::string cmd = "cat ";
+        if ((blocks_path.length() > 3) && (blocks_path.substr(blocks_path.length() - 3) == ".gz")) {
+            cmd = "gunzip -c ";
+        }
+        cmd += blocks_path + " " + " | cut -f4-5 | sort -k1,1n";
+        block_data = exec(cmd.c_str());
+        if (block_data.length() == 0) {
+            throw std::invalid_argument("[ cview ] Error: Unable to read blocks file: " + blocks_path);
+        }
+    }
+    std::stringstream ss(block_data);
+    return ss;
+}
 
 int Cview::read_blocks() {
+    // Load blocks to string
+    std::stringstream ss = load_blocks(blocks_path, sites);
     //
     //Iterate lines
     std::vector <std::string> tokens;
     int cur_start = 0, cur_end = 0, bi = 0;
-    for (std::string line_str; std::getline(std::cin, line_str);) {
+    for (std::string line_str; std::getline(ss, line_str);) {
 
         // skip empty lines
         if (line_str.empty()) { continue; }
         tokens = line2tokens(line_str);
         // break when "-1" occurs
-        if ( (tokens.size() == 1) && (tokens[0] == "-1") ) { break; }
+        //if ( (tokens.size() == 1) && (tokens[0] == "-1") ) { break; }
 
         if (tokens.size() != 2) {
             std::cerr << "Invalid blocks format. Should be: startCpG\tendCpG\n";
@@ -127,8 +159,6 @@ int Cview::read_blocks() {
         std::cerr << nr_blocks << " blocks are done" << std::endl;
     return 0;
 }
-
-
 
 int Cview::proc_line(std::vector <std::string> tokens) {
     /**
