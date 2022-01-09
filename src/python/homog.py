@@ -54,14 +54,15 @@ def trim_uxm_to_uint8(data, nr_bits):
     res = data.astype(dtype)
     return res
 
-def homog_chrom(pat, name, blocks, blocks_path, chrom, rates_cmd, view_full):
+def homog_chrom(pat, name, blocks, blocks_path, chrom, rates_cmd, view_full, verbose=False):
     if view_full:
         cmd = f'tabix {pat} {chrom}'
     else:
         cmd = f'{main_script} cview {pat} -L {blocks_path}'
     cmd += f' | {homog_tool} -b {blocks_path} -n {name}.{chrom} {rates_cmd}'
     cmd += f' --chrom {chrom}'
-    txt = subprocess.check_output(cmd, shell=True).decode()
+    se = None if verbose else subprocess.PIPE
+    txt = subprocess.check_output(cmd, shell=True, stderr=se).decode()
     names = ['U', 'X', 'M']
     df = pd.read_csv(StringIO(txt), sep='\t', header=None, names=names)
     if df.values.sum() == 0:
@@ -90,7 +91,7 @@ def homog_process(pat, blocks, args):
         homog_log(f'skipping {name}. Use -f to overwrite')
         return
 
-    homog_log(f' [ {name} ] starting')
+    # homog_log(f' [ {name} ] starting')
 
     # generate rate_cmd:
     l = args.rlen
@@ -111,7 +112,7 @@ def homog_process(pat, blocks, args):
     p = Pool(args.threads)
     params = [(pat, name, blocks[blocks['chr'] ==c],
                args.blocks_file, c, rate_cmd,
-               view_full) for c in chroms]
+               view_full, args.verbose) for c in chroms]
     arr = p.starmap(homog_chrom, params)
     p.close()
     p.join()
@@ -166,6 +167,7 @@ def parse_args():
     parser.add_argument('-b', '--blocks_file', help='blocks path', required=True)
     parser.add_argument('-o', '--out_dir', help='output directory. Default is "."', default='.')
     parser.add_argument('--force', '-f', action='store_true', help='Overwrite files if exist')
+    parser.add_argument('--verbose', '-v', action='store_true')
     parser.add_argument('--binary', action='store_true', help='Output binary files (uint8)')
     parser.add_argument('--bed', action='store_true', help='Output bed file')
     parser.add_argument('--genome', help='Genome reference name.')
