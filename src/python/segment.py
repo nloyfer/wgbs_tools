@@ -1,5 +1,7 @@
 #!/usr/bin/python3 -u
 
+import os
+import tempfile
 import os.path as op
 import numpy as np
 import pandas as pd
@@ -163,24 +165,25 @@ class SegmentByChunks:
             eprint('Empty blocks array')
             return
 
-        # sort by startCpG, add genomic loci and dump/print
+        # sort by startCpG and filter by CpGs
         nr_blocks = df.shape[0]
         df.sort_values(by=['startCpG'], inplace=True)
         df = df[df.endCpG - df.startCpG > self.args.min_cpg - 1].reset_index(drop=True)
+
+        # verbose
         nr_blocks_filt = df.shape[0]
         nr_dropped = nr_blocks - nr_blocks_filt
         eprint(f'[wt segment] found {nr_blocks_filt:,} blocks\n' \
                f'             (dropped {nr_dropped:,} short blocks)')
-        df = add_bed_to_cpgs(df, self.genome.genome, self.args.threads)
 
-        # add a header line
-        # It's needed for tabix version >1.9. They have a bug when indexing a bed file 
-        # with 5 columns where the last column is numeric.
-        # see https://github.com/samtools/htslib/issues/1347
-        outpath = self.args.out_path
-        with open(outpath, "w") if outpath != sys.stdout else sys.stdout as f:
-            f.write('#' + '\t'.join(df.columns) + '\n')
-            df.to_csv(f, sep='\t', header=None, index=None, mode='a')
+        # add genomic loci and dump/print
+        temp_path = next(tempfile._get_candidate_names())
+        try:
+            df.to_csv(temp_path, sep='\t', header=None, index=None)
+            add_bed_to_cpgs(temp_path, self.genome.genome, self.args.out_path)
+        finally:
+            if op.isfile(temp_path):
+                os.remove(temp_path)
 
 
 #############################################################

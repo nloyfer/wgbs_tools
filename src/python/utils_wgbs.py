@@ -22,6 +22,7 @@ cview_tool = SRC_DIR + 'cview/cview'
 cview_extend_blocks_script = SRC_DIR + 'cview/extend_blocks.sh'
 view_beta_script = SRC_DIR + 'view_beta.sh'
 homog_tool = SRC_DIR + 'homog/homog'
+add_loci_tool = SRC_DIR + 'cpg2bed/add_loci'
 
 match_maker_tool = SRC_DIR + 'pipeline_wgbs/match_maker'
 patter_tool = SRC_DIR + 'pipeline_wgbs/patter'

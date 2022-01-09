@@ -5,7 +5,8 @@ import os
 import tempfile
 from utils_wgbs import add_GR_args, eprint, GenomeRefPaths, delete_or_skip, \
                        load_dict_section, add_multi_thread_args, IllegalArgumentError, \
-                       read_shell, check_executable, COORDS_COLS3, COORDS_COLS5
+                       read_shell, check_executable, COORDS_COLS3, COORDS_COLS5, \
+                       add_loci_tool
 from genomic_region import GenomicRegion
 import pandas as pd
 import numpy as np
@@ -224,80 +225,15 @@ def convert_site_file(args):
     if not delete_or_skip(out_path, args.force):
         return
     # add loci columns
-    r = add_bed_to_cpgs(cpgs=load_site_file(args.site_file),
-                        genome=args.genome,
-                        threads=args.threads)
-    r.to_csv(out_path, sep='\t', header=None, index=None, na_rep='NA')
+    add_bed_to_cpgs(args.site_file, args.genome, args.out_path)
 
 
-def load_site_file(site_file):
-    # load site file
-    if site_file == '-':
-        site_file = sys.stdin
-    cpgs = pd.read_csv(site_file, sep='\t', header=None)
-    nr_cols = cpgs.shape[1]
-    if nr_cols == 1:
-        cpgs.columns = ['startCpG']
-        cpgs['endCpG'] = cpgs['startCpG'] + 1
-    elif nr_cols == 2:
-        cpgs.columns = ['startCpG', 'endCpG']
-    else:
-        raise IllegalArgumentError('Invalid site file. required columns: startCpG    [endCpG]')
-    if not (cpgs['startCpG'] < cpgs['endCpG']).all():
-        raise IllegalArgumentError('Invalid site file. endCpG must be greater thatn startCpG')
-    return cpgs
-
-def chr_thread_cpg(df, chrom, genome):
-    # load reference dict:
-    dict_df = load_dict_section(chrom, genome)
-    df.drop_duplicates(inplace=True)
-
-    # merge startCpG
-    df = df.merge(dict_df, left_on='startCpG', right_on='idx')
-
-    # merge endCpG
-    dict_df = dict_df.rename(columns={'idx': 'endCpG', 'start': 'end'})
-    df['endCpG'] = df['endCpG'] - 1
-    df = df.merge(dict_df[['endCpG', 'end']], on=['endCpG'])
-    df['end'] = df['end'] + 1
-    df['endCpG'] = df['endCpG'] + 1
-    df['chr'] = chrom
-    return df[COORDS_COLS5]
-
-def subset_by_chrom(cpgs, cf, chrom):
-    chrom_ind = cf.chr.tolist().index(chrom)
-    first = cf['size'][chrom_ind - 1] + 1 if chrom_ind > 0 else 1
-    last = cf['size'][chrom_ind] + 1
-    df_chrom = cpgs[(cpgs.startCpG>=first) & (cpgs.startCpG < last)]
-    if (df_chrom.endCpG > last).any():
-        eprint(f'[wt convert] ERROR: CpG range crosses chromosomes')
-        eprint(df_chrom[df_chrom.endCpG > last].head(1).values.flatten())
-        raise IllegalArgumentError('Invalid site file')
-    return df_chrom
-
-def add_bed_to_cpgs(cpgs, genome, threads):
-    # load chromosomes sizes (in GpGs):
-    cf = GenomeRefPaths(genome).get_chrom_cpg_size_table()
-    cf['size'] = np.cumsum(cf['size'])
-
-    params = []
-    for chrom in sorted(set(cf.chr)):
-        df_chrom = subset_by_chrom(cpgs, cf, chrom)
-        if not df_chrom.empty:
-            params.append((df_chrom.copy(), chrom, genome))
-    assert len(params)
-    p = Pool(threads)
-    # arr = [chr_thread_cpg(*p) for p in params]
-    arr = p.starmap(chr_thread_cpg, params)
-    p.close()
-    p.join()
-
-    # concat chromosomes
-    r = pd.concat(arr)
-    # merge with original table, to keep the order
-    r = cpgs.merge(r, how='left')[COORDS_COLS5]
-    assert r.shape[0] == cpgs.shape[0]
-    return r
+def add_bed_to_cpgs(site_file, genome, out_path=None):
+    g = GenomeRefPaths(genome)
+    cmd = f'cat {site_file} | {add_loci_tool} {g.dict_path} {g.chrom_cpg_sizes}'
+    if (out_path is not None) and out_path != sys.stdout:
+        cmd += f' > {out_path}'
+    subprocess.check_call(cmd, shell=True)
 
 
 ####################################################################
