@@ -21,7 +21,7 @@ def load_bed(bed_path, nrows, add1=False):
     df.drop_duplicates(subset=['chr', 'start'], inplace=True)
     nr_dup_lines = nr_lines - df.shape[0]
     if nr_dup_lines > 0:
-        eprint(f'Warning: dropped {nr_dup_lines} duplicated lines')
+        eprint(f'[wt bed] Warning: dropped {nr_dup_lines} duplicated lines')
     if add1:
         df['start'] = df['start'] + 1
     return df
@@ -36,7 +36,7 @@ def bed2betas(args):
     try:
         rf = None       # Reference dictionary
         for bed in args.bed_paths:
-            eprint(f'Converting {op.basename(bed)}...')
+            eprint(f'[wt bed] Converting {op.basename(bed)}...')
             # Check if bed should be skipped
             outpath = op.join(args.outdir, splitextgz(op.basename(bed))[0] + '.beta')
             if not delete_or_skip(outpath, args.force):
@@ -47,13 +47,13 @@ def bed2betas(args):
                 rf = load_dict_section(region, args.genome)
             df = load_bed(bed, nrows, args.add_one)
 
-            # todo: multiprocess it, split by chromosome
+            # todo: implement in C++.
             # merge dict with bed, then dump
             res = rf.merge(df, how='left', on=['chr', 'start']).fillna(0)
             trim_to_uint8(np.array(res[['meth', 'total']])).tofile(outpath)
 
     except pd.errors.ParserError as e:
-        eprint(f'Invalid input file.\n{e}')
+        eprint(f'[wt bed] Invalid input file.\n{e}')
         return
 
 
