@@ -7,8 +7,10 @@ from multiprocessing import Pool
 import multiprocessing
 import numpy as np
 import os
-from utils_wgbs import validate_single_file, PAT2BETA_TOOL, delete_or_skip, splitextgz, IllegalArgumentError, \
-    GenomeRefPaths, trim_to_uint8, add_multi_thread_args
+from utils_wgbs import validate_single_file, pat2beta_tool, \
+        delete_or_skip, splitextgz, IllegalArgumentError, \
+        GenomeRefPaths, trim_to_uint8, add_multi_thread_args, \
+        validate_local_exe
 
 
 def pat2beta(pat_path, out_dir, args, force=True):
@@ -30,7 +32,7 @@ def pat2beta(pat_path, out_dir, args, force=True):
         arr = mult_pat2beta(pat_path, args)
     else:
         nr_sites = GenomeRefPaths(args.genome).get_nr_sites()
-        cmd += f' {pat_path} | {PAT2BETA_TOOL} {1} {nr_sites + 1}'
+        cmd += f' {pat_path} | {pat2beta_tool} {1} {nr_sites + 1}'
         x = subprocess.check_output(cmd, shell=True).decode()
         arr = np.fromstring(x, dtype=int, sep=' ').reshape((-1, 2))
 
@@ -59,7 +61,7 @@ def mult_pat2beta(pat_path, args):
 
 def chr_thread(pat, chrom, start, end):
     cmd = f'tabix {pat} {chrom} | '
-    cmd += f'{PAT2BETA_TOOL} {start} {end}'
+    cmd += f'{pat2beta_tool} {start} {end}'
     x = subprocess.check_output(cmd, shell=True).decode()
     x = np.fromstring(x, dtype=int, sep=' ').reshape((-1, 2))
     return x
@@ -81,6 +83,7 @@ def main():
     Generate a beta file from a pat file
     """
     args = parse_args()
+    validate_local_exe(pat2beta_tool)
     for pat in args.pat_paths:
         pat2beta(pat, args.out_dir, args, args.force)
 

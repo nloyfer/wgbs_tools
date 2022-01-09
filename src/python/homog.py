@@ -12,7 +12,7 @@ from io import StringIO
 from beta_to_blocks import load_blocks_file, is_block_file_nice
 from utils_wgbs import IllegalArgumentError, add_multi_thread_args, \
         homog_tool, main_script, splitextgz, GenomeRefPaths, validate_file_list, \
-        COORDS_COLS5
+        COORDS_COLS5, validate_local_exe
 
 
 def homog_log(*args, **kwargs):
@@ -145,6 +145,9 @@ def main():  # TODO: this is 8x slower than simply running the CPP tool on a sin
         th = float(th[0]), float(th[1])
         if not (1 > th[1] > th[0] > 0):
             raise IllegalArgumentError('Invalid thresholds')
+    # make sure homog tool is valid:
+    validate_local_exe(homog_tool)
+
     if not op.isdir(args.out_dir):
         os.mkdir(args.out_dir)
     pats = args.input_files

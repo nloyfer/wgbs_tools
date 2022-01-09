@@ -10,8 +10,9 @@ import re
 from multiprocessing import Pool
 
 from bam2pat import Bam2Pat, add_args, parse_bam2pat_args, extend_region
-from utils_wgbs import IllegalArgumentError, match_maker_tool, eprint, add_multi_thread_args, mult_safe_remove, \
-    GenomeRefPaths, validate_single_file, delete_or_skip, allele_split_tool, add_no_beta_arg
+from utils_wgbs import IllegalArgumentError, match_maker_tool, eprint, \
+        add_multi_thread_args, mult_safe_remove, GenomeRefPaths, validate_single_file, \
+        delete_or_skip, allele_split_tool, add_no_beta_arg, validate_local_exe
 from init_genome import chromosome_order
 
 PAT_SUFF = '.pat.gz'
@@ -241,6 +242,7 @@ def main():
     if not op.isdir(args.out_dir):
         raise IllegalArgumentError(f'Invalid output dir: {args.out_dir}')
 
+    validate_local_exe(allele_split_tool)
     for bam in [args.bam]:
         if not validate_bam(bam):
             eprint(f'[wt bam2pat] Skipping {bam}')

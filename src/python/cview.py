@@ -3,7 +3,7 @@
 import argparse
 from utils_wgbs import MAX_PAT_LEN, pat_sampler, validate_single_file, \
     add_GR_args, eprint, cview_tool, collapse_pat_script, \
-    cview_extend_blocks_script, add_multi_thread_args
+    cview_extend_blocks_script, add_multi_thread_args, validate_local_exe
 from genomic_region import GenomicRegion
 from beta_to_blocks import load_blocks_file
 import subprocess
@@ -39,6 +39,7 @@ def view_gr(pat, args, get_cmd=False):
     cmd = f"""/bin/bash -c 'cat <(echo "{s}\t{e}") <(echo "-1") <({cmd}) | {cview_tool}'"""
     cmd = cmd.rstrip("'") + f" {view_flags} ' "
     if hasattr(args, 'sub_sample') and args.sub_sample is not None:  # sub-sample reads
+        validate_local_exe(pat_sampler)
         cmd += f' | {pat_sampler} {args.sub_sample} '
     if not gr.is_whole():
         cmd += f' | sort -k2,2n -k3,3 '
@@ -83,6 +84,7 @@ def view_bed(pat, args):
     view_flags = set_view_flags(args)
     cmd += f' | {cview_tool} {view_flags}'
     if args.sub_sample is not None:  # sub-sample reads
+        validate_local_exe(pat_sampler)
         cmd += f' | {pat_sampler} {args.sub_sample} '
     cmd += f' | sort -k2,2n -k3,3 | {collapse_pat_script} - '
     # eprint(cmd)
@@ -140,6 +142,7 @@ def main():
     validate_single_file(pat)
     if (args.sub_sample is not None) and (args.sub_sample < 0):
         parser.error('[wt view] sub-sampling rate must be >= 0')
+    validate_local_exe(cview_tool)
     cview(pat, args)
 
 

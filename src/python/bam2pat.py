@@ -12,7 +12,8 @@ import re
 from multiprocessing import Pool
 from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, \
     add_GR_args, eprint, add_multi_thread_args, EmptyBamError, \
-    validate_single_file, delete_or_skip, check_executable, add_no_beta_arg
+    validate_single_file, delete_or_skip, check_executable, \
+    add_no_beta_arg, validate_local_exe
 from init_genome import chromosome_order
 from pat2beta import pat2beta
 from index import Indxer
@@ -400,6 +401,8 @@ def main():
     if not op.isdir(args.out_dir):
         raise IllegalArgumentError(f'Invalid output dir: {args.out_dir}')
 
+    validate_local_exe(match_maker_tool)
+    validate_local_exe(patter_tool)
     for bam in args.bam:
         if not validate_bam(bam):
             eprint(f'[wt bam2pat] Skipping {bam}')

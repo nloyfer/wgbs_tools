@@ -11,7 +11,7 @@ import argparse
 import subprocess
 from utils_wgbs import IllegalArgumentError, eprint, segment_tool, add_GR_args, \
                        validate_file_list, validate_single_file, \
-                       add_multi_thread_args, GenomeRefPaths
+                       add_multi_thread_args, GenomeRefPaths, validate_local_exe
 from convert import add_bed_to_cpgs
 from genomic_region import GenomicRegion, index2chrom
 from beta_to_blocks import load_blocks_file
@@ -305,6 +305,7 @@ def main():
     Output: blocks file (BED format + startCpG, endCpG columns)
     """
     args = parse_args()
+    validate_local_exe(segment_tool)
     betas = parse_betas_input(args)
     SegmentByChunks(args, betas).run()
 

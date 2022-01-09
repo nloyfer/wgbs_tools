@@ -8,7 +8,8 @@ import datetime
 from multiprocessing import Pool
 import argparse
 from init_genome import chromosome_order
-from utils_wgbs import IllegalArgumentError, match_maker_tool, eprint, add_cpg_count_tool
+from utils_wgbs import IllegalArgumentError, match_maker_tool, eprint, \
+        add_cpg_count_tool, validate_local_exe
 from bam2pat import add_args, subprocess_wrap, validate_bam, is_pair_end, MAPQ, extend_region
 from genomic_region import GenomicRegion
 
@@ -230,6 +231,7 @@ def main():
     parser = add_args(parser)
     parser = add_cpg_args(parser)
     args = parser.parse_args()
+    validate_local_exe(add_cpg_count_tool)
     for bam in args.bam:
         BamMethylData(args, bam).start_threads()
 

@@ -6,7 +6,7 @@ import tempfile
 from utils_wgbs import add_GR_args, eprint, GenomeRefPaths, delete_or_skip, \
                        load_dict_section, add_multi_thread_args, IllegalArgumentError, \
                        read_shell, check_executable, COORDS_COLS3, COORDS_COLS5, \
-                       add_loci_tool
+                       add_loci_tool, validate_local_exe
 from genomic_region import GenomicRegion
 import pandas as pd
 import numpy as np
@@ -229,6 +229,7 @@ def convert_site_file(args):
 
 
 def add_bed_to_cpgs(site_file, genome, out_path=None):
+    validate_local_exe(add_loci_tool)
     g = GenomeRefPaths(genome)
     cmd = f'cat {site_file} | {add_loci_tool} {g.dict_path} {g.chrom_cpg_sizes}'
     if (out_path is not None) and out_path != sys.stdout:

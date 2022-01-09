@@ -15,7 +15,7 @@ DIR = str(path.parent)
 
 SRC_DIR = op.join(path.parent.parent.parent, 'src/')
 pat_sampler = SRC_DIR + 'pat_sampler/pat_sampler'
-PAT2BETA_TOOL = SRC_DIR + 'pat2beta/stdin2beta'
+pat2beta_tool = SRC_DIR + 'pat2beta/stdin2beta'
 collapse_pat_script = SRC_DIR + 'collapse_pat.pl'
 segment_tool = SRC_DIR + 'segment_betas/segmentor'
 cview_tool = SRC_DIR + 'cview/cview'
@@ -120,11 +120,22 @@ def eprint(*args, **kwargs):
 
 def check_executable(cmd, verbose=False):
     for p in os.environ['PATH'].split(":"):
-        if os.access(os.path.join(p, cmd), os.X_OK):
+        if os.access(op.join(p, cmd), os.X_OK):
             return True
     if verbose:
         eprint(f'executable {cmd} not found in PATH')
     return False
+
+
+def validate_local_exe(tool):
+    # make sure the file exists
+    if not op.isfile(tool):
+        eprint(f'[wt] binary executable not found: {tool}. Run setup.py to compile')
+        raise IllegalArgumentError('Missing executable')
+    # make sure it's executable
+    if not os.access(tool, os.X_OK):
+        eprint(f'[wt] file {tool} is not executable')
+        raise IllegalArgumentError('Invalid executable')
 
 
 def validate_out_dir(out_dir, verbose=True):
