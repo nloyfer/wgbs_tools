@@ -286,6 +286,10 @@ def load_borders(bpath, gr, genome):
         return np.array([])
     elif bpath == True:
         bpath = GenomeRefPaths(genome).blocks
+        if bpath is None:
+            eprint(f'[wt blocks] default blocks path not found: {bpath}')
+            return np.array([])
+
     # else, bpath is a string
 
     validate_single_file(bpath, '.bed.gz')
