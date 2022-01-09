@@ -1,10 +1,12 @@
 #!/usr/bin/python3 -u
 
 import argparse
+import os
 import os.path as op
 import sys
-import subprocess
+import subprocess as sp
 import multiprocessing
+import tempfile
 from utils_wgbs import delete_or_skip, splitextgz, IllegalArgumentError, eprint, \
         add_multi_thread_args, validate_single_file, COORDS_COLS5
 
@@ -24,6 +26,41 @@ class Bed:
         self.ind_suff = '.tbi'
 
 
+def tabix_fai_workaround(in_file):
+    # if tabix version is >1.9, We need to override their file type deduction
+    # see https://github.com/samtools/htslib/issues/1347
+    # Will probably be fixed in release 1.15 of htslib (TODO: update here when they release)
+
+    try:
+        # only relevant for files with 5 columns, where the 5'th is an integer
+        with open(in_file, 'w') as f:
+            tokens = f.readline().split('\t')
+        if not (len(tokens) == 5 and tokens[4].isdigit()):
+            return
+
+        # only relevant for tabix version >1.9
+        txt = sp.check_output('tabix --version', shell=True).decode().split()[2]
+        try:
+            tabix_version = float(txt)
+        except ValueError as e:
+            tabix_version = None
+        if tabix_version is not None and tabix_version <= 1.9:
+            return
+    except:
+        return
+
+    # add a header line
+    tmp_name = op.basename(in_file) + next(tempfile._get_candidate_names())
+    temp_path = op.join(op.dirname(in_file), tmp_name)
+    try:
+        with open(temp_path, 'w') as f:
+            f.write('#' + '\t'.join(COORDS_COLS5) + '\n')
+        cmd = 'cat {i} >> {t} && mv -f {t} {i}'.format(i=in_file, t=temp_path)
+        sp.check_call(cmd, shell=True)
+    finally:
+        if op.isfile(temp_path):
+            os.remove(temp_path)
+
 class Indxer:
     def __init__(self, input_file, force=True,
                  threads=multiprocessing.cpu_count()):
@@ -34,26 +71,36 @@ class Indxer:
         self.ftype = Bed() if 'bed' in self.suff else Pat()
         self.validate_file()
 
+    def is_file_gzipped(self):
+        return self.in_file.endswith('.gz') and \
+              'BGZF' not in sp.check_output(f'htsfile {self.in_file}',
+                                            shell=True).decode()
+
     def index_bgzipped_file(self):
         """
         Create a csi index for the file, assuming it's bgzipped
         :return: 0 iff succeeded
         """
-        cmd = 'tabix {} {}.gz'.format(self.ftype.tabix_flags, self.in_file)
-        r = subprocess.check_call(cmd, shell=True, stderr=subprocess.PIPE)
-        return r
+        cmd = 'tabix {} {}'.format(self.ftype.tabix_flags, self.in_file)
+        return sp.check_call(cmd, shell=True, stderr=sp.PIPE)
+
 
     def bgzip(self):
         """ bgzip uncompressed input file """
+
         # check if file is sorted. If not, sort it:
         scmd = f'sort {self.ftype.sort_flags} {self.in_file}'
-        if subprocess.call(scmd + ' -sc', shell=True):
-            eprint(f'{self.in_file} is not sorted. Sorting...')
-            subprocess.check_call(scmd + f' -o {self.in_file}', shell=True)
+        if sp.call(scmd + ' -sc', shell=True):
+            eprint(f'[wt index] {self.in_file} is not sorted. Sorting...')
+            sp.check_call(scmd + f' -o {self.in_file}', shell=True)
+
+        # workaround for some tabix versions
+        tabix_fai_workaround(self.in_file)
 
         # bgzip the file:
         cmd = f'bgzip -@ {self.threads} -f {self.in_file}'
-        subprocess.check_call(cmd, shell=True)
+        sp.check_call(cmd, shell=True)
+        self.in_file += '.gz'
 
     def validate_file(self):
         """
@@ -62,7 +109,7 @@ class Indxer:
         """
 
         if not op.isfile(self.in_file):
-            raise IllegalArgumentError("no such file: {self.in_file}")
+            raise IllegalArgumentError(f'no such file: {self.in_file}')
 
         suffs = self.ftype.suff
         if not self.suff in (suffs, suffs + '.gz'):
@@ -74,15 +121,13 @@ class Indxer:
         if not delete_or_skip(self.in_file + self.ftype.ind_suff, self.force):
             return
 
-        if self.in_file.endswith('.gz'):
-            self.in_file = op.splitext(self.in_file)[0]
-            # try indexing it:
-            if not self.index_bgzipped_file():
-                return  # success
-            # couldn't index because the file is gzipped instead of bgzipped
-            subprocess.check_call(['gunzip', self.in_file + '.gz'])
+        # if file is gzipped instead of bgzipped, uncompress it
+        if self.is_file_gzipped():
+            sp.check_call(['gunzip', self.in_file])
+            self.in_file = self.in_file[:-3]
 
-        self.bgzip()
+        if not self.in_file.endswith('.gz'):
+            self.bgzip()
         self.index_bgzipped_file()
 
 
