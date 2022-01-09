@@ -2,8 +2,8 @@
 
 import argparse
 from utils_wgbs import MAX_PAT_LEN, pat_sampler, validate_single_file, \
-    add_GR_args, eprint, cview_tool, collapse_pat_script, \
-    cview_extend_blocks_script, add_multi_thread_args, validate_local_exe
+    add_GR_args, cview_tool, collapse_pat_script, \
+    cview_extend_blocks_script, validate_local_exe
 from genomic_region import GenomicRegion
 from beta_to_blocks import load_blocks_file
 import subprocess
@@ -36,9 +36,7 @@ def view_gr(pat, args, get_cmd=False):
         cmd = f'tabix {pat} {gr.chrom}:{ms}-{e - 1} '
 
     view_flags = set_view_flags(args)
-    # cmd = f"""/bin/bash -c 'cat <(echo "{s}\t{e}") <(echo "-1") <({cmd}) | {cview_tool}'"""
     cmd += f' | {cview_tool} --sites "{s}\t{e}" ' + view_flags
-    # cmd = cmd.rstrip("'") + f" {view_flags} ' "
     if hasattr(args, 'sub_sample') and args.sub_sample is not None:  # sub-sample reads
         validate_local_exe(pat_sampler)
         cmd += f' | {pat_sampler} {args.sub_sample} '
@@ -96,7 +94,6 @@ def cview(pat, args):
         view_gr(pat, args)
 
 
-
 ##########################
 #                        #
 #         Main           #
@@ -105,7 +102,6 @@ def cview(pat, args):
 
 def add_view_flags(parser, sub_sample=True, out_path=True):
     add_GR_args(parser, bed_file=True)
-    add_multi_thread_args(parser)
     parser.add_argument('--strict', action='store_true',
                         help='pat: Truncate reads that start/end outside the given region. '
                              'Only relevant if "region", "sites" '
