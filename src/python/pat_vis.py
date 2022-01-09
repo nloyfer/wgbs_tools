@@ -130,9 +130,9 @@ class PatVis:
     def get_block(self):
         cmd = view_gr(self.pat_path, self.args, get_cmd=True)
         df = read_shell(cmd, index_col=None)
-        names = ['chr', 'start', 'pat', 'count']
-        df.columns = names + list(df.columns)[len(names):]
         if not df.empty:
+            names = ['chr', 'start', 'pat', 'count']
+            df.columns = names + list(df.columns)[len(names):]
             return self.cyclic_print(df)
 
     def read_uxm(self, patt, count):
