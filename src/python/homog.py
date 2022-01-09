@@ -144,6 +144,8 @@ def main():  # TODO: this is 8x slower than simply running the CPP tool on a sin
         th = float(th[0]), float(th[1])
         if not (1 > th[1] > th[0] > 0):
             raise IllegalArgumentError('Invalid thresholds')
+    if not op.isdir(args.out_dir):
+        os.mkdir(args.out_dir)
     pats = args.input_files
     validate_file_list(pats, '.pat.gz')
 
