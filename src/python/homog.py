@@ -5,34 +5,16 @@ import os
 import numpy as np
 import os.path as op
 import pandas as pd
-from multiprocessing import Pool
 import sys
 import subprocess
 from io import StringIO
 from beta_to_blocks import load_blocks_file, is_block_file_nice
-from utils_wgbs import IllegalArgumentError, add_multi_thread_args, \
-        homog_tool, main_script, splitextgz, GenomeRefPaths, validate_file_list, \
-        COORDS_COLS5, validate_local_exe
+from utils_wgbs import IllegalArgumentError, homog_tool, main_script, \
+        splitextgz, validate_file_list, COORDS_COLS5, validate_local_exe
 
 
 def homog_log(*args, **kwargs):
     print('[ wt homog ]', *args, file=sys.stderr, **kwargs)
-
-
-import pdb
-# ForkedPdb().set_trace()
-class ForkedPdb(pdb.Pdb):
-    """A Pdb subclass that may be used
-    from a forked multiprocessing child
-
-    """
-    def interaction(self, *args, **kwargs):
-        _stdin = sys.stdin
-        try:
-            sys.stdin = open('/dev/stdin')
-            pdb.Pdb.interaction(self, *args, **kwargs)
-        finally:
-            sys.stdin = _stdin
 
 
 ######################################################
@@ -54,22 +36,21 @@ def trim_uxm_to_uint8(data, nr_bits):
     res = data.astype(dtype)
     return res
 
-def homog_chrom(pat, name, blocks, blocks_path, chrom, rates_cmd, view_full, verbose=False):
+
+def ctool_wrap(pat, name, blocks_path, rates_cmd, view_full, verbose=False):
     if view_full:
-        cmd = f'tabix {pat} {chrom}'
+        cmd = f'zcat {pat}'
     else:
         cmd = f'{main_script} cview {pat} -L {blocks_path}'
-    cmd += f' | {homog_tool} -b {blocks_path} -n {name}.{chrom} {rates_cmd}'
-    cmd += f' --chrom {chrom}'
+    cmd += f' | {homog_tool} -b {blocks_path} -n {name} {rates_cmd}'
     se = None if verbose else subprocess.PIPE
     txt = subprocess.check_output(cmd, shell=True, stderr=se).decode()
-    names = ['U', 'X', 'M']
+    names = list('UXM')
     df = pd.read_csv(StringIO(txt), sep='\t', header=None, names=names)
     if df.values.sum() == 0:
-        homog_log(f' [ {name}.{chrom} ] WARNING: all zeros!')
-
-    df = pd.concat([blocks.reset_index(drop=True), df], axis=1)
+        homog_log(f' [ {name} ] WARNING: all zeros!')
     return df
+
 
 def should_be_skipped(force, bin_path, bed_path, binary, bed):
     if force:
@@ -80,9 +61,11 @@ def should_be_skipped(force, bin_path, bed_path, binary, bed):
     rerun_bin = (not op.isfile(bin_path)) and binary
     return not (rerun_bin or rerun_bed)
 
-def homog_process(pat, blocks, args):
+
+def homog_process(pat, blocks, args, outdir, prefix):
     name = splitextgz(op.basename(pat))[0]
-    prefix = op.join(args.out_dir, name)
+    if prefix is None:
+        prefix = op.join(outdir, name)
     bin_path = prefix + '.uxm'
     bed_path = prefix + '.uxm.bed.gz'
     bed = args.bed
@@ -90,8 +73,6 @@ def homog_process(pat, blocks, args):
     if should_be_skipped(args.force, bin_path, bed_path, binary, bed):
         homog_log(f'skipping {name}. Use -f to overwrite')
         return
-
-    # homog_log(f' [ {name} ] starting')
 
     # generate rate_cmd:
     l = args.rlen
@@ -107,17 +88,8 @@ def homog_process(pat, blocks, args):
     # parse the whole pat file instead of running "cview -L BED"
     view_full = blocks.shape[0] > 1e4
 
-    cf = GenomeRefPaths(args.genome).get_chrom_cpg_size_table()
-    chroms = sorted(set(cf.chr) & set(blocks.chr))
-    p = Pool(args.threads)
-    params = [(pat, name, blocks[blocks['chr'] ==c],
-               args.blocks_file, c, rate_cmd,
-               view_full, args.verbose) for c in chroms]
-    arr = p.starmap(homog_chrom, params)
-    p.close()
-    p.join()
-
-    df = pd.concat(arr).reset_index(drop=True)
+    df = ctool_wrap(pat, name, args.blocks_file, rate_cmd, view_full, args.verbose)
+    df = pd.concat([blocks.reset_index(drop=True), df], axis=1)
     df = blocks.merge(df, how='left', on=COORDS_COLS5)
 
     if binary:
@@ -127,7 +99,19 @@ def homog_process(pat, blocks, args):
     return df
 
 
-def main():  # TODO: this is 8x slower than simply running the CPP tool on a single thread. Fix this.
+def parse_outdir_prefix(args):
+    outdir = args.out_dir
+    prefix = args.prefix
+    if prefix is not None:
+        outdir = op.dirname(prefix)
+    if not outdir:
+        outdir = '.'
+    if not op.isdir(outdir):
+        os.mkdir(outdir)
+    return outdir, prefix
+
+
+def main():
     """
     Generage homog files. Given a blocks file and pat[s],
     count the number of U,X,M reads for each block for each file
@@ -148,10 +132,10 @@ def main():  # TODO: this is 8x slower than simply running the CPP tool on a sin
     # make sure homog tool is valid:
     validate_local_exe(homog_tool)
 
-    if not op.isdir(args.out_dir):
-        os.mkdir(args.out_dir)
     pats = args.input_files
     validate_file_list(pats, '.pat.gz')
+
+    outdir, prefix = parse_outdir_prefix(args)
 
     # load blocks:
     blocks_df = load_blocks_file(args.blocks_file)
@@ -161,14 +145,16 @@ def main():  # TODO: this is 8x slower than simply running the CPP tool on a sin
         raise IllegalArgumentError(f'Invalid blocks file: {args.blocks_file}')
 
     for pat in sorted(pats):
-        homog_process(pat, blocks_df, args)
+        homog_process(pat, blocks_df, args, outdir, prefix)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('input_files', nargs='+', help='one or more pat files')
     parser.add_argument('-b', '--blocks_file', help='blocks path', required=True)
-    parser.add_argument('-o', '--out_dir', help='output directory. Default is "."', default='.')
+    output_parser = parser.add_mutually_exclusive_group(required=False)
+    output_parser.add_argument('-o', '--out_dir', help='output directory. Default is "."')
+    output_parser.add_argument('-p', '--prefix', help='output prefix')
     parser.add_argument('--force', '-f', action='store_true', help='Overwrite files if exist')
     parser.add_argument('--verbose', '-v', action='store_true')
     parser.add_argument('--binary', action='store_true', help='Output binary files (uint8)')
@@ -182,7 +168,6 @@ def parse_args():
     parser.add_argument('--rlen', '-l', type=int, default=3,
             help='Minimal read length (in CpGs) to consider. Default is 3')
     parser.add_argument('--debug', '-d', action='store_true')
-    add_multi_thread_args(parser)
 
     return parser.parse_args()
 
