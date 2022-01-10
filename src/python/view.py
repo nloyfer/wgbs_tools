@@ -68,7 +68,6 @@ def view_beta(beta_path, gr, opath, bed_path):
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('input_file')
-    parser.add_argument('--print_region', action='store_true', help='pat: Prints region before reads')
     parser = add_view_flags(parser)
     return parser
 
