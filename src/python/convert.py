@@ -83,10 +83,15 @@ def load_bed(bed_path, nrows=None):
         eprint(f'[wt convert] ERROR: empty bed file')
         raise IllegalArgumentError('Invalid bed file')
 
+# TODO: in some cases it differs from the slow implementations
+#       Try -L /cs/cbio/tommy/indexes/hg19.CDS.bed
+# TODO2: It fails for >3 columns (bedtools itself fails)
+# TODO3: implement my own c++ convert tool
 def bedtools_conversion(bed_file, genome, drop_empty, add_anno, debug):
     df = load_bed(bed_file)
     tmp_name = tempfile.NamedTemporaryFile().name
-    df.sort_values(by=['chr', 'start']).drop_duplicates().iloc[:, :3].to_csv(tmp_name, sep='\t', header=None, index=None)
+    df.sort_values(by=['chr', 'start', 'end']).iloc[:, :3].\
+        drop_duplicates().to_csv(tmp_name, sep='\t', header=None, index=None)
     ref = GenomeRefPaths(genome).dict_path
     cmd = f"tabix -R {tmp_name} {ref} | "
     cmd += "awk -v OFS='\t' '{print $1,$2,$2+1,$3}' | "
@@ -103,6 +108,9 @@ def bedtools_conversion(bed_file, genome, drop_empty, add_anno, debug):
 
     # if there are missing values, the CpG columns' type 
     # will be float or object. Change it to Int64
+    if rf.empty:
+        raise IllegalArgumentError('[wt convert] Error: failed with bedtools wrapping')
+
     if rf['startCpG'].dtype != int:
         rf = rf.astype({'startCpG': 'Int64', 'endCpG': 'Int64'})
 
