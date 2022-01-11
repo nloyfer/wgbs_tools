@@ -95,6 +95,19 @@ int cpg_dict::load_chroms(std::string chrom_size_path) {
     return t;
 }
 
+bool cpg_dict::is_border(std::string chrom, int cpg_pos){
+    // return true iif cpg_pos equals to the last CpG in chrom + 1
+    // This is useful for the case where we have a region 
+    // that ends exactly at the end of the chromosome (convert --sites_file)
+    chrom_exists(chrom);
+    for (int i = 0; i < chroms.size(); i++) {
+        if (chrom == chroms[i]) {
+            return (cpg_pos == borders[i]);
+        }
+    }
+    throw std::runtime_error("[ cpg_dict ] Invalid chromosome: " + chrom + "\n");
+}
+
 void cpg_dict::chrom_exists(std::string chrom) {
     if (std::find(chroms.begin(), chroms.end(), chrom) != chroms.end()) {
         return;

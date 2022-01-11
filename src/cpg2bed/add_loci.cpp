@@ -42,7 +42,11 @@ void add_loci_main(std::string dpath, std::string cpath) {
         chrom1 = cd.loc2chrom(startCpG);
         // validate chromosome
         chrom2 = cd.loc2chrom(endCpG);
-        if (chrom1 != chrom2) { cexception("Cross chromosomes", line_i); }
+        if (chrom1 != chrom2) { 
+            if (!(cd.is_border(chrom1, startCpG))) {
+                cexception("Cross chromosomes", line_i); 
+            }
+        }
         
         start = cd.loci[startCpG - 1];
         end = (endCpG == startCpG) ? start + 2 : cd.loci[endCpG - 2] + 1;

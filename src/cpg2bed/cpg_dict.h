@@ -30,6 +30,7 @@ public:
     }
     std::string loc2chrom(int loc);
     void chrom_exists(std::string chrom);
+    bool is_border(std::string chrom, int cpg_pos);
 private:
     std::vector<int> sizes;
     int load_chroms(std::string chrom_size_path);
