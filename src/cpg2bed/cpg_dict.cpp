@@ -116,10 +116,16 @@ void cpg_dict::chrom_exists(std::string chrom) {
 }
 
 std::string cpg_dict::loc2chrom(int loc) {
-    for (int i = 0; i < chroms.size(); i++) {
+    int i = 0;
+    for (i = 0; i < chroms.size(); i++) {
         if (loc <= borders[i]) {
             return chroms[i];
         }
+    }
+    // If loc == NR_CPGS + 1, we allow it 
+    // (for endCpG, which is non-inclusive)
+    if (loc == borders[i - 1] + 1) {
+        return chroms[i - 1];
     }
     throw std::runtime_error("[ cpg_dict ] Could not find chromosome for site: " + std::to_string(loc));
 }
