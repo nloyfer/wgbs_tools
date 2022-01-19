@@ -8,7 +8,7 @@ import pandas as pd
 from multiprocessing import Pool
 import sys
 import os.path as op
-from utils_wgbs import validate_file_list, add_GR_args, splitextgz, eprint
+from utils_wgbs import validate_file_list, add_GR_args, splitextgz, eprint, main_script
 from genomic_region import GenomicRegion
 
 
@@ -27,11 +27,11 @@ class FragLen:
         self.awk_hist_cmd = ' | awk \'{l=length($3) ; if (l > %s) {l = %s}; arr[l] += $4} END {for (x=1; x <= %s; x++) print arr[x]}\'' % (m, m, m)
 
     def run_small_region(self):
-        cmd = f'wgbs_tools cview {self.pat} -r {self.gr.region_str} {self.awk_hist_cmd}'
+        cmd = f'{main_script} cview {self.pat} -r {self.gr.region_str} {self.awk_hist_cmd}'
         return awk_wrap(cmd)
 
     def run_bed(self):
-        cmd = f'wgbs_tools cview {self.pat} -L {self.args.bed_file} {self.awk_hist_cmd}'
+        cmd = f'{main_script} cview {self.pat} -L {self.args.bed_file} {self.awk_hist_cmd}'
         return awk_wrap(cmd)
 
     def chrom_cmd(self, chrom):
@@ -71,23 +71,34 @@ def plot_hist(data, max_frag_size, pat):
 
 def run_single_pat(pat, args):
     eprint(pat)
+    fl = FragLen(pat, args)
     if args.region or args.sites:
-        x = FragLen(pat, args, GenomicRegion(args)).run_small_region()
+        x = fl.run_small_region()
     elif args.bed_file:
-        x = FragLen(pat, args).run_bed()
+        x = fl.run_bed()
     else:
-        x = FragLen(pat, args).run_whole_genome()
+        x = fl.run_whole_genome()
+
+    if not x.sum():
+        eprint(f'[wt frag] Empty list of lengths for {pat}')
+        return
 
     # print values to stdout:
     if args.verbose:
         np.savetxt(sys.stdout, x.reshape((1, -1)), fmt='%s', delimiter=' ')
 
     # plot:
-    plot_hist(x.flatten(), args.max_frag_size, pat)
+    if args.outdir or args.display:
+        if args.verbose:
+            eprint('[wt frag] plotting...')
+        plot_hist(x.flatten(), args.max_frag_size, pat)
 
     # dump figure:
     if args.outdir:
-        plt.savefig(compose_fig_path(pat, args.outdir))
+        fpath = compose_fig_path(pat, args.outdir)
+        if args.verbose:
+            eprint(f'[wt frag] dumping {fpath}...')
+        plt.savefig(fpath)
 
 
 def multi_FragLen(args):
