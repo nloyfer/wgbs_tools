@@ -73,7 +73,7 @@ void Cview::output_vec(std::vector <std::string> &tokens) {
     std::cout << std::endl;
 }
 
-std::stringstream load_blocks(std::string blocks_path, std::string sites) {
+std::string load_blocks(std::string blocks_path, std::string sites) {
     // Load the CpG blocks
 
     std::string block_data = "";
@@ -91,13 +91,13 @@ std::stringstream load_blocks(std::string blocks_path, std::string sites) {
             throw std::invalid_argument("[ cview ] Error: Unable to read blocks file: " + blocks_path);
         }
     }
-    std::stringstream ss(block_data);
-    return ss;
+    return block_data;
 }
 
 int Cview::read_blocks() {
     // Load blocks to string
-    std::stringstream ss = load_blocks(blocks_path, sites);
+    std::string block_data = load_blocks(blocks_path, sites);
+    std::stringstream ss(block_data);
     //
     //Iterate lines
     std::vector <std::string> tokens;
