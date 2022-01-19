@@ -9,7 +9,7 @@
 //#include <string>
 //#include <iomanip>      // std::setprecision
 //#include <string_view>
-//#include <array>        // std::array
+#include <array>        // std::array
 //#include <cstdio>
 //#include <memory>
 //#include <stdexcept>
