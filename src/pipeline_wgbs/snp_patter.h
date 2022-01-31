@@ -56,6 +56,7 @@ public:
     int line_i = 0;
     clock_t tick = clock();
     bool is_paired_end = false;
+    std::vector <std::string> dummy_tokens;
     bool blueprint = false;
     bool first_line(std::string &line);
 
@@ -68,11 +69,11 @@ public:
     std::string clean_CIGAR(std::string seq, std::string CIGAR);
     char samLineToPatVec(std::vector<std::string> tokens);
     char proc2lines(std::vector<std::string> tokens1, std::vector<std::string> tokens2);
+    char proc1line(std::vector<std::string> &tokens1);
     void action(std::string samFilepath);
     void proc_sam_in_stream(std::istream& in);
 
     void initialize_patter(std::string &line_str);
-
 };
 
 std::vector<std::string> line2tokens(std::string &line);

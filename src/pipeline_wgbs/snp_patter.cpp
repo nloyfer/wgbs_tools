@@ -351,13 +351,12 @@ char snp_patter::proc2lines(std::vector <std::string> tokens1,
         char snp_read2 = samLineToPatVec(tokens2);
         if (snp_read1 == 'Z') {
             readsStats.nr_empty++;
-            if (snp_read2 == 'Z'){
-                readsStats.nr_empty++;
-            }
             return snp_read2;
         }
         if (snp_read2 == 'Z') {
-            readsStats.nr_empty++;
+            if (!(tokens2.empty())){
+                readsStats.nr_empty++;
+            }
             return snp_read1;
         }
         if (snp_read1 != snp_read2) {
@@ -437,6 +436,14 @@ void snp_patter::initialize_patter(std::string &line_str) {
  *                                                             *
  ***************************************************************/
 
+bool are_paired(std::vector <std::string> tokens1,
+                std::vector <std::string> tokens2) {
+    // return true iff the reads are non empty and paired
+    return ((!(tokens2.empty())) &&
+            (!(tokens1.empty())) &&
+            (tokens1[0] == tokens2[0]));
+}
+
 void snp_patter::print_progress(){
     if (line_i && !(line_i % 5000000)){
         clock_t tock = clock();
@@ -445,6 +452,10 @@ void snp_patter::print_progress(){
         std::cerr << "[ patter ] [ " + chr + " ]" << " line " << addCommas(line_i)
                   << " in " << std::setprecision(2) << elapsed_secs << " minutes." << std::endl;
     }
+}
+
+char snp_patter::proc1line(std::vector <std::string> &tokens1) {
+    return proc2lines(tokens1, dummy_tokens);
 }
 
 void snp_patter::proc_sam_in_stream(std::istream& in){
@@ -465,42 +476,39 @@ void snp_patter::proc_sam_in_stream(std::istream& in){
 
         initialize_patter(line_str);
 
-        // paired-end file, and current row is first out of a couple of rows
-        if (first_in_pair && is_paired_end) {
-            read1 = line_str;
+        if (tokens1.empty()) {
             tokens1 = line2tokens(line_str);
-            first_in_pair = false;
-            readsStats.nr_pairs++;
-            continue;
-        }// otherwise (second row in couple, or not-paired-end), line is processed:
-
-        tokens2 = line2tokens(line_str);
-
-        if ((!(tokens2.empty())) && (!(tokens1.empty()))
-            && (tokens1[0] != tokens2[0])) {
-            // process couple of lines. write to stdout
-            // in case of single-end input file, tokens1 will be empty
-            // in case of non-paired read, use emtpy tokens for second param
-            read2 = line_str;
-            std::vector <std::string> empty_tokens;
-            char snp_let = proc2lines(tokens1, empty_tokens);
-            if (snp_let == snp_let1){
-                std::cout << read1 << "\n";
-            }
-            tokens1 = tokens2;
             read1 = line_str;
-        } else {
-            first_in_pair = true;   // next line will be first of couple.
-            read2 = line_str;
+            if (!is_paired_end) {
+                char snp_let = proc1line(tokens1);
+
+                tokens1.clear();
+                if (snp_let == snp_let1){
+                    std::cout << read1 << "\n";
+                }
+            }
+            continue;
+        }
+        tokens2 = line2tokens(line_str);
+        read2 = line_str;
+        if (are_paired(tokens1, tokens2)) {
             char snp_let = proc2lines(tokens1, tokens2);
             if (snp_let == snp_let1){
                 std::cout << read1 << "\n" << read2 << "\n";
             }
+            readsStats.nr_pairs++;
+            tokens1.clear();
+        } else {
+            char snp_let = proc1line(tokens1);
+            tokens1 = tokens2;
+            read1 = read2;
+            if (snp_let == snp_let1){
+                std::cout << read1 << "\n";
+            }
         }
-
-
-
     }
+    if (! tokens1.empty()) { proc1line(tokens1); }
+
     print_stats_msg();
 }
 
@@ -559,7 +567,7 @@ bool is_number(const std::string& s)
 
 
 int main(int argc, char **argv) {
-    clock_t begin = clock();
+//    clock_t begin = clock();
     try {
         InputParser input(argc, argv);
         long snp_pos = -1;
@@ -600,8 +608,8 @@ int main(int argc, char **argv) {
         std::cerr << e.what() << std::endl;
         return 1;
     }
-    clock_t end = clock();
-    double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+//    clock_t end = clock();
+//    double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
 //    std::cout << elapsed_secs << std::endl;
 //    std::cerr << elapsed_secs << std::endl;
     return 0;
