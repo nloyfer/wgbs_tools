@@ -118,6 +118,12 @@ def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
 
+def mkdirp(dpath):
+    # mkdir "dpath" if not exist or None
+    if dpath:
+        Path(dpath).mkdir(parents=True, exist_ok=True)
+    return dpath
+
 def check_executable(cmd, verbose=False):
     for p in os.environ['PATH'].split(":"):
         if os.access(op.join(p, cmd), os.X_OK):
@@ -438,6 +444,10 @@ def read_shell(command, **kwargs):
                    "Standard error was:\n{2}")
         raise IOError(message.format(proc.returncode, command, error.decode()))
 
+def bed2reg(df):
+    if not set(COORDS_COLS3).issubset(set(df.columns)):
+        raise IllegalArgumentError(f'[wt] missing coordinate columns in bed file')
+    return df['chr'] + ':' + df['start'].astype(str) + '-' + df['end'].astype(str)
 
 def catch_BrokenPipeError():
     os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())

@@ -9,7 +9,7 @@ import pandas as pd
 import math
 import os
 from utils_wgbs import load_beta_data2, validate_single_file, eprint, \
-                       IllegalArgumentError, GenomeRefPaths
+                       IllegalArgumentError, GenomeRefPaths, bed2reg, mkdirp
 
 DEBUG_NR = 100000
 um_ind_dict = {'U': 0, 'M': 2}
@@ -41,8 +41,7 @@ class MarkersFinder:
         self.hyper, self.hypo = self.set_hypo_hyper(args.hyper, args.hypo)
         self.validate_args()
         # validate output dir:
-        if not op.isdir(args.out_dir):
-            os.mkdir(args.out_dir)
+        mkdirp(args.out_dir)
         # load groups
         self.gf = load_groups_file(args.groups_file, args.input_dir, args.verbose)
         self.gf_nodup = self.gf.drop_duplicates(subset='fname').reset_index(drop=True)
@@ -175,7 +174,7 @@ class MarkersFinder:
         tf['target'] = self.group
         tf['lenCpG'] = tf['lenCpG'].astype(str) + 'CpGs'
         tf['bp'] = (tf['end'] - tf['start']).astype(str) + 'bp'
-        tf['region'] = tf['chr'] + ':' + tf['start'].astype(str) + '-' + tf['end'].astype(str)
+        tf['region'] = bed2reg(tf)
         tf = tf.round(2)
         outpath = op.join(self.args.out_dir, f'Markers.{self.group}.bed')
         cols_to_dump = ['chr', 'start', 'end', 'startCpG', 'endCpG',

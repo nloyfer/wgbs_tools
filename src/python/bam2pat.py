@@ -13,7 +13,7 @@ from multiprocessing import Pool
 from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, \
     add_GR_args, eprint, add_multi_thread_args, EmptyBamError, \
     validate_single_file, delete_or_skip, check_executable, \
-    add_no_beta_arg, validate_local_exe
+    add_no_beta_arg, validate_local_exe, mkdirp
 from init_genome import chromosome_order
 from pat2beta import pat2beta
 from index import Indxer
@@ -303,8 +303,7 @@ class Bam2Pat:
             return
         try:
             mdir = op.join(self.out_dir, name) + '.mbias'
-            if not op.isdir(mdir):
-                os.mkdir(mdir)
+            mkdirp(mdir)
             tpaths = []
             for x in ['OB', 'OT']:
                 mbias_parts = [p.replace('.pat.gz', f'.mb.{x}.txt') for p in pat_parts if p]
