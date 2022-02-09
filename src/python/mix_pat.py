@@ -189,6 +189,7 @@ def parse_args():
     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
     parser.add_argument('-v', '--verbose', action='store_true')
     add_view_flags(parser, sub_sample=False, out_path=False)
+    add_multi_thread_args(parser)
     args = parser.parse_args()
     return args
 
