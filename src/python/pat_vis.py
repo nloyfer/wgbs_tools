@@ -27,8 +27,8 @@ num2color_dict = {
 }
 
 num2color_dict2 = {
-    'C': '01;34',   # blue
-    'T': '01;33',   # yellow
+    'T': '01;34',   # blue
+    'C': '01;33',   # yellow
     'X': '01;33',   # yellow
     'M': '01;31',   # red
     'U': '01;32',   # green
