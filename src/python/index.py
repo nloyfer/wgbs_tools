@@ -3,12 +3,11 @@
 import argparse
 import os
 import os.path as op
-import sys
 import subprocess as sp
 import multiprocessing
 import tempfile
 from utils_wgbs import delete_or_skip, splitextgz, IllegalArgumentError, eprint, \
-        add_multi_thread_args, validate_single_file, COORDS_COLS5
+        add_multi_thread_args, COORDS_COLS5
 
 class Pat:
     def __init__(self):
@@ -29,11 +28,12 @@ class Bed:
 def tabix_fai_workaround(in_file):
     # if tabix version is >1.9, We need to override their file type deduction
     # see https://github.com/samtools/htslib/issues/1347
-    # Will probably be fixed in release 1.15 of htslib (TODO: update here when they release)
+    # Will probably be fixed in release 1.15 of htslib
+    # (TODO: update here when they release)
 
     try:
         # only relevant for files with 5 columns, where the 5'th is an integer
-        with open(in_file, 'w') as f:
+        with open(in_file, 'r') as f:
             tokens = f.readline().split('\t')
         if not (len(tokens) == 5 and tokens[4].isdigit()):
             return
@@ -42,11 +42,11 @@ def tabix_fai_workaround(in_file):
         txt = sp.check_output('tabix --version', shell=True).decode().split()[2]
         try:
             tabix_version = float(txt)
-        except ValueError as e:
+        except ValueError:
             tabix_version = None
         if tabix_version is not None and tabix_version <= 1.9:
             return
-    except:
+    except Exception:
         return
 
     # add a header line
@@ -60,6 +60,7 @@ def tabix_fai_workaround(in_file):
     finally:
         if op.isfile(temp_path):
             os.remove(temp_path)
+
 
 class Indxer:
     def __init__(self, input_file, force=True,
