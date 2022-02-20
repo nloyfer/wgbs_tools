@@ -1,34 +1,35 @@
 #!/usr/bin/python3 -u
 
 import argparse
-import subprocess
 import numpy as np
 import sys
 import os.path as op
 import pandas as pd
-import math
-import os
 from multiprocessing import Pool
 from dmb import load_gfile_helper, match_prefix_to_bin, load_uxm
 from beta_to_blocks import collapse_process, load_blocks_file, is_block_file_nice
 from utils_wgbs import validate_single_file, validate_file_list, eprint, \
-                       IllegalArgumentError, beta2vec, add_multi_thread_args, \
-                       drop_dup_keep_order
+    IllegalArgumentError, beta2vec, add_multi_thread_args, \
+    drop_dup_keep_order
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser = argparse.ArgumentParser()
-    parser.add_argument('blocks', help='Blocks file with no header and with >= 5 columns')
-    parser.add_argument('--output', '-o', help='specify output path for the table [Default is stdout]')
+    parser.add_argument(
+        'blocks', help='Blocks file with no header and with >= 5 columns')
+    parser.add_argument(
+        '--output', '-o', help='specify output path for the table [Default is stdout]')
     parser.add_argument('--groups_file', '-g',
-                help='groups csv file with at least 2 columns: name, group. beta files belong to the same group are averaged')
+                        help='groups csv file with at least 2 columns: name, group. beta files belong to the same group are averaged')
     parser.add_argument('--betas', nargs='+', help='beta files', required=True)
     parser.add_argument('--verbose', '-v', action='store_true')
     parser.add_argument('-c', '--min_cov', type=int, default=4, help='Minimal coverage to be considered,'
-                                                                 'In both groups. [4]')
-    parser.add_argument('--digits', type=int, default=2, help='float percision (number of digits) [2]')
-    parser.add_argument('--chunk_size', type=int, default=200000, help='Number of blocks to load on each step [200000]')
+                        'In both groups. [4]')
+    parser.add_argument('--digits', type=int, default=2,
+                        help='float percision (number of digits) [2]')
+    parser.add_argument('--chunk_size', type=int, default=200000,
+                        help='Number of blocks to load on each step [200000]')
     add_multi_thread_args(parser)
     args = parser.parse_args()
     return args
@@ -40,7 +41,7 @@ def groups_load_wrap(groups_file, betas):
         validate_file_list(betas)
         gf = load_gfile_helper(groups_file)
     else:
-        # otherwise, generate dummy group file for all binary files in input_dir
+        # otherwise generate dummy group file for all binary files in input_dir
         # first drop duplicated files, while keeping original order
         betas = drop_dup_keep_order(betas.copy())
         fnames = [op.splitext(op.basename(b))[0] for b in betas]
@@ -52,7 +53,7 @@ def groups_load_wrap(groups_file, betas):
 
 def cwrap(beta_path, blocks_df, is_nice, min_cov, verbose):
     # if verbose:
-        # eprint('[wt table]', op.splitext(op.basename(beta_path))[0])
+    #   eprint('[wt table]', op.splitext(op.basename(beta_path))[0])
     if beta_path.endswith('.beta'):
         r = collapse_process(beta_path, blocks_df, is_nice)
         if r is None:
@@ -60,7 +61,7 @@ def cwrap(beta_path, blocks_df, is_nice, min_cov, verbose):
         name = op.splitext(op.basename(beta_path))[0]
         return {name: beta2vec(r, min_cov)}
     else:
-        return {op.basename(beta_path)[:-4] : load_uxm(beta_path, blocks_df, 'U', min_cov)}
+        return {op.basename(beta_path)[:-4]: load_uxm(beta_path, blocks_df, 'U', min_cov)}
 
 
 def get_table(blocks_df, gf, min_cov, threads=8, verbose=False, group=True):
@@ -83,18 +84,19 @@ def get_table(blocks_df, gf, min_cov, threads=8, verbose=False, group=True):
         return blocks_df
 
     if not dres:
-        eprint(f'[ wt table ] failed reducing {gf["fname"].tolist()} to blocks\n{blocks_df}')
+        fbetas = gf['fname'].tolist()
+        eprint(f'[ wt table ] failed reducing {fbetas} to blocks\n{blocks_df}')
         raise IllegalArgumentError()
     if dres[list(dres.keys())[0]].size != blocks_df.shape[0]:
-        eprint(f'[ wt table] beta2block returned wrong number of values')
+        eprint('[ wt table] beta2block returned wrong number of values')
         raise IllegalArgumentError()
 
     groups = drop_dup_keep_order(gf['group'])
     with np.warnings.catch_warnings():
         np.warnings.filterwarnings('ignore', r'Mean of empty slice')
         for group in groups:
-            blocks_df[group] = np.nanmean(np.concatenate([dres[k][None, :] for k \
-                in gf['fname'][gf['group'] == group]]), axis=0).T
+            blocks_df[group] = np.nanmean(
+                np.concatenate([dres[k][None, :] for k in gf['fname'][gf['group'] == group]]), axis=0).T
     return blocks_df
 
 
@@ -152,4 +154,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
