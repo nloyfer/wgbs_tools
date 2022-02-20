@@ -446,7 +446,7 @@ def read_shell(command, **kwargs):
 
 def bed2reg(df):
     if not set(COORDS_COLS3).issubset(set(df.columns)):
-        raise IllegalArgumentError(f'[wt] missing coordinate columns in bed file')
+        raise IllegalArgumentError('[wt] missing coordinate columns in bed file')
     return df['chr'] + ':' + df['start'].astype(str) + '-' + df['end'].astype(str)
 
 def catch_BrokenPipeError():
