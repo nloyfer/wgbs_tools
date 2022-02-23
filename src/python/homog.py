@@ -140,6 +140,7 @@ def main():
     # load blocks:
     blocks_df = load_blocks_file(args.blocks_file)
     is_nice, msg = is_block_file_nice(blocks_df)
+    # TODO: support unsorted block files
     if not is_nice:
         homog_log(msg)
         raise IllegalArgumentError(f'Invalid blocks file: {args.blocks_file}')
