@@ -67,10 +67,6 @@ def main():
         return 1
 
 
-# todo:
-# bam2pat: Add reports to log file / stderr. e.g: % success, # sites covered, # reads extracted etc.
-# pip install?
-
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 

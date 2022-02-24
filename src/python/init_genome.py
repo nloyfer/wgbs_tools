@@ -166,7 +166,7 @@ class InitGenome:
         ncgs['size'] = ncgs['size'].astype(int)
         self.dump_df(ncgs[['chr', 'size']], 'CpG.chrome.size')
 
-        self.validate_nr_sites(df.shape[0])
+        # self.validate_nr_sites(df.shape[0])
         self.add_supp()  # add supplemental files for hg19
         eprint(f'[wt init] Finished initialization of genome {self.name}')
 
@@ -280,18 +280,12 @@ def parse_args():
                         help='If set, keep the chromosome order of the reference genome.\n'
                              'Default behaviour is to sort 1,2,...,10,11,...,X,Y,M')
     add_multi_thread_args(parser)
-    # parser.add_argument('--keep_all', action='store_true', help='Overwrite existing files if existed')
     args = parser.parse_args()
     return args
 
 
 def main():
-    """
-    Init genome reference.
-    Note: we currently support only chromosomes starting with "chr".
-    I.e. "chr1" and not "1".
-    """
-    # TODO: support chromosomes not starting with "chr"!
+    """ Init genome reference. """
     args = parse_args()
     InitGenome(args).run()
 

@@ -158,7 +158,6 @@ def mult_mix(args):
 #                        #
 ##########################
 
-# todo: support unq
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('pat_files', nargs='+', help='Two or more pat files')
