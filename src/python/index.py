@@ -13,6 +13,7 @@ class Pat:
     def __init__(self):
         self.suff = 'pat'
         self.tabix_flags = ' -C -b 2 -e 2 -m 12 '
+        self.tabix_fallback_flags = self.tabix_flags
         self.sort_flags = '-k2,2n -k3,3'
         self.ind_suff = '.csi'
 
@@ -21,30 +22,29 @@ class Bed:
     def __init__(self):
         self.suff = 'bed'
         self.tabix_flags = ' -p bed '
+        # incase current tabix version does not recognize 
+        # the "-p bed" flag (https://github.com/nloyfer/wgbs_tools/issues/2):
+        self.tabix_fallback_flags = ' -s 1 -b 2 -e 3 '
         self.sort_flags = '-k4,4n'
         self.ind_suff = '.tbi'
 
 
 def tabix_fai_workaround(in_file):
-    # if tabix version is >1.9, We need to override their file type deduction
+    # if tabix version is between (1.9, 1.15),
+    # We need to override their file type deduction.
     # see https://github.com/samtools/htslib/issues/1347
-    # Will probably be fixed in release 1.15 of htslib
-    # (TODO: update here when they release)
 
     try:
         # only relevant for files with 5 columns, where the 5'th is an integer
         with open(in_file, 'r') as f:
-            tokens = f.readline().split('\t')
+            tokens = f.readline().strip().split('\t')
         if not (len(tokens) == 5 and tokens[4].isdigit()):
             return
 
-        # only relevant for tabix version >1.9
-        txt = sp.check_output('tabix --version', shell=True).decode().split()[2]
-        try:
-            tabix_version = float(txt)
-        except ValueError:
-            tabix_version = None
-        if tabix_version is not None and tabix_version <= 1.9:
+        # only relevant for tabix versions (1.9-1.15)
+        txt = sp.check_output('tabix --version', shell=True).decode()
+        tversion = float(txt.split()[2].split('.')[1])
+        if tversion <= 9 or tversion >= 15:
             return
     except Exception:
         return
@@ -82,8 +82,12 @@ class Indxer:
         Create a csi index for the file, assuming it's bgzipped
         :return: 0 iff succeeded
         """
-        cmd = 'tabix {} {}'.format(self.ftype.tabix_flags, self.in_file)
-        return sp.check_call(cmd, shell=True, stderr=sp.PIPE)
+        try:
+            cmd = 'tabix {} {}'.format(self.ftype.tabix_flags, self.in_file)
+            return sp.check_call(cmd, shell=True, stderr=sp.PIPE)
+        except sp.CalledProcessError:
+            cmd = 'tabix {} {}'.format(self.ftype.tabix_fallback_flags, self.in_file)
+            return sp.check_call(cmd, shell=True, stderr=sp.PIPE)
 
 
     def bgzip(self):
@@ -135,8 +139,11 @@ class Indxer:
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('input_files', nargs='+',
-            help=f'One or more file with extensions .pat[.gz] or .bed[.gz]. Bed files must have the columns {COORDS_COLS5}')
-    parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing index file (csi) if existed')
+                        help=f'One or more file with extensions ' \
+                              '.pat[.gz] or .bed[.gz]. Bed files must ' \
+                              f'have the columns {COORDS_COLS5}')
+    parser.add_argument('-f', '--force', action='store_true',
+                        help='Overwrite existing index file (csi) if existed')
     add_multi_thread_args(parser)
     return parser.parse_args()
 
