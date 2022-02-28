@@ -22,7 +22,7 @@
 blocks_path: NA
 
 # groups file is a csv file with at least two columns, and a header line
-# the first column is the names of the samples (suffixes are optional)
+# the first column is the names of the samples.
 # another column named "group" contains the labels for the samples (group name)
 # the find_marker tool finds a set of markers for each target group.
 # By default, all groups are included as target groups.
