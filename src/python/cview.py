@@ -41,7 +41,9 @@ def view_gr(pat, args, get_cmd=False):
         validate_local_exe(pat_sampler)
         cmd += f' | {pat_sampler} {args.sub_sample} '
     if not gr.is_whole():
-        cmd += f' | sort -k2,2n -k3,3 '
+        cmd += f' | sort -k2,2n -k3,3'
+        if args.shuffle:
+            cmd += 'R'
     cmd += f' | {collapse_pat_script} - '
     if get_cmd:
         return cmd
@@ -110,6 +112,9 @@ def add_view_flags(parser, sub_sample=True, out_path=True):
                         help='pat: Remove trailing dots (from beginning/end of reads).')
     parser.add_argument('--min_len', type=int, default=1,
                         help='pat: Display only reads covering at least MIN_LEN CpG sites [1]')
+    parser.add_argument('--shuffle', action='store_true',
+                        help='pat: Shuffle reads order, while keeping the startCpG order '
+                             '(sort -k2,2n -k3,3R)')
     if sub_sample:
         parser.add_argument('--sub_sample', type=float, metavar='[0.0, 1.0]',
                             help='pat: subsample from reads. Only supported for pat')
