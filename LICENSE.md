@@ -1,4 +1,5 @@
 SOFTWARE RESEARCH LICENSE
+
 I. DEFINITIONS.
 "Licensee" means You and any other party that has entered into and has in effect a version
 of this License.
