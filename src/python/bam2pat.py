@@ -102,7 +102,7 @@ def is_region_empty(view_cmd, region, verbose):
     return False
 
 
-def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
+def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, mapq, debug,
              blueprint, clip, temp_dir, blacklist, whitelist, min_cpg, mbias, verbose):
     """ Convert a temp single chromosome file, extracted from a bam file, into pat """
 
@@ -111,8 +111,12 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, mapq, debug,
 
 
     # use samtools to extract only the reads from 'chrom'
-    flag = '-f 3' if paired_end else ''
-    view_cmd = f'samtools view {bam} {region} -q {mapq} -F {ex_flags} {flag} '
+    if in_flags is None:
+        in_flags = '-f 3' if paired_end else ''
+    else:
+        in_flags = f'-f {in_flags}'
+
+    view_cmd = f'samtools view {bam} {region} -q {mapq} -F {ex_flags} {in_flags} '
     if whitelist:
         view_cmd += f' -M -L {whitelist} '
     elif blacklist:
@@ -256,6 +260,7 @@ class Bam2Pat:
                 out_path = f'{tmp_prefix}.{c}.out'
                 par = (self.bam_path, out_path, c, self.gr.genome,
                        is_pair_end(self.bam_path), self.args.exclude_flags,
+                       self.args.include_flags,
                        self.args.mapq, self.args.debug, self.args.blueprint, self.args.clip,
                        self.args.temp_dir, blist, wlist, self.args.min_cpg,
                        self.args.mbias, self.verbose)
@@ -370,8 +375,11 @@ def add_args(parser):
     parser.add_argument('--debug', '-d', action='store_true')
     parser.add_argument('--force', '-f', action='store_true', help='overwrite existing files if exists')
     parser.add_argument('--verbose', '-v', action='store_true')
+    parser.add_argument('--include_flags', type=int,
+                        help='flags to include from bam file (samtools view parameter -f) ' \
+                             f'[3 for PE, None for SE]')
     parser.add_argument('-F', '--exclude_flags', type=int,
-                        help='flags to exclude from bam file (samtools view parameter) ' \
+                        help='flags to exclude from bam file (samtools view parameter -F) ' \
                              f'[{FLAGS_FILTER}]', default=FLAGS_FILTER)
     parser.add_argument('-q', '--mapq', type=int,
                         help=f'Minimal mapping quality (samtools view parameter) [{MAPQ}]',
