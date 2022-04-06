@@ -5,12 +5,15 @@ import argparse
 import importlib
 from unittest.mock import patch
 
+VERSION = '0.1.0'
+
 commands = [
     # view data
     'vis',
     'view',
     'cview',
     'convert',
+    # 'pat_fig',
 
     # convert beta to other formats
     'beta_to_blocks',
@@ -45,6 +48,9 @@ commands = [
 def main():
     if len(sys.argv) < 2 or (len(sys.argv) == 2 and sys.argv[1] in ('-h', '--help')):
         print_help()
+        return
+    elif '--version' in sys.argv:
+        print('wgbstools version', VERSION)
         return
 
     parser = argparse.ArgumentParser(
