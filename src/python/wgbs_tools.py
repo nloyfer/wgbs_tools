@@ -13,7 +13,7 @@ commands = [
     'view',
     'cview',
     'convert',
-    # 'pat_fig',
+    'pat_fig',
 
     # convert beta to other formats
     'beta_to_blocks',

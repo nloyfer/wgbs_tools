@@ -202,6 +202,7 @@ class PatVis:
         if first_to_show > self.start:
             table = np.concatenate([np.ones((table.shape[0], first_to_show - self.start), dtype=np.uint8), table], axis=1)
 
+        int_table = table.copy()
         # Translate ints table to characters table
         for key in int2str.keys():
             table = np.core.defchararray.replace(table.astype(np.str), str(key), int2str[key])
@@ -213,6 +214,7 @@ class PatVis:
                    'chr': df.loc[0, 'chr'],
                    'text': res,
                    'table': table,
+                   'int_table': int_table,
                    'score': calc_score(df),
                    'uxm': self.uxm_counts}
         return fullres
