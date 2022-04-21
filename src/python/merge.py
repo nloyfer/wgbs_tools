@@ -76,20 +76,22 @@ class MergePats:
         Indxer(self.outpath).run()
 
 
-def merge_betas(betas, opath):
+def merge_betas(betas, opath, lbeta=False):
     """
     Merge all betas by summing their values element-wise, while keeping the dimensions
     :param betas: list of beta files
     :param opath: merged beta file
     """
-    validate_file_list(betas, force_suff='.beta')
+    validate_file_list(betas)
     data = load_beta_data(betas[0]).astype(np.int)
     for b in betas[1:]:
         data += load_beta_data(b)
 
     # Trim / normalize to range [0, 256)
-    data = trim_to_uint8(data)
+    data = trim_to_uint8(data, lbeta=lbeta)
     # Dump
+    if lbeta and opath.endswith('.beta'):
+        opath = opath[:-5] + '.lbeta'
     data.tofile(opath)
     return data
 
@@ -102,6 +104,7 @@ def parse_args():
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing file if existed')
     parser.add_argument('-T', '--temp_dir', help='passed to "sort -m". Useful for merging very large pat files')
     parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of beta (uint8)')
     parser.add_argument('--labels', nargs='+', help='labels for the mixed reads. '
                                                     'Default is None')
     add_GR_args(parser, bed_file=True)
@@ -141,7 +144,7 @@ def main():
     files_type = splitextgz(input_files[0])[1][1:]
 
     if files_type in ('beta', 'bin'):
-        merge_betas(input_files, out_path)
+        merge_betas(input_files, out_path, args.lbeta)
     elif files_type == 'pat.gz':
         MergePats(input_files, args.prefix + '.pat.gz', args.labels, args).merge_pats()
     else:
