@@ -4,7 +4,8 @@ import argparse
 import numpy as np
 import os.path as op
 from utils_wgbs import load_beta_data2, validate_single_file, \
-    IllegalArgumentError, catch_BrokenPipeError, view_beta_script #, check_executable
+    IllegalArgumentError, catch_BrokenPipeError, view_beta_script, \
+    view_lbeta_script #, check_executable
 from genomic_region import GenomicRegion
 from cview import cview, subprocess_wrap_sigpipe, add_view_flags
 
@@ -33,7 +34,14 @@ def view_other_bin(bin_path, args):
 
 def bview_build_cmd(beta_path, gr, bed_path):
     # compose a shell command to output a beta file to stdout
-    cmd = f'{view_beta_script} {gr.genome.revdict_path} {beta_path} '
+    if beta_path.endswith('.beta'):
+        vs = view_beta_script
+    elif beta_path.endswith('.lbeta'):
+        vs = view_lbeta_script
+    else:
+        raise IllegalArgumentError('Invalid input format for view beta:', beta_path)
+
+    cmd = f'{vs} {gr.genome.revdict_path} {beta_path} '
     if not gr.is_whole():
         cmd += f' {gr.chrom} {gr.sites[0]} {gr.nr_sites}'
     if bed_path:
@@ -90,10 +98,10 @@ def main():
 
 
     try:
-        if input_file.endswith('.beta'):
+        if op.splitext(input_file)[1] in ('.lbeta', '.beta'):
             gr = GenomicRegion(args)
             view_beta(input_file, gr, args.out_path, args.bed_file)
-        elif op.splitext(input_file)[1] in ('.lbeta', '.bin'):
+        elif op.splitext(input_file)[1] in ('.bin',):
             view_other_bin(input_file, args)
         elif input_file.endswith('.pat.gz'):
             cview(input_file, args)
