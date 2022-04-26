@@ -88,7 +88,7 @@ def main():
         print(args.title)
 
     first_file = args.input_files[0]
-    if first_file.endswith(('.beta', '.bin')):
+    if first_file.endswith(('.beta', '.bin', '.lbeta')):
         beta_vis_main(args)
     elif first_file.endswith('.pat.gz'):
         pat_vis_main(args)
