@@ -11,8 +11,8 @@ from multiprocessing import Pool
 
 from bam2pat import Bam2Pat, add_args, parse_bam2pat_args, extend_region
 from utils_wgbs import IllegalArgumentError, match_maker_tool, eprint, \
-        add_multi_thread_args, mult_safe_remove, GenomeRefPaths, validate_single_file, \
-        delete_or_skip, allele_split_tool, add_no_beta_arg, validate_local_exe
+    add_multi_thread_args, mult_safe_remove, GenomeRefPaths, validate_single_file, \
+    delete_or_skip, allele_split_tool, add_no_beta_arg, validate_local_exe, add_no_pat_arg
 from init_genome import chromosome_order
 
 PAT_SUFF = '.pat.gz'
@@ -59,7 +59,7 @@ def gen_pat_part(out_path, debug, temp_dir):
         return None
 
 
-def proc_chr(bam, out_path, name, snp_pos, snp_let1, snp_let2, ex_flags, mapq, debug, verbose, no_beta):
+def proc_chr(bam, out_path, name, snp_pos, snp_let1, snp_let2, ex_flags, mapq, debug, verbose, no_beta, no_pat):
     """ Convert a temp single chromosome file, extracted from a bam file, into pat """
 
     # Run patter tool on a single chromosome. out_path will have the following fields:
@@ -82,14 +82,15 @@ def proc_chr(bam, out_path, name, snp_pos, snp_let1, snp_let2, ex_flags, mapq, d
     if verbose:
         print(cmd)
     subprocess_wrap(final_cmd, debug)
-    parser = argparse.ArgumentParser()
-    parser = add_args(parser)
-    parse_bam2pat_args(parser)
-    bam2patargs_list = [bam_file_out, "--out_dir", out_path, "-r", chrom, "--threads", "1"]
-    if no_beta:
-        bam2patargs_list += ["--no_beta"]
-    args = parser.parse_args(bam2patargs_list)
-    Bam2Pat(args, bam_file_out)
+    if not no_pat:
+        parser = argparse.ArgumentParser()
+        parser = add_args(parser)
+        parse_bam2pat_args(parser)
+        bam2patargs_list = [bam_file_out, "--out_dir", out_path, "-r", chrom, "--threads", "1"]
+        if no_beta:
+            bam2patargs_list += ["--no_beta"]
+        args = parser.parse_args(bam2patargs_list)
+        Bam2Pat(args, bam_file_out)
 
 
 def validate_bam(bam):
@@ -131,6 +132,7 @@ class SNPSplit:
         self.snp_let1 = args.alleles.split("/")[0]
         self.snp_let2 = args.alleles.split("/")[1]
         self.no_beta = args.no_beta
+        self.no_pat = args.no_pat
         # self.gr = GenomicRegion(args)
         self.start_threads()
         self.cleanup()
@@ -186,11 +188,11 @@ class SNPSplit:
         name2 = op.basename(self.bam_path)[:-4] + f".{self.snp_pos}" + f".{self.snp_let2}"
 
         params = [(self.bam_path, self.out_dir, name1, self.snp_pos, self.snp_let1, self.snp_let2, self.args.exclude_flags,
-                   self.args.mapq, self.args.debug, self.verbose, self.no_beta),
+                   self.args.mapq, self.args.debug, self.verbose, self.no_beta, self.no_pat),
                   (self.bam_path, self.out_dir, name2, self.snp_pos,
                    self.snp_let2, self.snp_let1,
                    self.args.exclude_flags,
-                   self.args.mapq, self.args.debug, self.verbose, self.no_beta)]
+                   self.args.mapq, self.args.debug, self.verbose, self.no_beta, self.no_pat)]
 
         p = Pool(self.args.threads)
         p.starmap(proc_chr, params)
@@ -211,6 +213,7 @@ def add_args_snp_splitt():
                                     "YYYY is the position within the chromosome.")
     parser.add_argument('alleles', help="The genoypes of the alleles on which to split the bam file in the format 'X/Y' where X and Y are characters 'A', 'C', 'G', or 'T' ")
     add_no_beta_arg(parser)
+    add_no_pat_arg(parser)
     parser.add_argument('--out_dir', '-o', default='.')
     parser.add_argument('--force', '-f', action='store_true', help='overwrite existing files if exists')
     parser.add_argument('--debug', '-d', action='store_true')
@@ -242,14 +245,25 @@ def main():
     if not op.isdir(args.out_dir):
         raise IllegalArgumentError(f'Invalid output dir: {args.out_dir}')
 
+    if args.no_pat and not args.no_beta:
+        print(f'Cannot create a beta file without creating a pat file. If you would like to create a beta file please'
+              f' remove the `no_pat` argument.')
+
     validate_local_exe(allele_split_tool)
     for bam in [args.bam]:
         if not validate_bam(bam):
             eprint(f'[wt bam2pat] Skipping {bam}')
             continue
 
-        pat = op.join(args.out_dir, op.basename(bam)[:-4] + PAT_SUFF)
-        if not delete_or_skip(pat, args.force):
+
+        snp_let1 = args.alleles.split("/")[0]
+        snp_let2 = args.alleles.split("/")[1]
+        snp_pos = args.pos
+        pat1 = op.join(args.out_dir, op.basename(bam)[:-4] + f".{snp_pos}.{snp_let1}" + PAT_SUFF)
+        pat2 = op.join(args.out_dir, op.basename(bam)[:-4] + f".{snp_pos}.{snp_let2}" + PAT_SUFF)
+        if not delete_or_skip(pat1, args.force):
+            continue
+        if not delete_or_skip(pat2, args.force):
             continue
         SNPSplit(args, bam)
 

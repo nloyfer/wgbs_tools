@@ -230,6 +230,9 @@ def add_multi_thread_args(parser):
 def add_no_beta_arg(parser):
     parser.add_argument('--no_beta', action='store_true', help='Do not generate a beta file')
 
+def add_no_pat_arg(parser):
+    parser.add_argument('--no_pat', action='store_true', help='Do not generate a pat file')
+
 
 def beta2vec(data, min_cov=1, na=np.nan):
     cond = data[:, 1] >= min_cov

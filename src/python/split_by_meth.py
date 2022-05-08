@@ -129,7 +129,9 @@ def add_args():
 
 def main():
     """
-    Run the WGBS pipeline to generate pat & beta files out of an input bam file
+    Split the input bam file according to methylation fraction. That is the input is a bam file, a fraction `homog_prop`, and the output
+    is two bam files: one containing reads with methylation proportion above the `homog_prop` and one containing reads
+    with methylation proportion below 1-`homog_prop`.
     """
     parser = add_args()
     args = parser.parse_args()
