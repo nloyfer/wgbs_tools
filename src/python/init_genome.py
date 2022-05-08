@@ -1,17 +1,15 @@
-#!/usr/bin/python3 -u
 
 import argparse
 import re
 import shutil
-import numpy as np
 import pandas as pd
 import os.path as op
 import os
-from itertools import groupby
 import subprocess
 from multiprocessing import Pool
 from pathlib import Path
-from utils_wgbs import validate_single_file, eprint, IllegalArgumentError, add_multi_thread_args
+from utils_wgbs import validate_single_file, eprint, IllegalArgumentError, \
+        add_multi_thread_args
 from set_default_ref import set_def_ref
 
 
@@ -23,10 +21,11 @@ def generate_fai(fasta):
     if op.isfile(fai_path):
         return fai_path
 
-    # otherwise, generate it using samtools faidx:
+    # Otherwise, generate it using samtools faidx
     eprint(f'[wt init] Indexing {fasta}')
     cmd = f'samtools faidx {fasta}'
-    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
     output, error = p.communicate()
     # if failed to generate fai, print informative message and raise exception
     if p.returncode:
@@ -73,22 +72,24 @@ class InitGenome:
         output, error = p.communicate()
         if p.returncode:
             eprint(f'[wt init] Failed downloading reference for genome {self.name}: %d\n%s\n%s' % (p.returncode, output.decode(), error.decode()))
-            eprint(f'[wt init] Try downloading yourself and use --fasta_name flag, or check the "name" parameter')
-            raise IllegalArgumentError(f'[wt init] No reference FASTA found')
-        eprint(f'[wt init] successfully downloaded FASTA. Now gunzip and bgzip it...')
+            eprint('[wt init] Try downloading yourself and use --fasta_name flag, or check the "name" parameter')
+            raise IllegalArgumentError('[wt init] No reference FASTA found')
+        eprint('[wt init] successfully downloaded FASTA. Now gunzip and bgzip it...')
         cmd = f'gunzip {ref_path} && bgzip -@ {self.args.threads} {ref_path[:-3]}'
         subprocess.check_call(cmd, shell=True)
         self.ref_path = ref_path
 
     def setup_dir(self):
         path = Path(op.realpath(__file__))
-        out_dir = op.join(op.join(path.parent.parent.parent, 'references'), self.name)
+        out_dir = op.join(op.join(path.parent.parent.parent, 'references'),
+                          self.name)
         # if the requested genome name already exist:
         # abort if --force was not specified, or delete the existing directory.
         if op.isdir(out_dir):
             if not self.force:
-                msg = f'[wt init] Error: genome {self.name} already exists ({out_dir}).'
-                msg += f' Use -f to overwrite it.'
+                msg = f'[wt init] Error: genome {self.name}'
+                msg += f' already exists ({out_dir}).'
+                msg += ' Use -f to overwrite it.'
                 raise IllegalArgumentError(msg)
             else:
                 shutil.rmtree(out_dir)
@@ -101,8 +102,9 @@ class InitGenome:
         fai_path = generate_fai(self.ref_path)
 
         # Link fa + fai (or fa.gz+fa.gz.gzi+fa.gz.fai) to the output dir
-        fasta_name = 'genome.fa' + ('.gz' if self.ref_path.endswith('.gz') else '')
-        # fasta_name = 'genome.fa'
+        fasta_name = 'genome.fa'
+        if self.ref_path.endswith('.gz'):
+            fasta_name += '.gz'
         self.link_file(self.ref_path, fasta_name)
         self.link_file(fai_path, fasta_name + '.fai')
         if fasta_name.endswith('.gz'):
@@ -120,14 +122,15 @@ class InitGenome:
             # sort chromosomes:
             if not self.args.no_sort:
                 df = pd.DataFrame(sorted(df['chr'], key=chromosome_order),
-                        columns=['chr']).merge(df, how='left')
+                                  columns=['chr']).merge(df, how='left')
             return df
         except pd.errors.ParserError as e:
             raise IllegalArgumentError(f'Invalid fai file.\n{e}')
 
     def find_cpgs_loci(self):
         p = Pool(self.args.threads)
-        params = [(self.ref_path, c, self.args.debug) for c in self.fai_df['chr']]
+        params = [(self.ref_path, c, self.args.debug)
+                  for c in self.fai_df['chr']]
         arr = p.starmap(load_seq_by_chrom, params)
         p.close()
         p.join()
@@ -141,11 +144,11 @@ class InitGenome:
         eprint('[wt init] Building CpG-Index dictionary...')
         df['site'] = df.index + 1
         # if not df.head()['chr'].unique()[0].startswith('chr'):
-            # df['chr'] = 'chr' + df['chr']
+        #   df['chr'] = 'chr' + df['chr']
         self.dump_df(df, 'CpG.bed')
         cpg_dict = self.bgzip_tabix_dict(op.join(self.out_dir, 'CpG.bed'))
 
-        # rev.CpG.bed.gz - symbolic link to the dictionary, 
+        # rev.CpG.bed.gz - symbolic link to the dictionary,
         # with an index file corresponds to the 3rd column, the CpG-Index,
         # To map CpG to locus
         rev_dict = op.join(self.out_dir, 'rev.CpG.bed.gz')
@@ -157,12 +160,13 @@ class InitGenome:
 
         # CpG.chrome.size - number of CpGs in each chromosome
         ncgs = self.fai_df[['chr']].copy()
-        t = df.groupby('chr')['loc'].nunique().to_frame().reset_index().rename(columns={'loc': 'size'})
+        t = df.groupby('chr')['loc'].nunique().to_frame().\
+            reset_index().rename(columns={'loc': 'size'})
         ncgs = ncgs.merge(t, on='chr', how='left').fillna(0)
         ncgs['size'] = ncgs['size'].astype(int)
         self.dump_df(ncgs[['chr', 'size']], 'CpG.chrome.size')
 
-        self.validate_nr_sites(df.shape[0])
+        # self.validate_nr_sites(df.shape[0])
         self.add_supp()  # add supplemental files for hg19
         eprint(f'[wt init] Finished initialization of genome {self.name}')
 
@@ -195,7 +199,7 @@ class InitGenome:
         }
         if self.name in d.keys():
             if nr_sites != d[self.name]:
-                msg = f'[wt init] WARNING: number of sites of the reference genome '
+                msg = '[wt init] WARNING: number of sites of the reference genome '
                 msg += f'{self.name} is usually {d[self.name]}, but you got {nr_sites}'
                 eprint(msg)
 
@@ -231,7 +235,8 @@ def load_seq_by_chrom(ref_path, chrom, debug=False):
     seq = ''.join(s.strip() for s in txt.split('\n')).upper()
 
     # Find CpG sites loci
-    tf = pd.DataFrame([m.start() + 1 for m in re.finditer('CG', seq)], columns=['loc'])
+    tf = pd.DataFrame([m.start() + 1 for m in re.finditer('CG', seq)],
+                      columns=['loc'])
     tf['chr'] = chrom
     return tf[['chr', 'loc']]
 
@@ -252,7 +257,8 @@ def chromosome_order(c):
 
 
 def is_valid_chrome(chrome):
-    # A chromosome is valid if it has the form "chrX", where X is digit(s) or (X,Y,M)
+    # A chromosome is valid if it has the form "chrX",
+    # where X is digit(s) or (X,Y,M)
     return bool(re.match(r'^(chr)?([\d]+|[XYM]|(MT))$', chrome))
 
 
@@ -274,17 +280,12 @@ def parse_args():
                         help='If set, keep the chromosome order of the reference genome.\n'
                              'Default behaviour is to sort 1,2,...,10,11,...,X,Y,M')
     add_multi_thread_args(parser)
-    # parser.add_argument('--keep_all', action='store_true', help='Overwrite existing files if existed')
     args = parser.parse_args()
     return args
 
 
 def main():
-    """
-    Init genome reference.
-    Note: we currently support only chromosomes starting with "chr". I.e. "chr1" and not "1".
-    """
-    #TODO: support chromosomes not starting with "chr"!
+    """ Init genome reference. """
     args = parse_args()
     InitGenome(args).run()
 

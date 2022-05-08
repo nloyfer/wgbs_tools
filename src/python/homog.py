@@ -10,7 +10,8 @@ import subprocess
 from io import StringIO
 from beta_to_blocks import load_blocks_file, is_block_file_nice
 from utils_wgbs import IllegalArgumentError, homog_tool, main_script, \
-        splitextgz, validate_file_list, COORDS_COLS5, validate_local_exe
+        splitextgz, validate_file_list, COORDS_COLS5, validate_local_exe, \
+        mkdirp
 
 
 def homog_log(*args, **kwargs):
@@ -106,8 +107,7 @@ def parse_outdir_prefix(args):
         outdir = op.dirname(prefix)
     if not outdir:
         outdir = '.'
-    if not op.isdir(outdir):
-        os.mkdir(outdir)
+    mkdirp(outdir)
     return outdir, prefix
 
 
@@ -140,6 +140,7 @@ def main():
     # load blocks:
     blocks_df = load_blocks_file(args.blocks_file)
     is_nice, msg = is_block_file_nice(blocks_df)
+    # TODO: support unsorted block files
     if not is_nice:
         homog_log(msg)
         raise IllegalArgumentError(f'Invalid blocks file: {args.blocks_file}')

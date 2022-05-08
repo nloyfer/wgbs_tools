@@ -20,6 +20,9 @@ def pat_args(parser):
     parser.add_argument('--no_dense', action='store_true',
             help='pat: Do not squeeze multiple reads to every line.\n'
                  'Each read appears in a different line.')
+    parser.add_argument('--shuffle', action='store_true',
+            help='pat: Shuffle reads order, while keeping the startCpG order '
+                 '(sort -k2,2n -k3,3R)')
     parser.add_argument('--uxm', type=float, default=None,
             help='Pat vis: Float between 0 and 1 where reads with methylation proportion'
                  '         above this value will be displayed as fully methylated, reads with'
@@ -85,7 +88,7 @@ def main():
         print(args.title)
 
     first_file = args.input_files[0]
-    if first_file.endswith(('.beta', '.bin')):
+    if first_file.endswith(('.beta', '.bin', '.lbeta')):
         beta_vis_main(args)
     elif first_file.endswith('.pat.gz'):
         pat_vis_main(args)

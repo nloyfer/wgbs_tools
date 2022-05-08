@@ -56,7 +56,7 @@ def main():
     Convert beta file to bed file.
     """
     args = parse_args()
-    validate_single_file(args.beta_path, '.beta')
+    validate_single_file(args.beta_path) #, '.beta')
     gr = GenomicRegion(args)
     beta_to_bed(args.beta_path, gr, args.bed_file, args.min_cov, args.mean, args.keep_na, args.force, args.outpath)
 

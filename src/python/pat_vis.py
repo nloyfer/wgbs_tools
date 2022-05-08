@@ -27,8 +27,8 @@ num2color_dict = {
 }
 
 num2color_dict2 = {
-    'C': '01;34',   # blue
-    'T': '01;33',   # yellow
+    'T': '01;34',   # blue
+    'C': '01;33',   # yellow
     'X': '01;33',   # yellow
     'M': '01;31',   # red
     'U': '01;32',   # green
@@ -202,6 +202,7 @@ class PatVis:
         if first_to_show > self.start:
             table = np.concatenate([np.ones((table.shape[0], first_to_show - self.start), dtype=np.uint8), table], axis=1)
 
+        int_table = table.copy()
         # Translate ints table to characters table
         for key in int2str.keys():
             table = np.core.defchararray.replace(table.astype(np.str), str(key), int2str[key])
@@ -213,6 +214,7 @@ class PatVis:
                    'chr': df.loc[0, 'chr'],
                    'text': res,
                    'table': table,
+                   'int_table': int_table,
                    'score': calc_score(df),
                    'uxm': self.uxm_counts}
         return fullres

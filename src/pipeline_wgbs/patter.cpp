@@ -158,20 +158,24 @@ std::string patter::clean_CIGAR(std::string seq, std::string CIGAR) {
         }
     }
 
-    // build the adjusted seq, using original seq and the vectors:
+    // build the adjusted seq
     std::string adjusted_seq;
     for (int i = 0; i < (int) chars.size(); i++) {
-        if (chars[i] == 'M') {
-            adjusted_seq += seq.substr(0, nums[i]);
-            seq = seq.substr(nums[i], seq.length() - nums[i]);
-        } else if (chars[i] == 'D') {
-            for (unsigned long j = 0; j < nums[i]; j++)
+        char ch = chars[i]; // CIGAR character
+        int num = nums[i];  // corresponding integer
+        if (ch == 'M') {
+            adjusted_seq += seq.substr(0, num);
+            seq = seq.substr(num, seq.length() - num);
+        } else if (ch == 'D') {
+            for (unsigned long j = 0; j < num; j++)
                 adjusted_seq += 'N';
-        } else if ((chars[i] == 'I') || (chars[i] == 'S')) {
-            seq = seq.substr(nums[i], seq.length() - nums[i]);
+        } else if ((ch == 'I') || (ch == 'S')) {
+            seq = seq.substr(num, seq.length() - num);
+        } else if ((ch == 'H')) {
+            continue;
         } else {
             throw std::invalid_argument("[ patter ] Unknown CIGAR character: " +
-                                        std::string(1, chars[i]));
+                                        std::string(1, ch));
         }
     }
 

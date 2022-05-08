@@ -13,7 +13,8 @@ from beta_to_blocks import load_blocks_file
 from beta_to_table import get_table, groups_load_wrap
 from dmb import load_gfile_helper, match_prefix_to_bin
 from utils_wgbs import validate_single_file, add_multi_thread_args, \
-        validate_file_list, eprint, drop_dup_keep_order, IllegalArgumentError
+        validate_file_list, eprint, drop_dup_keep_order, IllegalArgumentError,\
+        bed2reg, mkdirp
 from fm_load_params import MFParams, parse_args
 
 
@@ -78,8 +79,7 @@ class MarkerFinder:
         self.nr_chunks = 1
 
         # validate output dir:
-        if not op.isdir(args.out_dir):
-            os.mkdir(args.out_dir)
+        mkdirp(args.out_dir)
 
         # load groups
         self.gf = load_group_file(args.groups_file, args.betas)
@@ -268,7 +268,7 @@ class MarkerFinder:
         tf['target'] = self.group
         tf['lenCpG'] = tf['lenCpG'].astype(str) + 'CpGs'
         tf['bp'] = (tf['end'] - tf['start']).astype(str) + 'bp'
-        tf['region'] = tf['chr'] + ':' + tf['start'].astype(str) + '-' + tf['end'].astype(str)
+        tf['region'] = bed2reg(tf)
         cols_to_dump = ['chr', 'start', 'end', 'startCpG', 'endCpG',
                         'target', 'region', 'lenCpG', 'bp', 'tg',
                         'bg', 'delta', 'direction']

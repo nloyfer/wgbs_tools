@@ -21,6 +21,7 @@ segment_tool = SRC_DIR + 'segment_betas/segmentor'
 cview_tool = SRC_DIR + 'cview/cview'
 cview_extend_blocks_script = SRC_DIR + 'cview/extend_blocks.sh'
 view_beta_script = SRC_DIR + 'view_beta.sh'
+view_lbeta_script = SRC_DIR + 'view_lbeta.sh'
 homog_tool = SRC_DIR + 'homog/homog'
 add_loci_tool = SRC_DIR + 'cpg2bed/add_loci'
 
@@ -118,6 +119,12 @@ def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
 
+def mkdirp(dpath):
+    # mkdir "dpath" if not exist or None
+    if dpath:
+        Path(dpath).mkdir(parents=True, exist_ok=True)
+    return dpath
+
 def check_executable(cmd, verbose=False):
     for p in os.environ['PATH'].split(":"):
         if os.access(op.join(p, cmd), os.X_OK):
@@ -200,7 +207,7 @@ def load_dict_section(region, genome_name=None):
     return read_shell(cmd, names=['chr', 'start', 'idx'])
 
 
-def add_GR_args(parser, required=False, bed_file=False, no_anno=False):
+def add_GR_args(parser, required=False, bed_file=False, no_anno=False, expand=False):
     """ Add genomic regions arguments parsing (flags [-s] and [-r]) """
     region_or_sites = parser.add_mutually_exclusive_group(required=required)
     region_or_sites.add_argument('-s', '--sites', help='a CpG index range, of the form: "450000-450050"')
@@ -211,6 +218,8 @@ def add_GR_args(parser, required=False, bed_file=False, no_anno=False):
     parser.add_argument('--genome', help='Genome reference name. Default is "default".', default='default')
     if no_anno:
         parser.add_argument('--no_anno', help='Do not print genomic annotations', action='store_true')
+    if expand: # todo: implement, use in vis.
+        parser.add_argument('--expand', help='expand region by K bp or by K sites for each side', type=int)
     return region_or_sites
 
 
@@ -441,6 +450,10 @@ def read_shell(command, **kwargs):
                    "Standard error was:\n{2}")
         raise IOError(message.format(proc.returncode, command, error.decode()))
 
+def bed2reg(df):
+    if not set(COORDS_COLS3).issubset(set(df.columns)):
+        raise IllegalArgumentError('[wt] missing coordinate columns in bed file')
+    return df['chr'] + ':' + df['start'].astype(str) + '-' + df['end'].astype(str)
 
 def catch_BrokenPipeError():
     os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())

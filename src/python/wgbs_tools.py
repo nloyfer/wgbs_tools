@@ -5,12 +5,15 @@ import argparse
 import importlib
 from unittest.mock import patch
 
+VERSION = '0.1.0'
+
 commands = [
     # view data
     'vis',
     'view',
     'cview',
     'convert',
+    'pat_fig',
 
     # convert beta to other formats
     'beta_to_blocks',
@@ -46,6 +49,9 @@ def main():
     if len(sys.argv) < 2 or (len(sys.argv) == 2 and sys.argv[1] in ('-h', '--help')):
         print_help()
         return
+    elif '--version' in sys.argv:
+        print('wgbstools version', VERSION)
+        return
 
     parser = argparse.ArgumentParser(
         description='WGBS data analysis',
@@ -66,10 +72,6 @@ def main():
         eprint(f'Invalid input argument\n{e}')
         return 1
 
-
-# todo:
-# bam2pat: Add reports to log file / stderr. e.g: % success, # sites covered, # reads extracted etc.
-# pip install?
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
