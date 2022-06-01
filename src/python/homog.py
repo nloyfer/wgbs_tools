@@ -11,7 +11,7 @@ from io import StringIO
 from beta_to_blocks import load_blocks_file, is_block_file_nice
 from utils_wgbs import IllegalArgumentError, homog_tool, main_script, \
         splitextgz, validate_file_list, COORDS_COLS5, validate_local_exe, \
-        mkdirp
+        mkdirp, delete_or_skip
 
 
 def homog_log(*args, **kwargs):
@@ -46,6 +46,7 @@ def ctool_wrap(pat, name, blocks_path, rates_cmd, view_full, verbose=False):
     cmd += f' | {homog_tool} -b {blocks_path} -n {name} {rates_cmd}'
     se = None if verbose else subprocess.PIPE
     txt = subprocess.check_output(cmd, shell=True, stderr=se).decode()
+    # homog_log(cmd)
     names = list('UXM')
     df = pd.read_csv(StringIO(txt), sep='\t', header=None, names=names)
     if df.values.sum() == 0:
@@ -53,25 +54,14 @@ def ctool_wrap(pat, name, blocks_path, rates_cmd, view_full, verbose=False):
     return df
 
 
-def should_be_skipped(force, bin_path, bed_path, binary, bed):
-    if force:
-        return False
-    if (not op.isfile(bin_path)) and (not op.isfile(bed_path)):
-        return False
-    rerun_bed = (not op.isfile(bed_path)) and bed
-    rerun_bin = (not op.isfile(bin_path)) and binary
-    return not (rerun_bin or rerun_bed)
-
-
 def homog_process(pat, blocks, args, outdir, prefix):
     name = splitextgz(op.basename(pat))[0]
     if prefix is None:
         prefix = op.join(outdir, name)
-    bin_path = prefix + '.uxm'
-    bed_path = prefix + '.uxm.bed.gz'
-    bed = args.bed
-    binary = args.binary or (not args.binary and not bed)
-    if should_be_skipped(args.force, bin_path, bed_path, binary, bed):
+    opath = prefix + '.uxm'
+    if not args.binary:
+        opath += '.bed.gz'
+    if not delete_or_skip(opath, args.force):
         homog_log(f'skipping {name}. Use -f to overwrite')
         return
 
@@ -93,10 +83,10 @@ def homog_process(pat, blocks, args, outdir, prefix):
     df = pd.concat([blocks.reset_index(drop=True), df], axis=1)
     df = blocks.merge(df, how='left', on=COORDS_COLS5)
 
-    if binary:
-        trim_uxm_to_uint8(df[list('UXM')].values, args.nr_bits).tofile(bin_path)
-    if bed:
-        df.to_csv(bed_path, sep='\t', header=None, index=None)
+    if args.binary:
+        trim_uxm_to_uint8(df[list('UXM')].values, args.nr_bits).tofile(opath)
+    else:
+        df.to_csv(opath, sep='\t', header=None, index=None)
     return df
 
 
@@ -159,7 +149,6 @@ def parse_args():
     parser.add_argument('--force', '-f', action='store_true', help='Overwrite files if exist')
     parser.add_argument('--verbose', '-v', action='store_true')
     parser.add_argument('--binary', action='store_true', help='Output binary files (uint8)')
-    parser.add_argument('--bed', action='store_true', help='Output bed file')
     parser.add_argument('--genome', help='Genome reference name.')
     parser.add_argument('--nr_bits', type=int, default=8,
             help='For binary output, specify number of bits for the output format - 8 or 16. ' \
@@ -169,6 +158,7 @@ def parse_args():
     parser.add_argument('--rlen', '-l', type=int, default=3,
             help='Minimal read length (in CpGs) to consider. Default is 3')
     parser.add_argument('--debug', '-d', action='store_true')
+    # todo: keep --bed for backward compatability
 
     return parser.parse_args()
 
