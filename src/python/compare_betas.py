@@ -8,17 +8,18 @@ from genomic_region import GenomicRegion
 import os.path as op
 
 
-def comp2(a, b, cov_thresh, ax):
+def comp2(a, b, cov_thresh, bins, ax):
     # Ignore sites with coverage lower than cov_thresh in at
     # least one of the two compared files
     high_cov = np.min(np.c_[a[:, 1], b[:, 1]], axis=1) >= cov_thresh
     def table2vec(table):
         table = table[high_cov]
         return table[:, 0] / table[:, 1]
-    ax.hist2d(table2vec(a), table2vec(b), bins=20, cmap=plt.cm.jet, norm=LogNorm())
+    ax.hist2d(table2vec(a), table2vec(b), bins=bins, cmap=plt.cm.jet, norm=LogNorm())
 
 
 def compare_all_paires(args):
+    # breakpoint()
     betas = args.betas
     sites = GenomicRegion(args).sites
     tables = [load_beta_data(b, sites) for b in betas]
@@ -35,10 +36,15 @@ def compare_all_paires(args):
     fig, axs = plt.subplots(N, N)
     for i in range(N):
         for j in range(i + 1):
-            comp2(tables[i], tables[j], args.min_cov, axs[i, j])
+            comp2(tables[i], tables[j], args.min_cov, args.bins, axs[i, j])
         axs[i, 0].set_ylabel(nnames[i], fontsize=8)
     for j in range(N):
-        axs[0, j].set_title(nnames[j], fontsize=8)
+        axs[N - 1, j].set_xlabel(nnames[j], fontsize=8)
+
+    # remove empty subplots
+    for i in range(N):
+        for j in range(i + 1, N):
+            fig.delaxes(axs[i, j])
 
     for ax in axs.flat:
         ax.label_outer()
@@ -64,6 +70,8 @@ def parse_args():
     parser.add_argument('--min_cov', '-c', type=int, default=10,
                         help='Minimal coverage to consider. '
                              'Sites with coverage lower than this value are ignored')
+    parser.add_argument('--bins', type=int, default=101,
+                        help='Histogram bins (resolution) [101]')
     add_GR_args(parser)
     args = parser.parse_args()
     return args
@@ -77,7 +85,7 @@ def main():
     for performance and robustness.
     """
     args = parse_args()
-    validate_file_list(args.betas, '.beta', min_len=2)
+    validate_file_list(args.betas, min_len=2)
     compare_all_paires(args)
 
 
