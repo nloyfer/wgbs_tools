@@ -377,6 +377,8 @@ def validate_single_file(fpath, suff=None):
         from index import Indxer
         Indxer(fpath).run()
 
+    return fpath
+
 
 def splitextgz(input_file):
     """
