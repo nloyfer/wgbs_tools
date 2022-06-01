@@ -31,18 +31,19 @@ def parse_args():
             help='Add space between rows [Default: 4]')
     parser.add_argument('--circle_size', type=float, default=1.0,
             help='Size of the circles, relative to baseline. E.g., '
-                 'for 1.1 increases circle size by 10% [Default: 1.0]')
+                 'for 1.1 increases circle size by 10%% [Default: 1.0]')
     parser.add_argument('--line_width', type=float, default=1.0,
             help='Line width of circle borders and strikethroughs '
                  'relative to baseline. E.g, 1.1 increases line width '
-                 ' by 10% [Default 1.0]')
+                 ' by 10%% [Default 1.0]')
     parser.add_argument('--font_size', type=float, default=1.0,
             help='Font size, relative to baseline. E.g., '
-                 'for 1.1 increases font size by 10% [Default: 1.0]')
+                 'for 1.1 increases font size by 10%% [Default: 1.0]')
     parser.add_argument('--title',
             help='Title for the figure. Default is details about the region')
     parser.add_argument('--fig_height', type=int, default=20)
     parser.add_argument('--blocks_path')
+    parser.add_argument('--red_green', action='store_true')
     return parser.parse_args()
 
 
@@ -84,8 +85,12 @@ def plot(tf, headers, gr, args):
 
     # TODO: 1. allow UXM and maybe SNPs, not just C's and T's
     #       2. allow color customization
-    plot_circles(3, 'yellow')
-    plot_circles(4, 'blue')
+    if args.red_green:
+        plot_circles(3, 'red')
+        plot_circles(4, 'green')
+    else:
+        plot_circles(3, 'yellow')
+        plot_circles(4, 'blue')
 
     # headers
     fsize = msize * 1.5 * args.font_size
