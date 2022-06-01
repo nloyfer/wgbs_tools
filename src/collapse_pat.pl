@@ -36,7 +36,7 @@ while( my $line = <$info>)  {
     # First line init
     if ($. == 1) {
 	@pre_line = @words;
-	@pre_line[3] = 0;
+	$pre_line[3] = 0;
     }
 
     # compare current line to previous one
