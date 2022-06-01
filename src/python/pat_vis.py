@@ -3,6 +3,7 @@
 import numpy as np
 import os.path as op
 import sys
+import pandas as pd
 import argparse
 import re
 from operator import itemgetter
@@ -15,7 +16,7 @@ from cview import view_gr
 FULL_CIRCLE = '\u25CF'
 DASH = '\u2014'
 BORDER = '|'
-str2int = {c: i for i, c in enumerate([''] + list(' .CTUXM'))}
+str2int = {c: i for i, c in enumerate([''] + list(' .CTUXMctga'))}
 int2str = {v: k for k, v in str2int.items()}
 
 num2color_dict = {
@@ -24,6 +25,10 @@ num2color_dict = {
     'X': '01;33',   # yellow
     'M': '01;31',   # red
     'U': '01;32',   # green
+    'c': '01;106',  # blue
+    't': '01;90',   # black
+    'g': '01;91',   # red
+    'a': '01;92',   # green
 }
 
 num2color_dict2 = {
@@ -121,6 +126,8 @@ class PatVis:
         if not self.args.text:
             txt = re.sub('[CTUXM]', FULL_CIRCLE, txt)               # letters -> circles
             txt = re.sub('\.', DASH, txt)                           # dots -> dashes
+            for x, X in zip('acgt', 'ACGT'):
+                txt = re.sub(x, X, txt)
             if self.args.strike:
                 txt = txt.replace(FULL_CIRCLE, FULL_CIRCLE + '\u0336')  # strikethrough
                 # txt = txt.replace(FULL_CIRCLE, '\u0336' + FULL_CIRCLE)  # strikethrough
@@ -204,8 +211,7 @@ class PatVis:
 
         int_table = table.copy()
         # Translate ints table to characters table
-        for key in int2str.keys():
-            table = np.core.defchararray.replace(table.astype(np.str), str(key), int2str[key])
+        table = pd.DataFrame(data=table).replace(int2str).values
 
         # Convert table to one long string
         res = '\n'.join([''.join(row) for row in table])
