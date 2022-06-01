@@ -2,7 +2,6 @@
 
 import os
 import os.path as op
-import subprocess
 import sys
 import numpy as np
 from math import ceil
@@ -128,7 +127,7 @@ class MarkerFinder:
     def load_blocks(self):
         # load blocks file and filter it by CpG and bg length
 
-        df = load_blocks_file(self.args.blocks_path)
+        df = load_blocks_file(self.args.blocks_path, anno=True)
         orig_nr_blocks = df.shape[0]
 
         # filter by lenCpG
@@ -151,6 +150,38 @@ class MarkerFinder:
 
         return df
 
+    def repro_load_data_chunk(self, blocks_df):
+        import tempfile
+        import shutil
+        import subprocess
+        from utils_wgbs import beta2vec, load_beta_data2, main_script
+
+        # create temp dir for binary files
+        tmp_bins = op.join(self.args.out_dir, 'tmp_bins.')
+        tmp_bins += next(tempfile._get_candidate_names())
+        mkdirp(tmp_bins)
+
+        # dump current chunk of blocks there
+        tb = op.join(tmp_bins, 'blocks.bed')
+        blocks_df.to_csv(tb, sep='\t', index=None, header=None)
+        blocks_df = blocks_df.copy()
+
+        # generate binary files
+        cmd = f' {main_script} beta_to_blocks -b {tb} -o {tmp_bins} -f '
+        cmd += ' '.join(self.gf['full_path'].tolist())
+        subprocess.check_call(cmd, shell=True, stderr=subprocess.PIPE)
+
+        # load them to blocks_df:
+        for beta in os.listdir(tmp_bins):
+            if not beta.endswith('.bin'):
+                continue
+            v = beta2vec(load_beta_data2(op.join(tmp_bins, beta)), min_cov=self.args.min_cov)
+            blocks_df[beta[:-4]] = v
+
+        # cleanup
+        shutil.rmtree(tmp_bins)
+        return blocks_df
+
     def load_data_chunk(self, blocks_df):
         # load methylation data from beta files collapsed to the blocks in blocks_df
         if self.verbose:
@@ -159,6 +190,10 @@ class MarkerFinder:
             eprint(f'{self.chunk_count}/{self.nr_chunks} ) ' \
                    f'loading data for {blocks_df.shape[0]:,} blocks over' \
                    f' {nr_samples} samples...')
+
+        if self.args.repro:
+            return self.repro_load_data_chunk(blocks_df)
+
         return get_table(blocks_df=blocks_df.copy(),
                          gf=self.gf,
                          min_cov=self.args.min_cov,
@@ -189,70 +224,127 @@ class MarkerFinder:
         tfM = self.find_M_markers(tf)
         tfU = self.find_U_markers(tf)
         tf = pd.concat([tfU, tfM]).reset_index(drop=True)
-        tf['delta'] = ((tf['tg'] - tf['bg']).abs() * 100).astype(int)
+
+        # if self.args.repro and self.args.top:
+            # tf = tf.sort_values(by='delta_maxmin', ascending=False, kind='stable')
+            # tf = tf.head(self.args.top)
+
+        # T-test
+        tf = self.ttest(tf)
         return tf
 
-    def find_M_markers(self, tf):
-        # look for 'M' markers
-        if self.args.only_hypo:
-            return pd.DataFrame()
+    def ttest(self, tf):
+        try:
+            from scipy.stats import ttest_ind, ttest_1samp
+            # test for n=1
+            if len(self.tg_names) == 1:
+                r = ttest_1samp(tf[self.bg_names], tf[self.tg_names].values.flatten(), axis=1, nan_policy='omit')
+            elif len(self.bg_names) == 1:
+                r = ttest_1samp(tf[self.tg_names], tf[self.bg_names].values.flatten(), axis=1, nan_policy='omit')
+            # test for n>1
+            else:
+                r = ttest_ind(tf[self.tg_names], tf[self.bg_names], axis=1, nan_policy='omit')
+            tf['ttest'] = r.pvalue
+            tf = tf[tf['ttest'] <= self.args.pval].reset_index(drop=True)
+        except ModuleNotFoundError as e:
+            eprint(f'[wt fm] WARNING: scipy is not installed. T-test is not performed.')
+            tf['ttest'] = np.nan
+        return tf
+
+    def switch_context(self, tfM=None):
+        # swap names
+        tmp = self.bg_names.copy()
+        self.bg_names = self.tg_names.copy()
+        self.tg_names = tmp.copy()
+
+        # swap quantiles
+        tmp = self.args.tg_quant
+        self.args.tg_quant = self.args.bg_quant
+        self.args.bg_quant = tmp
+
+        # swap tg,bg columns
+        if tfM is not None and not tfM.empty:
+            tmp = tfM['bg_mean'].copy()
+            tfM['bg_mean'] = tfM['tg_mean'].copy()
+            tfM['tg_mean'] = tmp
+
+    def find_X_markers(self, tf):
+
+        tfX = tf.copy()
+        if self.args.repro:
+            tfX = tfX.fillna(.5)
+
+        # Compute maxmin
+        tfX['delta_maxmin'] = tfX[self.bg_names].min(axis=1) - tfX[self.tg_names].max(axis=1)
+
+        # Compute means for target and background
+        tfX['tg_mean'] = np.nanmean(tfX[self.tg_names], axis=1)
+        tfX['bg_mean'] = np.nanmean(tfX[self.bg_names], axis=1)
+        tfX['delta_means'] = tfX['bg_mean'] - tfX['tg_mean']
 
         # filter by mean thresholds
-        keep_umt = np.nanmean(tf[self.bg_names], axis=1) <= self.args.unmeth_mean_thresh
-        keep_mmt = np.nanmean(tf[self.tg_names], axis=1) >= self.args.meth_mean_thresh
-        tfM = tf.loc[keep_umt & keep_mmt, :]
+        keep_umt = (tfX['tg_mean'] <= self.args.unmeth_mean_thresh)
+        keep_mmt = (tfX['bg_mean'] >= self.args.meth_mean_thresh)
+        keep_delta_mean = (tfX['delta_means'] >= self.args.delta_means)
+        tfX = tfX.loc[keep_umt & keep_mmt & keep_delta_mean, :].reset_index(drop=True)
+
+        if tfX.empty:
+            return tfX
+
+        # Compute quantiles for target and background
+        if self.args.repro:
+            from scipy.stats.mstats import mquantiles  # quantile interpolation as in matlab
+            tfX['tg_quant'] = mquantiles(tfX[self.tg_names],
+                                         1 - self.args.tg_quant, axis=1,
+                                         alphap=.5, betap=.5)
+            tfX['bg_quant'] = mquantiles(tfX[self.bg_names],
+                                         self.args.bg_quant, axis=1,
+                                         alphap=.5, betap=.5)
+        else:
+            tfX['tg_quant'] = np.nanquantile(tfX[self.tg_names], 1 - self.args.tg_quant, axis=1)
+            tfX['bg_quant'] = np.nanquantile(tfX[self.bg_names], self.args.bg_quant, axis=1)
+        tfX['delta_quants'] = tfX['bg_quant'] - tfX['tg_quant']
 
         # filter by quantile thresholds
-        tfM['tg'] = np.quantile(tfM[self.tg_names].fillna(.5),
-                                self.args.tg_quant,
-                                interpolation='lower',
-                                axis=1)
-        tfM['bg'] = np.quantile(tfM[self.bg_names].fillna(.5),
-                                1 - self.args.bg_quant,
-                                interpolation='higher',
-                                axis=1)
-        # delta
-        tfM = tfM[(tfM['tg'] - tfM['bg'] >= self.args.delta)].reset_index(drop=True)
-        if tfM.empty:
-            return tfM
+        if self.args.repro:
+            keep_uqt = (tfX['tg_quant'] < self.args.unmeth_quant_thresh)
+        else:
+            keep_uqt = (tfX['tg_quant'] <= self.args.unmeth_quant_thresh)
+        keep_mqt = (tfX['bg_quant'] >= self.args.meth_quant_thresh)
+        keep_delta_quants = (tfX['delta_quants'] >= self.args.delta_quants)
+        tfX = tfX.loc[keep_uqt & keep_mqt & keep_delta_quants, :].reset_index(drop=True)
 
-        # high & low
-        keep_ut = tfM['bg'] <= self.args.unmeth_thresh
-        keep_mt = tfM['tg'] >= self.args.meth_thresh
-        tfM = tfM.loc[keep_ut & keep_mt, :]
-        tfM['direction'] = 'M'
-        return tfM
+        if tfX.empty:
+            return tfX
+
+        return tfX
 
     def find_U_markers(self, tf):
         # look for 'U' markers
         if self.args.only_hyper:
             return pd.DataFrame()
 
-        # filter by mean thresholds
-        keep_umt = np.nanmean(tf[self.tg_names], axis=1) <= self.args.unmeth_mean_thresh
-        keep_mmt = np.nanmean(tf[self.bg_names], axis=1) >= self.args.meth_mean_thresh
-        tfU = tf.loc[keep_umt & keep_mmt, :]
-
-        # filter by quantile thresholds
-        tfU['tg'] = np.quantile(tfU[self.tg_names].fillna(.5),
-                                1 - self.args.tg_quant,
-                                interpolation='higher',
-                                axis=1)
-        tfU['bg'] = np.quantile(tfU[self.bg_names].fillna(.5),
-                                self.args.bg_quant,
-                                interpolation='lower',
-                                axis=1)
-        # delta
-        tfU = tfU[(tfU['bg'] - tfU['tg'] >= self.args.delta)].reset_index(drop=True)
+        tfU = self.find_X_markers(tf)
         if tfU.empty:
             return tfU
 
-        # high & low
-        keep_ut = tfU['tg'] <= self.args.unmeth_thresh
-        keep_mt = tfU['bg'] >= self.args.meth_thresh
-        tfU = tfU.loc[keep_ut & keep_mt, :]
         tfU['direction'] = 'U'
         return tfU
+
+    def find_M_markers(self, tf):
+        # look for 'M' markers
+        if self.args.only_hypo:
+            return pd.DataFrame()
+
+        self.switch_context()
+        tfM = self.find_X_markers(tf)
+        self.switch_context(tfM)
+
+        if tfM.empty:
+            return tfM
+
+        tfM['direction'] = 'M'
+        return tfM
 
     #############################
     #                           #
@@ -262,18 +354,25 @@ class MarkerFinder:
 
     def dump_results(self, tf):
         eprint(f'Number of markers found: {tf.shape[0]:,}')
+        if self.args.sort_by:
+            tf = tf.sort_values(by=self.args.sort_by, ascending=False, kind='stable') # todo: stable for repro.
         if self.args.top:
-            tf = tf.sort_values(by='delta', ascending=False).head(self.args.top)
-        tf = tf.sort_values(by='startCpG')
+            tf = tf.head(self.args.top)
         tf['target'] = self.group
         tf['lenCpG'] = tf['lenCpG'].astype(str) + 'CpGs'
         tf['bp'] = (tf['end'] - tf['start']).astype(str) + 'bp'
         tf['region'] = bed2reg(tf)
         cols_to_dump = ['chr', 'start', 'end', 'startCpG', 'endCpG',
-                        'target', 'region', 'lenCpG', 'bp', 'tg',
-                        'bg', 'delta', 'direction']
+                        'target', 'region', 'lenCpG', 'bp', 'tg_mean',
+                        'bg_mean', 'delta_means', 'delta_quants', 'delta_maxmin',
+                        'ttest', 'direction']
+        if 'anno' in list(tf.columns) and 'gene' in list(tf.columns):
+            cols_to_dump += ['anno', 'gene']
         if not tf.empty:
-            tf = tf[cols_to_dump].round(2)
+            tf = tf[cols_to_dump]
+        else:
+            tf = pd.DataFrame(columns=cols_to_dump)
+        tf.rename(columns={"chr": "#chr"}, inplace=True)
         self.dump_single_df(tf)
 
     def dump_single_df(self, df):
@@ -294,7 +393,7 @@ class MarkerFinder:
             df_mode = 'a'
 
         # dump df:
-        df.to_csv(outpath, index=None, sep='\t', mode=df_mode, header=None)
+        df.to_csv(outpath, index=None, sep='\t', mode=df_mode, header=True, na_rep='NA', float_format='%.3g')
 
     def dump_params(self):
         """ Dump a parameter file """
@@ -305,6 +404,8 @@ class MarkerFinder:
                 if key == 'beta_list_file':
                     val = None
                 if key == 'betas':
+                    val = ' '.join(val)
+                if key == 'targets' and val is not None:
                     val = ' '.join(val)
                 f.write(f'{key}:{val}\n' )
                 # f.write(f'#> {sample}\n' )

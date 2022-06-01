@@ -13,11 +13,12 @@ na_rate_tg:.334
 na_rate_bg:.334
 only_hyper:False
 only_hypo:False
-delta:0.3
+delta_means:0.3
+delta_quants:0.0
 tg_quant:0.25
 bg_quant:0.025
-unmeth_thresh:1.0
-meth_thresh:0.0
+unmeth_quant_thresh:1.0
+meth_quant_thresh:0.0
 unmeth_mean_thresh:1.0
 meth_mean_thresh:0.0
 out_dir:.
@@ -25,3 +26,7 @@ top:NA
 header:False
 verbose:False
 chunk_size:150000
+repro:False
+pval:0.05
+sort_by:None
+delta_maxmin:-1

@@ -1,4 +1,5 @@
 import argparse
+import re
 import os.path as op
 from pathlib import Path
 import pandas as pd
@@ -12,12 +13,12 @@ DEF_CONF_PATH = op.join(op.join(Path(__file__).parent.parent.parent, 'supplement
 
 class MFParams:
     def __init__(self, args):
+        # load defaults for missing parameters
+        self.set_defaults()
         # load parameters from user defined config file
         self.load_config_file(args.config_file)
         # load parameters from argparse (they overwite the config file params)
         self.load_command_line_args(args)
-        # laod defaults for missing parameters
-        self.set_defaults()
         # validate parameters
         self.validate_args()
 
@@ -30,14 +31,16 @@ class MFParams:
     def load_command_line_args(self, args):
         adict = self.set_param_type(vars(args))
         for key, val in adict.items():
+            if (type(val) == bool) and not val:
+                continue
             if val is not None:
                 setattr(self, key, val)
 
     def set_defaults(self):
         ddict = self.load_from_file(DEF_CONF_PATH)
         for key, val in ddict.items():
-            if (not hasattr(self, key)) or (getattr(self, key) is None):
-                setattr(self, key, val)
+            # if (not hasattr(self, key)) or (getattr(self, key) is None):
+            setattr(self, key, val)
 
     @staticmethod
     def load_from_file(param_file):
@@ -47,20 +50,31 @@ class MFParams:
         d = pd.read_csv(param_file, sep=':', comment='#',
                 header=None, names=['val'], index_col=0,
                 skipinitialspace=True).to_dict()['val']
-        return MFParams.set_param_type(d)
+        for key, val in d.items():
+            val = MFParams.set_param_type(val)
+            if val == 'None':
+                val = None
+            elif val == 'True':
+                val = True
+            elif val == 'False':
+                val = False
+            elif key == 'targets' and val != None:
+                if ' ' in val:
+                    val = val.split()
+                else:
+                    val = [val]
+            d[key] = val
+        return d
 
     @staticmethod
-    def set_param_type(cdict):
-        rdict = {}
-        for key, val in cdict.items():
-            if type(val) == float and np.isnan(val):
-                val = None
-            elif type(val) == str and val.isdigit():
-                val = int(val)
-            elif type(val) == str and val.replace('.', '', 1).isdigit():
-                val = float(val)
-            rdict[key] = val
-        return rdict
+    def set_param_type(val):
+        if type(val) == float and np.isnan(val):
+            val = None
+        elif type(val) == str and val.isdigit():
+            val = int(val)
+        elif type(val) == str and re.match(r"[-+]?\d*\.\d+|\d+", val):
+            val = float(val)
+        return val
 
     def validate_args(self):
 
@@ -72,22 +86,36 @@ class MFParams:
         if self.min_bp < 0:
             raise IllegalArgumentError('min_bp must be non negative')
         if self.max_bp < 2:
-            raise IllegalArgumentError('max_bp must larger than 1')
+            raise IllegalArgumentError('max_bp must be larger than 1')
         if self.chunk_size < 1:
-            raise IllegalArgumentError('chunk_size must larger than 1')
+            raise IllegalArgumentError('chunk_size must be larger than 1')
+
+        def validate_range(key, val, low, high):
+            if not (high >= val >= low):
+                eprint(f'Invalid value for {key} ({val}): must be in [{low}, {high}]')
+                raise IllegalArgumentError()
 
         # validate the [0.0, 1.0] fractions
-        for key in ('na_rate_tg', 'na_rate_bg', 'delta', 'tg_quant', \
-                    'bg_quant', 'unmeth_thresh', 'meth_thresh', \
-                    'unmeth_mean_thresh', 'meth_mean_thresh'):
-            if not (1.0 >= getattr(self, key) >= 0):
-                eprint(f'Invalid value for {key} ({val}): must be in ({low}, {high})')
-                raise IllegalArgumentError()
+        for key in ('na_rate_tg', 'na_rate_bg', 'tg_quant', \
+                    'bg_quant', 'unmeth_quant_thresh', 'meth_quant_thresh', \
+                    'unmeth_mean_thresh', 'meth_mean_thresh', 'pval'):
+            validate_range(key, float(getattr(self, key)), 0, 1)
+
+        # validate the [-1.0, 1.0] deltas
+        for key in ('delta_means', 'delta_quants', 'delta_maxmin'):
+            validate_range(key, float(getattr(self, key)), -1, 1)
 
         # validate hyper hypo:
         if self.only_hyper and self.only_hypo:
             eprint(f'at most one of (only_hyper, only_hypo) can be specified')
             raise IllegalArgumentError()
+
+        # validate sort_by column
+        if self.sort_by is not None:
+            sort_by_ops = ()
+            if self.sort_by not in ('delta_means', 'delta_quants', 'delta_maxmin', 'startCpG'):
+                eprint(f'sort_by argument must be in: {",".join(sort_by_ops)}')
+                raise IllegalArgumentError()
 
         # validate input files
         for key in ('blocks_path', 'groups_file'):
@@ -109,7 +137,9 @@ class MFParams:
         if self.beta_list_file:
             validate_single_file(self.beta_list_file)
             with open(self.beta_list_file, 'r') as f:
-                self.betas = [l.strip() for l in f.readlines()]
+                self.betas = [l.strip() for l in f.readlines() if l.strip()]
+        elif type(self.betas) == str:
+            self.betas = self.betas.split()
         validate_file_list(self.betas)
 
 
@@ -130,8 +160,10 @@ def parse_args():
     parser.add_argument('--max_bp', type=int)
     parser.add_argument('--min_cpg', type=int)
     parser.add_argument('--max_cpg', type=int)
-    parser.add_argument('--delta', type=float,
-            help='Filter markers by beta values delta. range: [0.0, 1.0]')
+    parser.add_argument('--delta_means', type=float,
+            help='Filter markers by beta values delta_means. range: [0.0, 1.0]')
+    parser.add_argument('--delta_quants', type=float,
+            help='Filter markers by beta values delta_quants. range: [0.0, 1.0]')
     parser.add_argument('-c', '--min_cov', type=int,
             help='Minimal number of binary observations in block coverage to be considered')
     parser.add_argument('--only_hyper', action='store_true',
@@ -149,9 +181,9 @@ def parse_args():
     parser.add_argument('--meth_mean_thresh', type=float,
             help='average beta value for the methylated group')
 
-    parser.add_argument('--unmeth_thresh', type=float,
+    parser.add_argument('--unmeth_quant_thresh', type=float,
             help='quantlie beta value for the unmethylated group')
-    parser.add_argument('--meth_thresh', type=float,
+    parser.add_argument('--meth_quant_thresh', type=float,
             help='quantlie beta value for the methylated group')
 
     parser.add_argument('--na_rate_tg', type=float,
@@ -159,6 +191,11 @@ def parse_args():
     parser.add_argument('--na_rate_bg', type=float,
             help='rate of samples with insufficient coverage allowed in background samples')
 
+    parser.add_argument('--pval', type=float,
+            help='two-sample t-test p-value threshold. DMRs with larger p-value are dropped')
+    parser.add_argument('--sort_by',
+            help='sort output markers by this column.')
+    parser.add_argument('--repro', action='store_true')  # todo: remove!
     parser.add_argument('--chunk_size', type=int, help='Number of blocks to load on each step')
     parser.add_argument('--verbose', '-v', action='store_true')
     add_multi_thread_args(parser)

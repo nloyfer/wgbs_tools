@@ -94,9 +94,12 @@ na_rate_bg:.334
 only_hyper: False
 only_hypo: False
 
-# delta - the requested difference in methylation between target group and background group
-# delta is a fraction in range (0, 1)
-delta: 0.5
+# delta_means / delta_quants - the requested difference in methylation between target group and background group
+# delta_means and delta_quants are fraction in range (0, 1)
+# delta_quants: difference between group means
+delta_means: 0.5
+# delta_quants: difference between group quantiles
+delta_quants: 0.0
 
 # tg_quant - portion of the the target group to ignore/relax
 # bg_quant - portion of the background group to ignore/relax
@@ -106,16 +109,16 @@ delta: 0.5
 tg_quant: 0.25
 bg_quant: 0.025
 
-# meth_thresh is a threshold for the low *quantile* methylation of the methylated group,
+# meth_quant_thresh is a threshold for the low *quantile* methylation of the methylated group,
 # i.e. the TG_QUANT of the target group (for "M" markers) or the BG_QUANT of the background group (for "U" markers)
-# analygously, unmeth_thresh is the threshold for the high quantile of the unmethylated group: 1-TG_QUANT of the target group for "U" markers.
-# For example, for meth_thresh=.7:
+# analygously, unmeth_quant_thresh is the threshold for the high quantile of the unmethylated group: 1-TG_QUANT of the target group for "U" markers.
+# For example, for meth_quant_thresh=.7:
 #   a "M" marker passes the test if the (TG_QUANT)'th quantile of the target group >=0.7.
 #   a "U" marker passes the test if the (1-BG_QUANT)'th quantile of the background group >=0.7.
-# unmeth_thresh is a fraction in range [0, .5)
-# meth_thresh is a fraction in range (.5, 1]
-unmeth_thresh: .4
-meth_thresh: .6
+# unmeth_quant_thresh is a fraction in range [0, .5)
+# meth_quant_thresh is a fraction in range (.5, 1]
+unmeth_quant_thresh: .4
+meth_quant_thresh: .6
 
 # meth_mean_thresh is a threshold for the *average* methylation of the methylated group,
 # i.e. the target group (for "M" markers) or the background group (for "U" markers)
@@ -160,3 +163,12 @@ verbose: False
 # chunk_size - Number of blocks to load on each step.
 # Does not affect the output, only memory consumption and running time.
 chunk_size: 150000
+
+
+# p-value threshold
+pval: 0.05
+
+# sort output markers by this feature:
+sort_by: delta_means
+# difference between minimal value of bg samples and maximal value of tg samples (or vice verca)
+delta_maxmin:-1
