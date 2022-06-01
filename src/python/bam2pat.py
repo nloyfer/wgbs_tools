@@ -249,7 +249,7 @@ class Bam2Pat:
         # build temp dir:
         name = op.splitext(op.basename(self.bam_path))[0]
         self.tmp_dir = op.join(self.out_dir,
-                f'{name}.{str(uuid.uuid4())[:8]}.PID{os.getpid()}')
+                f'{name}.PID{os.getpid()}.{str(uuid.uuid4())[:8]}')
         os.mkdir(self.tmp_dir)
         tmp_prefix = op.join(self.tmp_dir, name)
 
@@ -282,6 +282,7 @@ class Bam2Pat:
                 eprint("")
                 pat_parts = []
             else:
+                self.cleanup()
                 raise e
 
         self.mbias_merge(name, pat_parts)
