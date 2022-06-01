@@ -56,7 +56,7 @@ def is_block_file_nice(df):
     return True, ''
 
 
-def load_blocks_file(blocks_path, nrows=None):
+def load_blocks_file(blocks_path, anno=False, nrows=None):
     # validate blocks_path
     validate_single_file(blocks_path)
 
@@ -65,17 +65,21 @@ def load_blocks_file(blocks_path, nrows=None):
         peek_df = pd.read_csv(blocks_path, sep='\t', nrows=1, header=None, comment='#')
         header = None if str(peek_df.iloc[0, 1]).isdigit() else 0
 
-        names = COORDS_COLS5
-        if len(peek_df.columns) < len(names):
+        names = COORDS_COLS5.copy()
+        if anno:
+            names += ['anno', 'gene']
+        if len(peek_df.columns) < len(COORDS_COLS5):
             msg = f'Invalid blocks file: {blocks_path}. less than {len(names)} columns.\n'
             msg += f'Run wgbstools convert -L {blocks_path} -o OUTPUT_REGION_FILE to add the CpG columns'
             raise IllegalArgumentError(msg)
+        elif len(peek_df.columns) < len(names):  # no annotations columns
+            names = COORDS_COLS5
 
         # load 
         # dtypes = {'chr':str, 'start', 'end', 'startCpG', 'endCpG'}
         dtypes = {'startCpG':'Int64', 'endCpG':'Int64'}
         df = pd.read_csv(blocks_path, sep='\t', usecols=range(len(names)), dtype=dtypes,
-                         header=header, names=names, nrows=None, comment='#')
+                         header=header, names=names, nrows=nrows, comment='#')
 
         # blocks start before they end - invalid file
         dfnona = df.dropna()    # allow blocks with missing values
@@ -200,10 +204,13 @@ def main():
     is_nice, msg = is_block_file_nice(df)
     if not is_nice:
         b2b_log(msg)
-    p = Pool(args.threads)
     params = [(b, df, is_nice, args.lbeta, args.out_dir, args.bedGraph)
               for b in files]
-    arr = p.starmap(collapse_process, params)
+    if args.debug:
+        arr = [collapse_process(*k) for k in params]
+    else:
+        p = Pool(args.threads)
+        arr = p.starmap(collapse_process, params)
     p.close()
     p.join()
 
@@ -215,6 +222,7 @@ def parse_args():
     parser.add_argument('-l', '--lbeta', action='store_true', help='Use lbeta file (uint16) instead of bin (uint8)')
     parser.add_argument('--bedGraph', action='store_true', help='output a text file in addition to binary file')
     parser.add_argument('--force', '-f', action='store_true', help='Overwrite existing files if existed')
+    parser.add_argument('--debug', '-d', action='store_true')
     add_multi_thread_args(parser)
 
     return parser.parse_args()
