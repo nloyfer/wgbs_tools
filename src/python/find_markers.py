@@ -372,7 +372,7 @@ class MarkerFinder:
             tf = tf[cols_to_dump]
         else:
             tf = pd.DataFrame(columns=cols_to_dump)
-        tf.rename(columns={"chr": "#chr"}, inplace=True)
+        tf = tf.rename(columns={"chr": "#chr"})
         self.dump_single_df(tf)
 
     def dump_single_df(self, df):
