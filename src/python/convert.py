@@ -27,7 +27,7 @@ def parse_args():
     parser.add_argument('-d', '--debug', action='store_true')
     # parser.add_argument('--bedtools', action='store_true')
     parser.add_argument('-p', '--parsable', action='store_true',
-                        help='Output a parsing friendly format (only work with -r/-s flags)')
+                        help='Output a parsing friendly format')
     parser.add_argument('--drop_empty', action='store_true',
                         help='Drop empty regions (without CpGs)')
     parser.add_argument('-f', '--force', action='store_true',
