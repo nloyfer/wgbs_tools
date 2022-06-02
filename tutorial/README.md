@@ -165,7 +165,7 @@ Sigmoid_Colon_STL003.small,colon
 ```
 And find DMRs for the colon, the pancreas and the lung samples as follows:
 ```bash
-$ wgbstools find_markers --blocks_path blocks.small.bed.gz --groups_file bams/groups.csv --betas *beta --delta .3
+$ wgbstools find_markers --blocks_path blocks.small.bed.gz --groups_file bams/groups.csv --betas *beta --delta_quants .3 --pval 1
 dumped parameter file to ./params.txt
 Number of markers found: 3
 dumping to ./Markers.colon.bed
@@ -177,19 +177,25 @@ dumping to ./Markers.pancreas.bed
 Here are the output markers (None found for the pancreas):
 ```bash
 $ head Markers.*.bed
+
 ==> Markers.colon.bed <==
-chr3    119528384       119528418       5394782 5394786 colon   chr3:119528384-119528418        4CpGs   34bp    0.92    0.45    46      M
-chr3    119528430       119528783       5394786 5394796 colon   chr3:119528430-119528783        10CpGs  353bp   0.76    0.28    48      M
-chr3    119528806       119529245       5394796 5394834 colon   chr3:119528806-119529245        38CpGs  439bp   0.76    0.0     75      M
+#chr    start   end     startCpG        endCpG  target  region  lenCpG  bp      tg_mean bg_mean delta_means     delta_quants   delta_maxmin     ttest   direction
+chr3    119528405       119528431       5394784 5394787 colon   chr3:119528405-119528431        3CpGs   26bp    0.861   0.21   0.651    0.642   0.642   0.00953 M
+chr3    119528639       119528783       5394789 5394796 colon   chr3:119528639-119528783        7CpGs   144bp   0.802   0.186  0.616    0.491   0.484   0.134   M
+chr3    119528806       119529245       5394796 5394834 colon   chr3:119528806-119529245        38CpGs  439bp   0.757   0.006180.75     0.748   0.748   0.0019  M
 
 ==> Markers.lung.bed <==
-chr3    119528246       119528309       5394777 5394781 lung    chr3:119528246-119528309        4CpGs   63bp    0.43    0.73    30      U
+#chr    start   end     startCpG        endCpG  target  region  lenCpG  bp      tg_mean bg_mean delta_means     delta_quants   delta_maxmin     ttest   direction
+chr3    119528246       119528388       5394777 5394784 lung    chr3:119528246-119528388        7CpGs   142bp   0.428   0.774  0.346    0.3     0.298   0.0882  U
 
 ==> Markers.pancreas.bed <==
+#chr    start   end     startCpG        endCpG  target  region  lenCpG  bp      tg_mean bg_mean delta_means     delta_quants   delta_maxmin     ttest   direction
+
 ```
 The 10th-11th columns are the target and background methylation average for this block.
-When there is more than one sample in a group, these values show the quantiles for the respected groups (e.g. for the first block, chr3:119528384-119528418, 0.45 is the 0.975-th quantile of the "non colon" group of samples). See [`supplemental/find_markers_config.txt`](../supplemental/find_markers_config.txt) for more information.
-The 12th is the difference between them (multiplied by 100).
+When there is more than one sample in a group, these values show the average across all samlpes in the group (e.g. for the first block, chr3:119528384-119528418, 0.21 is the average of the two "non colon" group of samples). See [`supplemental/find_markers_config.txt`](../supplemental/find_markers_config.txt) for more information.
+The 12th is the difference between them (multiplied by 100). 
+The `ttest` column is the p-value for a T-test. By default, DMRs with p-value>0.05 are filtered out (`--pval 0.05` flag).
 
 Let's take a look at the markers:
 ```bash
