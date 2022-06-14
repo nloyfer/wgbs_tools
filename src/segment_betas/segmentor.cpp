@@ -1,7 +1,8 @@
 //
 // Created by nloyfer on 11/2/18.
 //
-
+#include <stdexcept>
+#include <limits>
 #include "segmentor.h"
 /**
  * prints
