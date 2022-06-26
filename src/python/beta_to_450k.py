@@ -37,11 +37,12 @@ def load_full_ref(args, genome):
 
     df.columns = ['ilmn', 'cpg', 'array']
 
-    # filter to 450K sites (drop the 850K/EPIC ones):
-    if not args.EPIC:
+    # filter to 450K sites (drop the 850K/EPIC ones) if not user ref file was provided:
+    if (not args.EPIC) and (not args.ref):
         df = df[df['array'] == 450].reset_index(drop=True)
 
     return df[['ilmn', 'cpg']]
+
 
 def read_reference(args):
 
@@ -116,7 +117,7 @@ def parse_args():
     parser.add_argument('--ref', help='a reference file with one column, ' \
                         'of Illumina IDs, optionally with a header line.')
     parser.add_argument('--EPIC', action='store_true',
-                        help='output sites found in the EPIC array too')
+                        help='If no --ref is provided, output all 850K EPIC sites, instead of only 450K')
     add_multi_thread_args(parser)
     parser.add_argument('--genome', help='Genome reference name. Default is "default".', default='default')
     args = parser.parse_args()
@@ -132,6 +133,8 @@ def main():
             Only works for hg19.
     """
     args = parse_args()
+    if args.EPIC and args.ref:
+        eprint('[wt beta_450K] WARNING: --ref is provided, therefore EPIC flag is ignored')
     validate_file_list(args.input_files)
     betas2csv(args)
 
