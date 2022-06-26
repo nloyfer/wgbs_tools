@@ -31,8 +31,6 @@ add_cpg_count_tool = SRC_DIR + 'pipeline_wgbs/add_cpg_counts'
 allele_split_tool = SRC_DIR + 'pipeline_wgbs/snp_patter'
 bam_meth_split_tool = SRC_DIR + 'pipeline_wgbs/bam_split.sh'
 
-# TODO: support hg38
-ilmn2cpg_dict = op.join(path.parent.parent.parent, 'references/hg19/ilmn2CpG.tsv.gz')
 
 MAX_PAT_LEN = 150  # maximal read length in sites
 MAX_READ_LEN = 1000  # maximal read length in bp
@@ -64,6 +62,7 @@ class GenomeRefPaths:
         self.blocks = self.join('blocks.bed.gz', validate=False)
         self.blacklist = self.join('blacklist.bed', validate=False)
         self.whitelist = self.join('whitelist.bed', validate=False)
+        self.ilmn2cpg_dict = self.join('ilmn2CpG.tsv.gz', validate=False)
         self._chrom_cpg_size_table = None
         self._chrome_size_table = None
         self._chroms = None

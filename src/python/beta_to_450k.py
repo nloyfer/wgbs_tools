@@ -6,31 +6,62 @@ import numpy as np
 import os.path as op
 import pandas as pd
 from utils_wgbs import validate_single_file, validate_file_list, load_beta_data, \
-                       beta2vec, IllegalArgumentError, eprint, ilmn2cpg_dict, \
-                       add_multi_thread_args
+                       beta2vec, IllegalArgumentError, eprint, \
+                       add_multi_thread_args, GenomeRefPaths
+from view import beta_sanity_check
 from multiprocessing import Pool
 
 # https://support.illumina.com/array/array_kits/infinium-methylationepic-beadchip-kit/downloads.html
 
 
 def single_beta(beta_path, indices, cov_thresh):
-    return op.splitext(op.basename(beta_path))[0], \
-           beta2vec(load_beta_data(beta_path)[indices - 1], min_cov=cov_thresh)
+    name =  op.splitext(op.basename(beta_path))[0]
+    values = beta2vec(load_beta_data(beta_path)[indices - 1], min_cov=cov_thresh)
+    return name, values
 
 
-def read_reference(ref):
+def load_full_ref(args, genome):
     # read Illumina-to-CpG_Index table:
-    validate_single_file(ilmn2cpg_dict)
-    df = pd.read_csv(ilmn2cpg_dict, sep='\t', header=None, names=['ilmn', 'cpg'])
-    if ref is None:
+    df = pd.read_csv(validate_single_file(genome.ilmn2cpg_dict), sep='\t', header=None)
+
+    # in old versions of ilmn2cpg_dict it only contains the 450K sites (no 450/850 column)
+    # so ignore --EPIC flag, with a warning (not an error)
+    if df.shape[1] < 3:
+        if args.EPIC:
+            msg = 'WARNING: current setup does not support translation' \
+                        'to EPIC array.\n' \
+                        'Try re-installing wgbstools and re-initializing current genome.' \
+                        '\n--EPIC flag is ignored'
+            eprint('[wt beta_450K] ' + msg)
+        df['array'] = 450
+
+    df.columns = ['ilmn', 'cpg', 'array']
+
+    # filter to 450K sites (drop the 850K/EPIC ones):
+    if not args.EPIC:
+        df = df[df['array'] == 450].reset_index(drop=True)
+
+    return df[['ilmn', 'cpg']]
+
+def read_reference(args):
+
+    genome = GenomeRefPaths(args.genome)
+    if not (beta_sanity_check(args.input_files[0], genome)):
+        raise IllegalArgumentError('beta incompatible with genome')
+
+    # load "full" reference - the one supplied with wgbstools
+    df = load_full_ref(args, genome)
+    if args.ref is None:
         return df
 
-    # validate and read reference file
-    validate_single_file(ref)
-    rf = pd.read_csv(ref, header=None, usecols=[0], names=['ilmn'])
+    # load user input reference file
+    rf = pd.read_csv(validate_single_file(args.ref), header=None,
+                     usecols=[0], names=['ilmn'])
+
     # remove first row if it's not a cg entry:
+    # (This happens when the file has a header line)
     if pd.isna(rf['ilmn'][0]) or not rf['ilmn'][0].startswith('cg'):
-        rf = rf.iloc[1:, :]
+        rf = rf.iloc[1:, :].reset_index(drop=True)
 
     # merge reference file with map table
     mf = df.merge(rf, how='right', on='ilmn')
@@ -39,13 +70,15 @@ def read_reference(ref):
     # remove them and print a warning
     missing_sites = mf[mf['cpg'].isna()]
     if not missing_sites.empty:
-        msg = 'WARNING: Skipping some unrecognized Illumina IDs \n'
-        msg += f'(not found in the map table {ilmn2cpg_dict})\n'
+        msg = f'WARNING: Skipping {missing_sites.shape[0]} unrecognized Illumina IDs ' \
+                f'(not found in the map table {genome.ilmn2cpg_dict})\n'
         if not missing_sites['ilmn'].empty:
-            eprint(missing_sites['ilmn'])
-            eprint(list(missing_sites['ilmn']))
-            msg += 'The missing sites: {}'.format(','.join(map(str, missing_sites['ilmn'])))
-        eprint(msg)
+            # eprint(missing_sites['ilmn'])
+            # eprint(list(missing_sites['ilmn']))
+            msg += 'Example for missing sites: {}'.format(','.join(map(str, missing_sites['ilmn'].head())))
+            if not args.EPIC:
+                msg += '\nconsider using --EPIC flag'
+        eprint('[wt beta_450K] ' + msg)
     mf = mf[~mf['cpg'].isna()]
 
     mf['cpg'] = mf['cpg'].astype(int)
@@ -53,7 +86,10 @@ def read_reference(ref):
 
 
 def betas2csv(args):
-    df = read_reference(args.ref)
+
+    # set reference sites, as the intersection of the user input (--ref) 
+    # and the "full" reference, supplied by wgbstools (ilmn2cpg_dict)
+    df = read_reference(args)
     indices = np.array(df['cpg'])
 
     p = Pool(args.threads)
@@ -79,23 +115,27 @@ def parse_args():
                         'cov_thresh are ignored [3]')
     parser.add_argument('--ref', help='a reference file with one column, ' \
                         'of Illumina IDs, optionally with a header line.')
+    parser.add_argument('--EPIC', action='store_true',
+                        help='output sites found in the EPIC array too')
     add_multi_thread_args(parser)
+    parser.add_argument('--genome', help='Genome reference name. Default is "default".', default='default')
     args = parser.parse_args()
     return args
 
 
 def main():
     """
-    Convert beta file[s] to Illumina-450K format.
-    Output: a csv file with ~480K rows, for the ~480K Illumina sites,
+    Convert beta (or lbeta) file[s] to Illumina-450K (or EPIC) format.
+    Output: a csv file with up to ~480K (or 850K) rows, for the Illumina array sites,
             and with columns corresponding to the beta files.
             all values are in range [0, 1], or NA.
             Only works for hg19.
     """
     args = parse_args()
-    validate_file_list(args.input_files, '.beta')
+    validate_file_list(args.input_files)
     betas2csv(args)
 
 
 if __name__ == '__main__':
     main()
+
