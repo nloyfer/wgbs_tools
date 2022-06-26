@@ -5,7 +5,7 @@ import numpy as np
 import os.path as op
 from utils_wgbs import load_beta_data2, validate_single_file, \
     IllegalArgumentError, catch_BrokenPipeError, view_beta_script, \
-    view_lbeta_script #, check_executable
+    view_lbeta_script, eprint #, check_executable
 from genomic_region import GenomicRegion
 from cview import cview, subprocess_wrap_sigpipe, add_view_flags
 
@@ -60,6 +60,17 @@ def view_beta(beta_path, gr, opath, bed_path):
     """
 
     cmd = bview_build_cmd(beta_path, gr, bed_path)
+
+    # sanity test: make sure beta file has the correct number of sites 
+    # (fits current genome)
+    nr_sites_in_beta = int(op.getsize(beta_path) / 2)
+    if beta_path.endswith('.lbeta'):
+        nr_sites_in_beta /= 2
+    if nr_sites_in_beta != gr.genome.get_nr_sites():
+        eprint(f'[wt view] WARNING: beta file size ({nr_sites_in_beta:,} sites)\n' \
+               f'          incomatible with current genome reference ' \
+               f'({gr.genome.get_nr_sites():,} sites)')
+
     if opath is not None:
         if opath.endswith('.gz'):
             cmd += ' | gzip -c '
