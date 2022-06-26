@@ -175,10 +175,11 @@ class InitGenome:
             set_def_ref(self.name)
 
     def add_supp(self):
+        path = Path(op.realpath(__file__))
+        suppdir = op.join(path.parent.parent.parent, 'supplemental')
+
         if self.name == 'hg19':
             # link annotation files
-            path = Path(op.realpath(__file__))
-            suppdir = op.join(path.parent.parent.parent, 'supplemental')
             anno_file = op.join(suppdir, 'hg19.annotations.bed.gz')
             dst_anno = op.join(self.out_dir, 'annotations.bed.gz')
             if op.isfile(anno_file) and op.isfile(anno_file + '.tbi'):
