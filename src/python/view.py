@@ -50,6 +50,20 @@ def bview_build_cmd(beta_path, gr, bed_path):
     return cmd
 
 
+def beta_sanity_check(beta_path, genome):
+    # sanity test: make sure beta file has the correct number of sites 
+    # (fits current genome)
+    nr_sites_in_beta = int(op.getsize(beta_path) / 2)
+    if beta_path.endswith('.lbeta'):
+        nr_sites_in_beta /= 2
+    if nr_sites_in_beta != genome.get_nr_sites():
+        eprint(f'[wt beta] WARNING: beta file size ({nr_sites_in_beta:,} sites)\n' \
+               f'          incomatible with current genome reference ' \
+               f'({genome.get_nr_sites():,} sites)')
+        return False
+    return True
+
+
 def view_beta(beta_path, gr, opath, bed_path):
     """
     View beta file in given region/sites range/s
@@ -60,16 +74,7 @@ def view_beta(beta_path, gr, opath, bed_path):
     """
 
     cmd = bview_build_cmd(beta_path, gr, bed_path)
-
-    # sanity test: make sure beta file has the correct number of sites 
-    # (fits current genome)
-    nr_sites_in_beta = int(op.getsize(beta_path) / 2)
-    if beta_path.endswith('.lbeta'):
-        nr_sites_in_beta /= 2
-    if nr_sites_in_beta != gr.genome.get_nr_sites():
-        eprint(f'[wt view] WARNING: beta file size ({nr_sites_in_beta:,} sites)\n' \
-               f'          incomatible with current genome reference ' \
-               f'({gr.genome.get_nr_sites():,} sites)')
+    beta_sanity_check(beta_path, gr.genome)
 
     if opath is not None:
         if opath.endswith('.gz'):
