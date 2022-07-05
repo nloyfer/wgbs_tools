@@ -346,6 +346,7 @@ patter::MethylData meth_pattern_count(std::string meth_pattern) {
     }
     res.countMethyl = countMethyl;
     res.countUnmethyl = countUnmethyl;
+    res.pattern = meth_pattern;
     return res;
 }
 
@@ -359,6 +360,7 @@ patter::MethylData patter::merge_and_count_methyl_data(std::vector <std::string>
         patter::MethylData res;
         res.countMethyl = 0;
         res.countUnmethyl = 0;
+        res.pattern = "";
         return res;
     }
     if (l1.empty()) {
@@ -372,6 +374,7 @@ patter::MethylData patter::merge_and_count_methyl_data(std::vector <std::string>
         patter::MethylData res;
         res.countMethyl = 0;
         res.countUnmethyl = 0;
+        res.pattern = "";
         return res;
     }
     patter::MethylData res = meth_pattern_count(l1a[2]);
@@ -380,7 +383,12 @@ patter::MethylData patter::merge_and_count_methyl_data(std::vector <std::string>
 }
 
 std::string patter::samLineMethyldataMakeString(std::string originalLine, patter::MethylData md) {
-    return '\t' + TAGNAMETYPE + std::to_string(md.countMethyl) + ',' + std::to_string(md.countUnmethyl) + '\n';
+    std::string intermediate = '\t' + TAGNAMETYPE + std::to_string(md.countMethyl) + ',' + std::to_string(md.countUnmethyl);
+    if (print_pat){
+        return  intermediate + '\t' + PATTAGNAMETYPE + md.pattern + '\n';
+    } else {
+        return intermediate + '\n';
+    }
 }
 
 
@@ -644,8 +652,12 @@ int main(int argc, char **argv) {
                 throw std::invalid_argument("Invalid clip argument. Should be a non-negative integer.");
             clip = std::stoi(clip_str);
         }
+        bool print_pat = false;
+        if (input.cmdOptionExists("--pat")){
+            print_pat = true;
+        }
         if (argc >= 4) {
-            patter p(argv[1], argv[2], min_cpg, clip);
+            patter p(argv[1], argv[2], min_cpg, clip, print_pat);
             p.action_sam("");
         } else{
 

@@ -178,6 +178,7 @@ char snp_patter::compareSeqToRef(std::string &seq,
                                 std::string &ref,
                                 bool bottom,
                                 std::string &meth_pattern,
+                                std::string &qual_str,
                                 int start_pos) {
     /** compare seq string to ref string. generate the methylation pattern, and return
      * the CpG index of the first CpG site in the seq (or -1 if there is none) */
@@ -186,6 +187,10 @@ char snp_patter::compareSeqToRef(std::string &seq,
     int snp_index = snp_pos - start_pos;
     if (snp_index >= seq.length()) {
         return snp_letter;
+    }
+    int qual = int(qual_str[snp_index]) - 33;
+    if (qual < qual_filter){
+        return 'Z';
     }
     char snp_val = seq[snp_index];
     if (((snp_let1 == 'C' && snp_let2 == 'T') || (snp_let2 == 'C' && snp_let1 == 'T')) && !bottom){
@@ -298,10 +303,12 @@ char snp_patter::samLineToPatVec(std::vector <std::string> tokens) {
         unsigned long start_locus = stoul(tokens[3]);   // Fourth field from bam file
         int samflag = stoi(tokens[1]);
         std::string seq = tokens[9];
+        std::string qual_str = tokens[10];
         //std::string bp_qual = tokens[10];
         std::string CIGAR = tokens[5];
 
         seq = clean_CIGAR(seq, CIGAR);
+        qual_str = clean_CIGAR(qual_str, CIGAR);
 
 //        unsigned long seq_len = seq.length();   // We may need the original length later.
         std::string ref = "";//genome_ref.substr(start_locus - 1, seq_len);
@@ -318,7 +325,7 @@ char snp_patter::samLineToPatVec(std::vector <std::string> tokens) {
             return 'Z';
         }
 
-        return compareSeqToRef(seq, ref, bottom, meth_pattern, start_locus);
+        return compareSeqToRef(seq, ref, bottom, meth_pattern, qual_str, start_locus);
     }
     catch (std::exception &e) {
         std::string msg = "[ " + chr + " ] " + "Exception while processing line "
@@ -507,7 +514,14 @@ void snp_patter::proc_sam_in_stream(std::istream& in){
             }
         }
     }
-    if (! tokens1.empty()) { proc1line(tokens1); }
+    if (! tokens1.empty()) {
+        char snp_let = proc1line(tokens1);
+        tokens1 = tokens2;
+        read1 = read2;
+        if (snp_let == snp_let1){
+            std::cout << read1 << "\n";
+        }
+    }
 
     print_stats_msg();
 }
@@ -573,6 +587,7 @@ int main(int argc, char **argv) {
         long snp_pos = -1;
         char snp_let1 = 'Z';
         char snp_let2 = 'Z';
+        int quality_filter = 0;
         if (input.cmdOptionExists("--snp_pos")){
             std::string snp_pos_string = input.getCmdOption("--snp_pos");
 
@@ -596,10 +611,17 @@ int main(int argc, char **argv) {
         } else {
             throw std::invalid_argument("must provide snp letter two.");
         }
+        if (input.cmdOptionExists("--qual_filter")){
+            std::string qual_str = input.getCmdOption("--qual_filter");
+
+            if ( !is_number(qual_str) )
+                throw std::invalid_argument("invalid qual_filter argument. qual_filter should be a non-negative integer.");
+            quality_filter = std::stoi(qual_str);
+        }
         if (argc < 3) {
             throw std::invalid_argument("Usage: patter GENOME_PATH CPG_CHROM_SIZE_PATH [--bam] [--mbias MBIAS_PATH]");
         }
-        snp_patter p(snp_pos, snp_let1, snp_let2);
+        snp_patter p(snp_pos, snp_let1, snp_let2, quality_filter);
         p.action("");
 
     }

@@ -49,8 +49,10 @@ public:
     std::string genome_ref;
     reads_stats readsStats;
     std::string TAGNAMETYPE = "YI:Z:";
+    std::string PATTAGNAMETYPE = "XP:Z:";
     std::vector <std::string> dummy_tokens;
     int clip_size = 0;
+    bool print_pat =false;
     int min_cpg = 0;
     int line_i = 0;
     bool is_paired_end = false;
@@ -62,10 +64,11 @@ public:
     struct MethylData {
         int countMethyl; int countUnmethyl;
         int originalIndex;
+        std::string pattern;
     };
 
 
-    patter(std::string refpath,  std::string rgn, int min_len, int clip): ref_path(refpath), region(rgn), min_cpg(min_len), clip_size(clip) {}
+    patter(std::string refpath,  std::string rgn, int min_len, int clip, bool print_pat): ref_path(refpath), region(rgn), min_cpg(min_len), clip_size(clip), print_pat(print_pat) {}
 
     void load_genome_ref();
     int find_cpg_inds_offset();

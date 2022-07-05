@@ -22,7 +22,7 @@ BAM_SUFF = '.bam'
 
 
 def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end, ex_flags, mapq, debug, min_cpg, clip,
-             bed_file):
+             bed_file, add_pat, in_flags):
     """ Convert a temp single chromosome file, extracted from a bam file,
         into a sam formatted (no header) output file."""
 
@@ -34,7 +34,11 @@ def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end,
 
     # use samtools to extract only the reads from 'chrom'
     # flag = '-f 3' if paired_end else ''
-    cmd = "samtools view {} {} -q {} -F {} ".format(input_path, region, mapq, ex_flags)
+    if in_flags is None:
+        in_flags = '-f 3' if paired_end else ''
+    else:
+        in_flags = f'-f {in_flags}'
+    cmd = "samtools view {} {} -q {} -F {} {}".format(input_path, region, mapq, ex_flags, in_flags)
     if bed_file is not None:
         cmd += f"-M -L {bed_file} | "
     else:
@@ -44,9 +48,11 @@ def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end,
     if paired_end:
         # change reads order, s.t paired reads will appear in adjacent lines
         cmd += f'{match_maker_tool} | '
-    cmd += f'{add_cpg_count_tool} {genome.dict_path} {extend_region(region)} --clip {clip} '
+    cmd += f'{add_cpg_count_tool} {genome.dict_path} {extend_region(region)} --clip {clip}'
     if min_cpg is not None:
-        cmd += f'--min_cpg {str(min_cpg)}'
+        cmd += f' --min_cpg {str(min_cpg)}'
+    if add_pat:
+        cmd += ' --pat'
     cmd += f' | cat {header_path} - | samtools view -b - > {unsorted_bam}'
 
     sort_cmd = f'samtools sort -o {out_path} -T {out_directory} {unsorted_bam}'  # TODO: use temp directory, as in bam2pat
@@ -76,6 +82,7 @@ class BamMethylData:
         self.out_dir = args.out_dir
         self.bam_path = bam_path
         self.debug = args.debug
+        self.add_pat = args.add_pat
         self.gr = GenomicRegion(args)
         self.validate_input()
 
@@ -163,7 +170,8 @@ class BamMethylData:
                     out_path_name = name + '_' + c
                     params = (self.bam_path, out_path_name, c, self.gr.genome,
                             header_path, is_pair_end(self.bam_path), self.args.exclude_flags,
-                            self.args.mapq, self.debug, self.args.min_cpg, self.args.clip, self.args.regions_file)
+                            self.args.mapq, self.debug, self.args.min_cpg, self.args.clip, self.args.regions_file,
+                              self.add_pat, self.args.include_flags)
                     processes.append(p.apply_async(proc_chr, params))
                 if not processes:
                     raise IllegalArgumentError('Empty bam file')
@@ -176,7 +184,8 @@ class BamMethylData:
             out_path_name = name + '_' + "1"
             res = [proc_chr(self.bam_path, out_path_name, self.gr.region_str, self.gr.genome, header_path,
                             is_pair_end(self.bam_path), self.args.exclude_flags, self.args.mapq, self.debug,
-                            self.args.min_cpg, self.args.clip)]
+                            self.args.min_cpg, self.args.clip, self.args.regions_file,
+                              self.add_pat, self.args.include_flags)]
         print('finished adding CpG counts')
         if None in res:
             print('threads failed')
@@ -219,6 +228,8 @@ def add_cpg_args(parser):
     parser.add_argument('--suffix', default="counts",
                         help='The output file suffix. The output file will be [in_file].[suffix].bam. By default the '
                              'suffix is "counts".')
+    parser.add_argument('--add_pat', action='store_true',
+                        help='Indicates whether to add the methylation pattern of the read (pair).')
     return parser
 
 

@@ -50,6 +50,7 @@ public:
     long snp_pos;
     char snp_let1;
     char snp_let2;
+    int qual_filter;
     std::unordered_map<int, int> dict;
     std::string genome_ref;
     reads_stats readsStats;
@@ -60,10 +61,10 @@ public:
     bool blueprint = false;
     bool first_line(std::string &line);
 
-    snp_patter(long sp, char sl1, char sl2):
-            snp_pos(sp), snp_let1(sl1), snp_let2(sl2) {}
+    snp_patter(long sp, char sl1, char sl2, int qual_filter):
+            snp_pos(sp), snp_let1(sl1), snp_let2(sl2), qual_filter(qual_filter) {}
 
-    char compareSeqToRef(std::string &seq, std::string &ref, bool bottom, std::string &meth_pattern, int start_pos);
+    char compareSeqToRef(std::string &seq, std::string &ref, bool bottom, std::string &meth_pattern, std::string &qual_str, int start_pos);
     void print_stats_msg();
     void print_progress();
     std::string clean_CIGAR(std::string seq, std::string CIGAR);
