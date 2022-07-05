@@ -244,6 +244,9 @@ def main():
     args = parser.parse_args()
     validate_local_exe(add_cpg_count_tool)
     for bam in args.bam:
+        if not validate_bam(bam):
+            eprint(f'[wt add_cpg_counts] Skipping {bam}')
+            continue
         BamMethylData(args, bam).start_threads()
 
 
