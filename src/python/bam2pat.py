@@ -135,7 +135,7 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, mapq
     # run patter tool to convert bam reads to pat reads
     patter_cmd = f' | {patter_tool} {genome.dict_path} {extend_region(region)}'
     patter_cmd += f' --min_cpg {min_cpg} --clip {clip}'
-    if mbias and paired_end:  # mbias for single-end is not yet implemented
+    if mbias:
         patter_cmd += f' --mbias {out_path}.mb'
 
     if blueprint:
@@ -244,6 +244,7 @@ class Bam2Pat:
         """ Parse each chromosome file in a different process,
             and concatenate outputs to pat files """
 
+        self.PE = is_pair_end(self.bam_path)
         blist, wlist = self.set_lists()
         name = op.join(self.out_dir, op.basename(self.bam_path)[:-4])
         # build temp dir:
@@ -259,7 +260,7 @@ class Bam2Pat:
             for c in cur_regions:
                 out_path = f'{tmp_prefix}.{c}.out'
                 par = (self.bam_path, out_path, c, self.gr.genome,
-                       is_pair_end(self.bam_path), self.args.exclude_flags,
+                       self.PE, self.args.exclude_flags,
                        self.args.include_flags,
                        self.args.mapq, self.args.debug, self.args.blueprint, self.args.clip,
                        self.args.temp_dir, blist, wlist, self.args.min_cpg,
@@ -311,7 +312,7 @@ class Bam2Pat:
             mdir = op.join(self.out_dir, name) + '.mbias'
             mkdirp(mdir)
             tpaths = []
-            for x in ['OB', 'OT']:
+            for x in ['OT', 'OB']:
                 mbias_parts = [p.replace('.pat.gz', f'.mb.{x}.txt') for p in pat_parts if p]
                 mbias_parts = [pd.read_csv(m, sep='\t') for m in mbias_parts]
                 df = mbias_parts[0]
@@ -321,7 +322,7 @@ class Bam2Pat:
                 df.to_csv(cpath, sep='\t', index=None)
                 tpaths.append(cpath)
             from mbias_plot import plot_mbias
-            plot_mbias(tpaths, mdir)
+            plot_mbias(tpaths, mdir, self.PE)
         except Exception as e:
             eprint('[wt bam2pat] failed in mbias')
             eprint(e)

@@ -102,18 +102,9 @@ void patter::load_genome_ref() {
 
 /***************************************************************
  *                                                             *
- *               Niche                                         *
+ *               M-bias                                        *
  *                                                             *
  ***************************************************************/
-
-void dump_mbias_helper(mbias_ss *mb, std::string outpath);
-void patter::dump_mbias() {
-    /** dump mbias info. Not finished or tested. */
-    if (mbias_path == "") { return; }
-    dump_mbias_helper(mbias_OT, mbias_path + ".OT.txt");
-    dump_mbias_helper(mbias_OB, mbias_path + ".OB.txt");
-
-}
 
 void dump_mbias_helper(mbias_ss *mb, std::string outpath) {
     std::ofstream mbias_stream(outpath);
@@ -130,6 +121,15 @@ void dump_mbias_helper(mbias_ss *mb, std::string outpath) {
     }
     mbias_stream.close();
 }
+
+void patter::dump_mbias() {
+    /** dump mbias info. Not finished or tested. */
+    if (mbias_path == "") { return; }
+    dump_mbias_helper(mbias_OT, mbias_path + ".OT.txt");
+    dump_mbias_helper(mbias_OB, mbias_path + ".OB.txt");
+
+}
+
 
 
 /***************************************************************
@@ -230,17 +230,22 @@ int patter::compareSeqToRef(std::string &seq,
     int mbias_ind;
     mbias_ss *mb;
     bool skip_mbias = false;
-    if ((samflag & 0x53) == 0x53) {mb = mbias_OB; mbias_ind = 0;} // 83
-    else if ((samflag & 0xA3) == 0xA3) {mb = mbias_OB; mbias_ind = 1;} // 163
-    else if ((samflag & 0x63) == 0x63) {mb = mbias_OT; mbias_ind = 0;} // 99
-    else if ((samflag & 0x93) == 0x93) {mb = mbias_OT; mbias_ind = 1;} // 147
-    else { skip_mbias = true; }
+    if (is_paired_end) {
+        if ((samflag & 0x53) == 0x53) {mb = mbias_OB; mbias_ind = 0;} // 83
+        else if ((samflag & 0xA3) == 0xA3) {mb = mbias_OB; mbias_ind = 1;} // 163
+        else if ((samflag & 0x63) == 0x63) {mb = mbias_OT; mbias_ind = 0;} // 99
+        else if ((samflag & 0x93) == 0x93) {mb = mbias_OT; mbias_ind = 1;} // 147
+        else { skip_mbias = true; }
+    } else {
+        mbias_ind = 0;
+        mb = bottom ? mbias_OB : mbias_OT;
+    }
     
     // generate the methylation pattern (e.g 'CC.TC'),
     // by comparing the given sequence to reference at the CpG indexes
     char cur_status;
     int j;
-    int nr_cpgs = 0;
+    int mj;
     int first_ind = -1;
     for (unsigned long i = 0; i < seq.length(); i++) {
         
@@ -249,22 +254,31 @@ int patter::compareSeqToRef(std::string &seq,
         if ((start_locus + i) > (bsize - 1)) {
             continue;  
         }
-        if (i >= MAX_READ_LEN) {skip_mbias = false;}
+        mj = bottom ? (seq.length() - i - 1) : i;
+        if (mj >= MAX_READ_LEN) {skip_mbias = true;} // read is too long. skip it to avoid seg. fault
         if (conv[start_locus + i]) {
-            j = i + ro.shift;
+            j = i + ro.shift;  // add a 1-pos shift for bottom strands
             char s = seq[j];
             cur_status = UNKNOWN;
             if (s == ro.unmeth_seq_chr) {
                 cur_status = UNMETH;
-                if (!skip_mbias) mb[mbias_ind].unmeth[j]++;
-            } else if (s == ro.ref_chr) {
+                if (!skip_mbias) {
+                    mb[mbias_ind].unmeth[mj]++;
+                }
+            } 
+            else if (s == ro.ref_chr) {
                 cur_status = METH;
-                if (!skip_mbias) mb[mbias_ind].meth[j]++;
+                if (!skip_mbias) {
+                    mb[mbias_ind].meth[mj]++;
+                }
             }
+
             // ignore first/last 'clip_size' characters, since they are often biased
+            // TODO: allow 4 different clip sizes (OT,OB,CTOT,CTOB)
             if (!((j >= clip_size) && (j < seq.size() - clip_size))) {
                 cur_status = UNKNOWN;
             }
+            // find first CpG index
             if ((first_ind < 0) && (cur_status != UNKNOWN)) {
                 first_ind = locus2CpGIndex(start_locus + i); 
             }
