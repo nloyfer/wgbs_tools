@@ -47,7 +47,11 @@ def groups_load_wrap(groups_file, betas):
         fnames = [op.splitext(op.basename(b))[0] for b in betas]
         gf = pd.DataFrame(columns=['fname'], data=fnames)
         gf['group'] = gf['fname']
-    gf['full_path'] = match_prefix_to_bin(gf['fname'], betas, '.beta')
+
+    suff = '.beta'
+    if betas[0].endswith('.lbeta'):
+        suff = '.lbeta'
+    gf['full_path'] = match_prefix_to_bin(gf['fname'], betas, suff)
     return gf
 
 
