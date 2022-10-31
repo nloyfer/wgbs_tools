@@ -37,8 +37,11 @@ wgbstools init_genome GENOME_NAME --fasta_path /path/to/genome.fa
 ```
 
 #### Dependencies
-- python 3+
+- python 3+, with libraries:
+    - pandas version 1.0+
+    - numpy
 - samtools
+- tabix / bgzip
 #### Dependencies for some features:
 - bedtools
 
