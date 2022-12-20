@@ -7,7 +7,8 @@ import subprocess
 from utils_wgbs import delete_or_skip, validate_file_list, GenomeRefPaths, \
                        add_GR_args, IllegalArgumentError, check_executable
 from genomic_region import GenomicRegion
-from beta2bed import beta_to_bed
+from beta2bed import beta_to_bed, beta2bed_build_cmd
+from cview import subprocess_wrap_sigpipe
 import os
 import numpy as np
 
@@ -36,6 +37,8 @@ class BetaToBigWig:
         """
 
         # Convert bedGraph to bigWig:
+        b2bw_log(f'[{self.name}] sort bedgraph...')
+        subprocess.check_call('sort -k1,1 -k2,2n {o} -o {o}'.format(o=bed_graph), shell=True)
         b2bw_log(f'[{self.name}] convert bed to bigwig...')
         subprocess.check_call(['bedGraphToBigWig', bed_graph, self.chrom_sizes, bigwig])
 
@@ -52,7 +55,9 @@ class BetaToBigWig:
 
         prefix = op.join(self.outdir, op.splitext(self.name)[0])
         out_bigwig = prefix + BW_EXT
+        out_cov_bigwig = prefix + '.cov' + BW_EXT
         out_bed_graph = prefix + BG_EXT
+        out_cov_bed_graph = prefix + '.cov' + BG_EXT
 
         # Check if the current file should be skipped:
         if not delete_or_skip(out_bigwig, self.args.force):
@@ -71,6 +76,22 @@ class BetaToBigWig:
 
         # convert bedGraphs to bigWigs:
         self.bed_graph_to_bigwig(out_bed_graph, out_bigwig)
+
+        if self.args.dump_cov:
+            # convert beta to bed:
+            b2bw_log(f'[{self.name}] Dumping cov bed...')
+            cmd = beta2bed_build_cmd(beta_path=beta_path,
+                               gr=self.gr,
+                               bed_file=self.args.bed_file,
+                               min_cov=self.args.min_cov,
+                               mean=False,
+                               keep_na=self.args.keep_na)
+            cmd += " | awk '{print $1,$2,$3,$5}' | sort -k1,1 -k2,2n"
+            cmd += f' > {out_cov_bed_graph}'
+            subprocess_wrap_sigpipe(cmd)
+
+            # convert bedGraphs to bigWigs:
+            self.bed_graph_to_bigwig(out_cov_bed_graph, out_cov_bigwig)
 
 
 def parse_args():
