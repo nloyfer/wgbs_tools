@@ -204,3 +204,69 @@ for target in `tail +2 bams/groups.csv| cut -f2 -d,`; do echo "=====\n$target\n=
 
 <!--![alt text](images/wt_vis_markers.png "beta vis all markers")-->
 <img src="images/wt_vis_markers.png" width="600" height="600" />
+
+## Bimodal and ASM analysis
+
+Bimodal regions are those where CpG methylation is distributed from two differently behaving sources. One common example of this, in samples with pure cell types, is allele-specific methylation (ASM). Allele specific methylation is the phenomenon whereby one allele is highly methylated and the other is lowly methylated. This occurs in sequence-dependent ASM, meQTLs, and imprinting control regions, as well as some other phenomenon. wgbstools provides tools for bimodal and ASM analysis.
+
+We begin by creating pat files for our bam:
+```bash
+wgbstools bam2pat bams/Left_Ventricle_STL001.IGF2.bam
+```
+
+We then set a region and visualize it:
+```bash
+region=chr11:2019196-2019796
+wgbstools vis -r $region Left_Ventricle_STL001.IGF2.pat.gz
+```
+<!--![alt text](images/vis_bimodal.png "vis bimodal region")-->
+<img src="images/vis_bimodal.png" width="361" height="584" />
+
+This region is inside of the well known ICR of IGF2. We can see that most of the reads are either mostly methylated or mostly unmethylated, or bimodal, thus suggesting allele-specific methylation.
+
+#### Bimodal analysis
+
+We can get counts for the amount of reads above 65% methylation, below 35% methylation, and in between, as well as visualiztion like so:
+
+```bash
+wgbstools vis -r $region Left_Ventricle_STL001.IGF2.pat.gz --uxm 0.65
+```
+<!--![alt text](images/wgbstools_vis_uxm.png "vis bimodal region with reads classified")-->
+<img src="images/wgbstools_vis_uxm.png" width="429" height="575" />
+
+We can see that we have over 200 reads with 51.2% below 35% methylation,  47.3% above 65% methylation, and 1.4% with methlyation levels between 35-65%.
+
+We can conduct a statistical test to verify that this region is indeed bimodal. We will test whether the hypothesis that all reads are generated from a single distribution is more likely than the hypothesis that there are two distinct distributions (with differing probabilities for each CpG to be methylated) from which each read is generated.
+
+```bash
+wgbstools test_bimodal -r $region Left_Ventricle_STL001.IGF2.pat.gz
+LL: -1401.2486342579095 | 281 reads | 1437 observed | BPI: 0.5087178153029501
+LL: -457.82607811961105 | 281 reads | 1437 observed | BPI: 0.8018590355733447
+pvalue: 0.000e+00
+```
+
+We can see that the log-likelihood of the two-distribution/two-allele model is much higher than the single-allele model and the p-value is ~0.
+
+#### ASM analysis
+
+We now wish to verify that there is indeed allele-specific methylation. We identify a C/A heterozygous polymorphism at chr11:2019496 within our region of interest. This can be done with various tools (bisulfite SNP calling). We use the IGV to verify that there is indeed at a heterozygous polymorphism:
+<!--![alt text](images/IGV_heterozygous.png "IGV view")-->
+<img src="images/IGV_heterozygous.png" width="567" height="358" />
+
+
+To see whether there is allele-specific methylation we collect all reads which contain the C genotype into one bam/pat and all the reads which contain the A genotype into another bam/pat file:
+
+```bash
+snp=chr11:2019496
+wgbstools split_by_allele bams/Left_Ventricle_STL001.IGF2.bam $snp C/A --no_beta -f
+```
+
+We then visualize the results:
+
+```bash
+wgbstools vis -r $region Left_Ventricle_STL001.IGF2.chr11:2019496*pat.gz
+```
+<!--![alt text](images/split_by_allele.png "split by alleles C/A")-->
+<img src="images/split_by_allele.png" width="399" height="627" />
+
+As we can see, almost all of the reads with the A genotype are meythlated while all of the reads with the C genotype are unmethylated. 
