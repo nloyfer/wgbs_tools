@@ -55,8 +55,11 @@ def subprocess_wrap(cmd, debug):
 def gen_pat_part(out_path, debug, temp_dir):
     try:
         # if out_path is empty or missing, return None
-        if not op.isfile(out_path) or op.getsize(out_path) == 0:
-            eprint(f'[wt bam2pat] failed in patter')
+        if not op.isfile(out_path):
+            eprint(f'[wt bam2pat] Failed in patter: file {out_path} is missing')
+            return
+        if op.getsize(out_path) == 0:
+            eprint(f'[wt bam2pat] Failed in patter: file {out_path} is empty')
             return
         # sort
         pat_path = out_path + PAT_SUFF
@@ -187,6 +190,7 @@ class Bam2Pat:
         self.out_dir = args.out_dir
         self.bam_path = bam
         self.gr = GenomicRegion(args)
+        self.PE = None
         self.start_threads()
         self.cleanup()
 

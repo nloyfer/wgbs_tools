@@ -95,6 +95,10 @@ class MarkerFinder:
 
         # load all blocks
         blocks = self.load_blocks()
+        if blocks.empty:
+            eprint('Empty block set. Abort')
+            return
+
         # load data in chunks
         chunk_size = self.args.chunk_size
         self.nr_chunks = ceil(blocks.shape[0] / chunk_size)
@@ -128,6 +132,8 @@ class MarkerFinder:
         # load blocks file and filter it by CpG and bg length
 
         df = load_blocks_file(self.args.blocks_path, anno=True)
+        if df.empty:
+            return df
         orig_nr_blocks = df.shape[0]
 
         # filter by lenCpG
@@ -278,8 +284,11 @@ class MarkerFinder:
         tfX['delta_maxmin'] = tfX[self.bg_names].min(axis=1) - tfX[self.tg_names].max(axis=1)
 
         # Compute means for target and background
-        tfX['tg_mean'] = np.nanmean(tfX[self.tg_names], axis=1)
-        tfX['bg_mean'] = np.nanmean(tfX[self.bg_names], axis=1)
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            tfX['tg_mean'] = np.nanmean(tfX[self.tg_names], axis=1)
+            tfX['bg_mean'] = np.nanmean(tfX[self.bg_names], axis=1)
         tfX['delta_means'] = tfX['bg_mean'] - tfX['tg_mean']
 
         # filter by mean thresholds

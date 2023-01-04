@@ -75,9 +75,13 @@ def convert_bed_file(args):
 
 def load_bed(bed_path, nrows=None):
     try:
-        # TODO: handle a bed with a header line? But support stdin as input...
+        # TODO: handling a bed with a header line. Test
         df = pd.read_csv(bed_path, sep='\t', header=None, nrows=nrows, comment='#')
         df.columns = COORDS_COLS3 + list(df.columns)[3:]
+        if not (str(df.iloc[0, 1]).isdigit() and str(df.iloc[0, 2]).isdigit()):
+            eprint(f'[wt convert] Header line detected. Ignoring first line of input')
+            df = df.iloc[1: , :].reset_index(drop=True)
+            df = df.astype({'start': int, 'end': int})
         return df
     except pd.errors.EmptyDataError as e:
         eprint(f'[wt convert] ERROR: empty bed file')
@@ -256,7 +260,8 @@ def get_anno(df, genome, bed_file):
         anno_path = GenomeRefPaths(genome).annotations
         if anno_path is None:
             return df
-        cmd = f'cut -f1-3 {bed_file} | sort -k1,1 -k2,2n -u | '
+        cmd = 'gunzip -c' if bed_file.endswith('gz') else 'cat'
+        cmd += f' {bed_file} | cut -f1-3 | sort -k1,1 -k2,2n -u | '
         cmd += f'bedtools intersect -a - -b {anno_path} -wao | '
         cmd += f'bedtools merge -i - -c 7,8 -o distinct,distinct'
         names = COORDS_COLS3 + ['type', 'gene']
@@ -264,6 +269,7 @@ def get_anno(df, genome, bed_file):
         return df.merge(rf, how='left', on=COORDS_COLS3)
     except Exception as e:
         eprint(f'[wt convert] WARNING: No annotations added.')
+        eprint(cmd)
         eprint(e)
         return df
 
