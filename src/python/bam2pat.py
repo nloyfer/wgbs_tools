@@ -223,6 +223,7 @@ class Bam2Pat:
             msg = '[wt bam2pat] Failed retrieving valid chromosome names. '
             msg += 'Perhaps you are using a wrong genome reference. '
             msg += 'Try running:\n\t\twgbstools set_default_ref -ls'
+            eprint(msg)
             raise IllegalArgumentError('Failed')
 
         return list(sorted(intersected_chroms, key=chromosome_order))  # todo use the same order as in ref_chroms instead of resorting it
