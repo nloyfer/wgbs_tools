@@ -70,3 +70,5 @@ wgbstools vis *.beta -r chr3:119528843-119529245 --heatmap
 <!--![alt text](docs/img/colon.beta.png "beta vis example")-->
 <img src="docs/img/colon.beta.png" width="450" height="600" />
 
+### Deconvolution
+To deconvolve tissues or blood samples, see our [UXM](https://github.com/nloyfer/UXM_deconv) software
