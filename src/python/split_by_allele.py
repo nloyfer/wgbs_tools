@@ -60,7 +60,7 @@ def gen_pat_part(out_path, debug, temp_dir):
         return None
 
 
-def proc_chr(bam, out_path, name, snp_pos, snp_let1, snp_let2, ex_flags, mapq, debug, verbose, no_beta, no_pat, snp_qual):
+def proc_chr(bam, out_path, name, snp_pos, snp_let1, snp_let2, ex_flags, mapq, debug, verbose, no_beta, no_pat, snp_qual, genome):
     """ Convert a temp single chromosome file, extracted from a bam file, into pat """
 
     # Run patter tool on a single chromosome. out_path will have the following fields:
@@ -88,7 +88,7 @@ def proc_chr(bam, out_path, name, snp_pos, snp_let1, snp_let2, ex_flags, mapq, d
         parser = argparse.ArgumentParser()
         parser = add_args(parser)
         parse_bam2pat_args(parser)
-        bam2patargs_list = [bam_file_out, "--out_dir", out_path, "-r", chrom, "--threads", "1"]
+        bam2patargs_list = [bam_file_out, "--out_dir", out_path, "-r", chrom, "--threads", "1", '--genome', genome]
         if no_beta:
             bam2patargs_list += ["--no_beta"]
         args = parser.parse_args(bam2patargs_list)
@@ -136,6 +136,7 @@ class SNPSplit:
         self.no_beta = args.no_beta
         self.no_pat = args.no_pat
         self.snp_qual = args.snp_qual
+        self.genome = args.genome
         # self.gr = GenomicRegion(args)
         self.start_threads()
         self.cleanup()
@@ -191,11 +192,11 @@ class SNPSplit:
         name2 = op.basename(self.bam_path)[:-4] + f".{self.snp_pos}" + f".{self.snp_let2}"
 
         params = [(self.bam_path, self.out_dir, name1, self.snp_pos, self.snp_let1, self.snp_let2, self.args.exclude_flags,
-                   self.args.mapq, self.args.debug, self.verbose, self.no_beta, self.no_pat, self.snp_qual),
+                   self.args.mapq, self.args.debug, self.verbose, self.no_beta, self.no_pat, self.snp_qual, self.genome),
                   (self.bam_path, self.out_dir, name2, self.snp_pos,
                    self.snp_let2, self.snp_let1,
                    self.args.exclude_flags,
-                   self.args.mapq, self.args.debug, self.verbose, self.no_beta, self.no_pat, self.snp_qual)]
+                   self.args.mapq, self.args.debug, self.verbose, self.no_beta, self.no_pat, self.snp_qual, self.genome)]
 
         p = Pool(self.args.threads)
         p.starmap(proc_chr, params)
@@ -230,6 +231,7 @@ def add_args_snp_splitt():
     parser.add_argument('--snp_qual', type=int,
                         help=f'Minimal mapping quality (phred) of base call at the position of the polymorphism [{SNP_Q}]',
                         default=SNP_Q)
+    parser.add_argument('--genome', help='Genome reference name. Default is "default".', default='default')
     add_multi_thread_args(parser)
 
     return parser
