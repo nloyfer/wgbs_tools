@@ -33,6 +33,20 @@ int32_t *Homog::init_array(int len) {
     return arr;
 }
 
+std::string exec(const char* cmd) {
+    /** Execute a command and load output to string */
+    std::array<char, 128> buffer;
+    std::string result;
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+    if (!pipe) {
+        throw std::runtime_error("[ homog ] popen() failed!");
+    }
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+        result += buffer.data();
+    }
+    return result;
+}
+
 // Constructor
 Homog::Homog(std::string in_blocks_path, std::vector<float> in_range,
              int in_min_cpgs, bool deb, std::string in_name, std::string in_chrom) {
@@ -141,22 +155,17 @@ int Homog::read_blocks() {
     std::cerr << sname + "loading blocks..." << std::endl;
 
     if (hasEnding(blocks_path, ".gz")) {
-        // Open the gzipped file:
-        std::ifstream file(blocks_path, std::ios_base::in | std::ios_base::binary);
-        boost::iostreams::filtering_streambuf <boost::iostreams::input> inbuf;
-        inbuf.push(boost::iostreams::gzip_decompressor());
-        inbuf.push(file);
-        std::istream instream(&inbuf);
-        blocks_helper(instream);
-        //Cleanup
-        file.close();
-
-
-    } else {
-        std::ifstream instream(blocks_path);
-        blocks_helper(instream);
-        instream.close();
+        std::string cmd = "gunzip -c " + blocks_path;
+    else {
+        std::string cmd = "cat " + blocks_path;
     }
+    std::string blocks_data = exec(cmd.c_str());
+    if (blocks_data.length() == 0) {
+        throw std::invalid_argument("[ homog ] Error: Unable to blocks path:" + blocks_path);
+    }
+    std::stringstream ss(blocks_data);
+
+    blocks_helper(ss);
 
     if (borders_starts.size() == 0) {
         std::cerr << sname + "Error while loading blocks. 0 blocks found.\n";

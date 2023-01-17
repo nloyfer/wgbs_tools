@@ -5,15 +5,11 @@
 #ifndef PATS_READS_LENS_PAT2RLEN_H
 #define PATS_READS_LENS_PAT2RLEN_H
 
-#include <boost/algorithm/string/predicate.hpp>
 #include <vector>
 #include <sstream>
 #include <iostream>
 #include <fstream>
 #include <math.h>
-#include <boost/iostreams/filtering_streambuf.hpp>
-#include <boost/iostreams/copy.hpp>
-#include <boost/iostreams/filter/gzip.hpp>
 #include <string>
 #include <stdlib.h>
 #include <stdexcept>      // std::invalid_argument
