@@ -12,7 +12,10 @@
 #include <math.h>
 #include <string>
 #include <stdlib.h>
-#include <stdexcept>      // std::invalid_argument
+#include <stdexcept>    // std::invalid_argument
+#include <algorithm>    // std::find
+#include <array>        // std::array
+#include <memory>       // std::unique_ptr
 
 
 #define SEP "\t"

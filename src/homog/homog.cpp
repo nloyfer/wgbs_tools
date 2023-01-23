@@ -154,11 +154,11 @@ int Homog::read_blocks() {
 
     std::cerr << sname + "loading blocks..." << std::endl;
 
+    std::string cmd = "cat ";
     if (hasEnding(blocks_path, ".gz")) {
-        std::string cmd = "gunzip -c " + blocks_path;
-    else {
-        std::string cmd = "cat " + blocks_path;
-    }
+        cmd = "gunzip -c ";
+    } 
+    cmd = cmd + blocks_path;
     std::string blocks_data = exec(cmd.c_str());
     if (blocks_data.length() == 0) {
         throw std::invalid_argument("[ homog ] Error: Unable to blocks path:" + blocks_path);
