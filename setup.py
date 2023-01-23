@@ -40,19 +40,19 @@ def compile_single(cmd, name, verbose):
 
 modules = {
         'stdin2beta'    : 'g++ -std=c++11 src/pat2beta/stdin2beta.cpp -o src/pat2beta/stdin2beta',
-        'stdin2pairs'   : 'g++ -std=c++11 src/pat2beta/stdin2pairs.cpp -o src/pat2beta/stdin2pairs',
+        # 'stdin2pairs'   : 'g++ -std=c++11 src/pat2beta/stdin2pairs.cpp -o src/pat2beta/stdin2pairs',
         'pat_sampler'   : 'g++ -std=c++11 src/pat_sampler/sampler.cpp -o src/pat_sampler/pat_sampler',
         'patter'        : 'g++ -std=c++11 src/pipeline_wgbs/patter.cpp -o src/pipeline_wgbs/patter',
         'bp_patter'     : 'g++ -std=c++11 src/pipeline_wgbs/blueprint/patter.cpp -o src/pipeline_wgbs/blueprint/patter',
         'snp_patter'    : 'g++ -std=c++11 src/pipeline_wgbs/snp_patter.cpp -o src/pipeline_wgbs/snp_patter',
         'match_maker'   : 'g++ -std=c++11 src/pipeline_wgbs/match_maker.cpp -o src/pipeline_wgbs/match_maker',
         'segmentor'     : 'g++ -std=c++11 src/segment_betas/main.cpp src/segment_betas/segmentor.cpp -o src/segment_betas/segmentor ',
-        'cview'         : 'g++ -std=c++11 -c -o src/cview/main.o src/cview/main.cpp ; '\
-                          'g++ -std=c++11 -c -o src/cview/cview.o src/cview/cview.cpp; '\
+        'cview'         : 'g++ -std=c++11 -c -o src/cview/main.o src/cview/main.cpp && '\
+                          'g++ -std=c++11 -c -o src/cview/cview.o src/cview/cview.cpp && '\
                           'g++ -std=c++11 -o src/cview/cview src/cview/main.o src/cview/cview.o',
-        'homog'         : 'g++ -std=c++11 -c -o src/homog/main.o src/homog/main.cpp; '\
-                          'g++ -std=c++11 -c -o src/homog/homog.o src/homog/homog.cpp; '\
-                          'g++ -std=c++11 -o src/homog/homog src/homog/main.o src/homog/homog.o -lz -lboost_iostreams',
+        'homog'         : 'g++ -std=c++11 -c -o src/homog/main.o src/homog/main.cpp && '\
+                          'g++ -std=c++11 -c -o src/homog/homog.o src/homog/homog.cpp && '\
+                          'g++ -std=c++11 -o src/homog/homog src/homog/main.o src/homog/homog.o',
         'add_cpg_counts': 'g++ -std=c++11 src/pipeline_wgbs/add_cpg_counts.cpp -o src/pipeline_wgbs/add_cpg_counts',
         'add_loci'      : 'g++ -std=c++11 -pthread src/cpg2bed/add_loci.cpp src/cpg2bed/cpg_dict.cpp -o src/cpg2bed/add_loci'
         }
