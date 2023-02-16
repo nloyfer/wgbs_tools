@@ -9,6 +9,7 @@
 #include <vector>
 #include <fstream>
 #include <cstring>      // memset
+#include <cstdint>      // uint
 #include <algorithm>    // numeric_limits
 #include <math.h>
 
