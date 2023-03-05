@@ -105,7 +105,7 @@ int Cview::read_blocks() {
     for (std::string line_str; std::getline(ss, line_str);) {
 
         // skip empty lines
-        if (line_str.empty()) { continue; }
+        if (line_str.empty() || (!(line_str.rfind("#", 0)))) { continue; }
         tokens = line2tokens(line_str);
         // break when "-1" occurs
         //if ( (tokens.size() == 1) && (tokens[0] == "-1") ) { break; }
