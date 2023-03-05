@@ -24,8 +24,8 @@ def parse_args():
                         help='groups csv file with at least 2 columns: name, group. beta files belong to the same group are averaged')
     parser.add_argument('--betas', nargs='+', help='beta files', required=True)
     parser.add_argument('--verbose', '-v', action='store_true')
-    parser.add_argument('-c', '--min_cov', type=int, default=4, help='Minimal coverage to be considered,'
-                        'In both groups. [4]')
+    parser.add_argument('-c', '--min_cov', type=int, default=4, help='Minimal coverage to be considered. '
+                        'Sites covered by less thatn MIN_COV reads are considered as missing. [4]')
     parser.add_argument('--digits', type=int, default=2,
                         help='float percision (number of digits) [2]')
     parser.add_argument('--chunk_size', type=int, default=200000,
