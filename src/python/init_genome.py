@@ -9,7 +9,7 @@ import subprocess
 from multiprocessing import Pool
 from pathlib import Path
 from utils_wgbs import validate_single_file, eprint, IllegalArgumentError, \
-        add_multi_thread_args
+        add_multi_thread_args, check_executable
 from set_default_ref import set_def_ref
 
 
@@ -66,12 +66,24 @@ class InitGenome:
         # no FASTA path provided. Attempt to download one
         ref_path = op.join(self.out_dir, f'{self.name}.fa.gz')
         url = f'https://hgdownload.soe.ucsc.edu/goldenPath/{self.name}/bigZips/{self.name}.fa.gz'
-        cmd = f'curl {url} -o {ref_path}'
         eprint(f'[wt init] No reference FASTA provided. Attempting to download from\n\t{url}')
+
+        # make sure at least one of curl/ wget are installed
+        if check_executable('curl'):
+            cmd = f'curl {url} -o {ref_path}'
+        elif check_executable('wget'):
+            cmd = f'wget {url} -O {ref_path}'
+        else:
+            raise IllegalArgumentError('[wt init] Error: curl or wget must be installed')
+
+        # Download
         p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
         output, error = p.communicate()
         if p.returncode:
-            eprint(f'[wt init] Failed downloading reference for genome {self.name}: %d\n%s\n%s' % (p.returncode, output.decode(), error.decode()))
+            eprint('[wt init] Failed downloading reference for genome ')
+            eprint(f'{self.name}: %d\n%s' % (p.returncode, output.decode()))
+            if error is not None:
+                eprint(error.decode())
             eprint('[wt init] Try downloading yourself and use --fasta_name flag, or check the "name" parameter')
             raise IllegalArgumentError('[wt init] No reference FASTA found')
         eprint('[wt init] successfully downloaded FASTA. Now gunzip and bgzip it...')
@@ -128,9 +140,9 @@ class InitGenome:
             raise IllegalArgumentError(f'Invalid fai file.\n{e}')
 
     def find_cpgs_loci(self):
-        p = Pool(self.args.threads)
         params = [(self.ref_path, c, self.args.debug)
                   for c in self.fai_df['chr']]
+        p = Pool(self.args.threads)
         arr = p.starmap(load_seq_by_chrom, params)
         p.close()
         p.join()
