@@ -5,6 +5,7 @@ import numpy as np
 import sys
 import os.path as op
 import pandas as pd
+import warnings
 from multiprocessing import Pool
 from dmb import load_gfile_helper, match_prefix_to_bin, load_uxm
 from beta_to_blocks import collapse_process, load_blocks_file, is_block_file_nice
@@ -96,8 +97,8 @@ def get_table(blocks_df, gf, min_cov, threads=8, verbose=False, group=True):
         raise IllegalArgumentError()
 
     groups = drop_dup_keep_order(gf['group'])
-    with np.warnings.catch_warnings():
-        np.warnings.filterwarnings('ignore', r'Mean of empty slice')
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', category=RuntimeWarning)
         for group in groups:
             blocks_df[group] = np.nanmean(
                 np.concatenate([dres[k][None, :] for k in gf['fname'][gf['group'] == group]]), axis=0).T
