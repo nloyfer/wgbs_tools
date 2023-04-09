@@ -35,11 +35,11 @@ def is_block_file_nice(df):
         return False, msg
 
     # blocks are sorted
-    # startCpG and endCpG is monotonically increasing
-    if not pd.Index(df['startCpG']).is_monotonic:
+    # startCpG and endCpG are monotonically increasing
+    if not np.all(np.diff(df['startCpG'].values) >= 0):
         msg = 'startCpG is not monotonically increasing'
         return False, msg
-    if not pd.Index(df['endCpG']).is_monotonic:
+    if not np.all(np.diff(df['endCpG'].values) >= 0):
         msg = 'endCpG is not monotonically increasing'
         return False, msg
 
