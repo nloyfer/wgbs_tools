@@ -50,4 +50,4 @@ COPY --from=build /opt/wgbstools /opt/wgbstools
 RUN mkdir -p /home/appuser/bin && ln -s /opt/wgbstools/src/python/wgbs_tools.py /home/appuser/bin/wgbstools
 
 # App
-# ENTRYPOINT ["python", "-u", "run_barc.py"]
+ENTRYPOINT /bin/bash
