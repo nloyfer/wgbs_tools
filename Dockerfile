@@ -38,16 +38,18 @@ RUN apt-get update ; \
 # Create user and switch to it
 RUN groupadd -g 1002 appuser && useradd -u 1002 -g appuser -m appuser
 WORKDIR /home/appuser
-USER appuser
 
 # Use the previously built virtualenv
 ENV VIRTUAL_ENV=/opt/venv
-ENV PATH="/home/appuser/bin:$VIRTUAL_ENV/bin:$PATH"
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 COPY --from=build /opt/venv /opt/venv
 
 COPY --from=build /opt/wgbstools /opt/wgbstools
+RUN mkdir -p /opt/wgbstools/references && chown appuser /opt/wgbstools/references
 
-RUN mkdir -p /home/appuser/bin && ln -s /opt/wgbstools/src/python/wgbs_tools.py /home/appuser/bin/wgbstools
+RUN ln -s /opt/wgbstools/src/python/wgbs_tools.py /usr/local/bin/wgbstools
+
+USER appuser
 
 # App
 ENTRYPOINT /bin/bash
