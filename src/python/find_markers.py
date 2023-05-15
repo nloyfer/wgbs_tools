@@ -241,12 +241,13 @@ class MarkerFinder:
 
     def ttest(self, tf):
         try:
+            tf['ttest'] = np.nan
             from scipy.stats import ttest_ind, ttest_1samp
             # test for n=1
             if len(self.tg_names) == 1:
-                r = ttest_1samp(tf[self.bg_names], tf[self.tg_names].values.flatten(), axis=1, nan_policy='omit')
+                r = ttest_1samp(tf[self.bg_names], tf[self.tg_names].values, axis=1, nan_policy='omit')
             elif len(self.bg_names) == 1:
-                r = ttest_1samp(tf[self.tg_names], tf[self.bg_names].values.flatten(), axis=1, nan_policy='omit')
+                r = ttest_1samp(tf[self.tg_names], tf[self.bg_names].values, axis=1, nan_policy='omit')
             # test for n>1
             else:
                 r = ttest_ind(tf[self.tg_names], tf[self.bg_names], axis=1, nan_policy='omit')
@@ -254,7 +255,8 @@ class MarkerFinder:
             tf = tf[tf['ttest'] <= self.args.pval].reset_index(drop=True)
         except ModuleNotFoundError as e:
             eprint(f'[wt fm] WARNING: scipy is not installed. T-test is not performed.')
-            tf['ttest'] = np.nan
+        except Exception as e:
+            eprint(f'[wt fm] WARNING: Eception occured while computing T-test. T-test is not performed.')
         return tf
 
     def switch_context(self, tfM=None):
