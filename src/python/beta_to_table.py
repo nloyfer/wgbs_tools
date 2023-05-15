@@ -83,23 +83,21 @@ def get_table(blocks_df, gf, min_cov, threads=8, verbose=False, group=True):
 
     dicts = [d for d in arr if d is not None]
     dres = {k: v for d in dicts for k, v in d.items()}
-    if not group:
-        for b in gf['fname']:
-            blocks_df[b] = dres[b]
-        return blocks_df
-
     if not dres:
         fbetas = gf['fname'].tolist()
         eprint(f'[ wt table ] failed reducing {fbetas} to blocks\n{blocks_df}')
         raise IllegalArgumentError()
+
     if dres[list(dres.keys())[0]].size != blocks_df.shape[0]:
         eprint('[ wt table] beta2block returned wrong number of values')
         raise IllegalArgumentError()
 
-    groups = drop_dup_keep_order(gf['group'])
+    if not group:
+        return pd.concat([blocks_df, pd.DataFrame(dres)[gf['fname'].tolist()]], axis=1)
+
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', category=RuntimeWarning)
-        for group in groups:
+        for group in drop_dup_keep_order(gf['group']):
             blocks_df[group] = np.nanmean(
                 np.concatenate([dres[k][None, :] for k in gf['fname'][gf['group'] == group]]), axis=0).T
     return blocks_df
