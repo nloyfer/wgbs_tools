@@ -93,7 +93,8 @@ def get_table(blocks_df, gf, min_cov, threads=8, verbose=False, group=True):
         raise IllegalArgumentError()
 
     if not group:
-        return pd.concat([blocks_df, pd.DataFrame(dres)[gf['fname'].tolist()]], axis=1)
+        return pd.concat([blocks_df.reset_index(drop=True),
+                          pd.DataFrame(dres)[gf['fname'].tolist()]], axis=1)
 
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', category=RuntimeWarning)
