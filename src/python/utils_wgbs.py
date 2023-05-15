@@ -271,7 +271,7 @@ def load_beta_data2(beta_path, gr=None, bed=None):
         eprint('Error: both gr and bed_path supplied')
         raise IllegalArgumentError('Invalid usage of load_beta_data2')
     elif gr is not None and bed is None:
-        return load_beta_data(beta_path, gr)
+        return load_beta_data(beta_path, gr.sites)
     elif gr is None and bed is not None:
         inds = load_dict_section(' -R ' + bed.bed_path, bed.genome)['idx'].values - 1
         return load_beta_data(beta_path)[inds, :]
