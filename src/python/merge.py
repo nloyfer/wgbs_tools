@@ -143,7 +143,7 @@ def main():
 
     files_type = splitextgz(input_files[0])[1][1:]
 
-    if files_type in ('beta', 'bin'):
+    if files_type in ('beta', 'lbeta', 'bin'):
         merge_betas(input_files, out_path, args.lbeta)
     elif files_type == 'pat.gz':
         MergePats(input_files, args.prefix + '.pat.gz', args.labels, args).merge_pats()
