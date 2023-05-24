@@ -92,13 +92,16 @@ def get_table(blocks_df, gf, min_cov, threads=8, verbose=False, group=True):
         eprint('[ wt table] beta2block returned wrong number of values')
         raise IllegalArgumentError()
 
+    blocks_df.reset_index(drop=True, inplace=True)
     if not group:
-        return pd.concat([blocks_df.reset_index(drop=True),
-                          pd.DataFrame(dres)[gf['fname'].tolist()]], axis=1)
+        return pd.concat([blocks_df, pd.DataFrame(dres)[gf['fname'].tolist()]], axis=1)
 
+    ugroups = drop_dup_keep_order(gf['group'])
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', category=RuntimeWarning)
-        for group in drop_dup_keep_order(gf['group']):
+        empty_df = pd.DataFrame(index=blocks_df.index, columns=ugroups)
+        blocks_df = pd.concat([blocks_df, empty_df], axis=1)
+        for group in ugroups:
             blocks_df[group] = np.nanmean(
                 np.concatenate([dres[k][None, :] for k in gf['fname'][gf['group'] == group]]), axis=0).T
     return blocks_df
