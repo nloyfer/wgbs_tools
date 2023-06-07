@@ -242,6 +242,9 @@ class MarkerFinder:
     def ttest(self, tf):
         try:
             tf['ttest'] = np.nan
+            # if n=1 for both bg and tg samples, break
+            if len(self.tg_names) == len(self.bg_names) == 1:
+                return tf
             from scipy.stats import ttest_ind, ttest_1samp
             # test for n=1
             if len(self.tg_names) == 1:
