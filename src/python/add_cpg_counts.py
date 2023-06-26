@@ -40,7 +40,7 @@ def proc_chr(input_path, out_path_name, region, genome, header_path, paired_end,
         in_flags = f'-f {in_flags}'
     cmd = "samtools view {} {} -q {} -F {} {}".format(input_path, region, mapq, ex_flags, in_flags)
     if bed_file is not None:
-        cmd += f"-M -L {bed_file} | "
+        cmd += f" -M -L {bed_file} | "
     else:
         cmd += "| "
     if debug:
@@ -164,20 +164,17 @@ class BamMethylData:
         proc_header(self.bam_path, header_path, self.debug)
         if self.gr.region_str is None:
             final_path = name + f".{self.args.suffix}" + BAM_SUFF
-            processes = []
-            with Pool(self.args.threads) as p:
-                for c in self.set_regions():
-                    out_path_name = name + '_' + c
-                    params = (self.bam_path, out_path_name, c, self.gr.genome,
-                            header_path, is_pair_end(self.bam_path), self.args.exclude_flags,
-                            self.args.mapq, self.debug, self.args.min_cpg, self.args.clip, self.args.regions_file,
-                              self.add_pat, self.args.include_flags)
-                    processes.append(p.apply_async(proc_chr, params))
-                if not processes:
-                    raise IllegalArgumentError('Empty bam file')
-                p.close()
-                p.join()
-            res = [pr.get() for pr in processes]   # [(pat_path, unq_path) for each chromosome]
+            params = []
+            for c in self.set_regions():
+                out_path_name = name + '_' + c
+                params.append((self.bam_path, out_path_name, c, self.gr.genome,
+                        header_path, is_pair_end(self.bam_path), self.args.exclude_flags,
+                        self.args.mapq, self.debug, self.args.min_cpg, self.args.clip, self.args.regions_file,
+                          self.add_pat, self.args.include_flags))
+            p = Pool(self.args.threads)
+            res = p.starmap(proc_chr, params)
+            p.close()
+            p.join()
         else:
             region_str_for_name = self.gr.region_str.replace(":", "_").replace("-", "_")
             final_path = name + f".{region_str_for_name}" + f".{self.args.suffix}" + BAM_SUFF
