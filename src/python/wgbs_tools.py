@@ -42,6 +42,7 @@ commands = [
     'add_cpg_counts',
     'frag_len',
     'split_by_allele',
+    'split_by_meth',
     'test_bimodal'
 ]
 

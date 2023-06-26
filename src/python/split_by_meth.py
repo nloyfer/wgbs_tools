@@ -129,7 +129,8 @@ def add_args():
 
 def main():
     """
-    Split the input bam file according to methylation fraction. That is the input is a bam file, a fraction `homog_prop`, and the output
+    Split the input bam file according to methylation fraction. That is the input is a bam file (which is the output of
+    wgbstools add_cpg_counts), a fraction `homog_prop`, and the output
     is two bam files: one containing reads with methylation proportion above the `homog_prop` and one containing reads
     with methylation proportion below 1-`homog_prop`.
     """
