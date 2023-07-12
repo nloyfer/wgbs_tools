@@ -40,7 +40,6 @@ def proc_chr(bam, name, region, is_meth, homog_prop, min_cpg, ex_flags, mapq, de
 
 
 def validate_bam(bam):
-
     # validate bam path:
     eprint('[wt bam2pat] bam:', bam)
     if not (op.isfile(bam) and bam.endswith('.bam')):
@@ -80,7 +79,6 @@ class MethSplit:
         self.gr = GenomicRegion(args)
         self.start_threads()
 
-
     def start_threads(self):
         base_name = op.basename(self.bam_path)[:-4]
         if self.gr.region_str is not None:
@@ -89,11 +87,12 @@ class MethSplit:
         meth_name = op.join(self.out_dir, base_name + ".M.bam")
         unmeth_name = op.join(self.out_dir, base_name + ".U.bam")
 
-        params = [(self.bam_path, meth_name, self.gr.region_str, True, self.homog_prop, self.min_cpg, self.args.exclude_flags,
-                   self.args.mapq, self.args.debug, self.verbose),
-                  (self.bam_path, unmeth_name, self.gr.region_str, False, self.homog_prop, self.min_cpg,
-                   self.args.exclude_flags,
-                   self.args.mapq, self.args.debug, self.verbose)]
+        params = [
+            (self.bam_path, meth_name, self.gr.region_str, True, self.homog_prop, self.min_cpg, self.args.exclude_flags,
+             self.args.mapq, self.args.debug, self.verbose),
+            (self.bam_path, unmeth_name, self.gr.region_str, False, self.homog_prop, self.min_cpg,
+             self.args.exclude_flags,
+             self.args.mapq, self.args.debug, self.verbose)]
 
         p = Pool(self.args.threads)
         p.starmap(proc_chr, params)
@@ -107,9 +106,10 @@ def add_args():
     parser.add_argument('homog_prop', help="A fraction with which to determine homogenous reads. All reads with "
                                            "methylation proportion >= [homog_prop] will be classified as highly "
                                            "methylated reads while all reads with methylation proportion <= 1 - [homog_prop] "
-                                           "will be classified as mostly un-methylated reads.")
-    parser.add_argument('--min_cpg', help="The value of CpGs required per fragment (read pair combined number of CpGs). "
-                                          "default [1]",
+                                           "will be classified as mostly un-methylated reads. Must be above 0.5")
+    parser.add_argument('--min_cpg',
+                        help="The value of CpGs required per fragment (read pair combined number of CpGs). "
+                             "default [1]",
                         default=1)
     parser.add_argument('--out_dir', '-o', default='.')
     parser.add_argument('--force', '-f', action='store_true', help='overwrite existing files if exists')
@@ -139,6 +139,9 @@ def main():
     # validate output dir:
     if not op.isdir(args.out_dir):
         raise IllegalArgumentError(f'Invalid output dir: {args.out_dir}')
+
+    if (float(args.homog_prop) <= 0.5):
+        raise IllegalArgumentError(f"Illegal homog_prop value {args.homog_prop}. Must be above 0.5")
 
     for bam in [args.bam]:
         if not validate_bam(bam):
