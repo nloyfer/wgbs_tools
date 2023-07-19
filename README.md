@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.8164926.svg)](https://zenodo.org/badge/doi/10.5281/zenodo.8164926.svg)
+
 # wgbstools - suite for DNA methylation sequencing data representation, visualization, and analysis
 wgbstools is an extensive computational suite tailored for bisulfite sequencing data. 
 It allows fast access and ultra-compact representation of high-throughput data,
