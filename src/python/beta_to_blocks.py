@@ -192,7 +192,7 @@ def main():
 
     args = parse_args()
     files = args.input_files
-    validate_file_list(files, '.beta')
+    validate_file_list(files)
     validate_out_dir(args.out_dir)
 
     if not args.force:
