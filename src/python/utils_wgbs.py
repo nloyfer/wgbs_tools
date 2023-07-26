@@ -33,7 +33,6 @@ bam_meth_split_tool = SRC_DIR + 'pipeline_wgbs/bam_split.sh'
 
 
 MAX_PAT_LEN = 150  # maximal read length in sites
-MAX_READ_LEN = 1000  # maximal read length in bp
 
 COORDS_COLS3 = ['chr', 'start', 'end']
 COORDS_COLS5 = COORDS_COLS3 + ['startCpG', 'endCpG']
