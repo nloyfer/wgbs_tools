@@ -224,6 +224,7 @@ class Bam2Pat:
             msg += 'Perhaps you are using a wrong genome reference. '
             msg += 'Try running:\n\t\twgbstools set_default_ref -ls'
             eprint(msg)
+            self.cleanup()
             raise IllegalArgumentError('Failed')
 
         return list(sorted(intersected_chroms, key=chromosome_order))  # todo use the same order as in ref_chroms instead of resorting it
