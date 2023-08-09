@@ -87,8 +87,7 @@ class GenomicRegion:
 
     def _chrome_size(self):
         df = self.genome.get_chrom_size_table()
-        return int(df[df['chr'] == self.chrom]['size'])
-
+        return int(df[df['chr'] == self.chrom]['size'].values[0])
 
     def find_region_format(self, region):
         region = region.replace(',', '')  # remove commas
