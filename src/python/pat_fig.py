@@ -13,12 +13,15 @@ from vis import pat_args
 from utils_wgbs import add_GR_args, eprint, validate_file_list, \
         drop_dup_keep_order
 
+NR_CHARS_PER_FNAME = 50
 
 def parse_args():
     parser = argparse.ArgumentParser()
     pat_args(parser)
     add_GR_args(parser, required=True, no_anno=True)
     parser.add_argument('pats', nargs='+')
+    parser.add_argument('--max_name_chars', '-K', type=int, default=NR_CHARS_PER_FNAME,
+            help='Trim file names at K characters')
     parser.add_argument('--outpath', '-o', required=True,
             help='Output path (e.g., path to a PDF or PNG file)')
     parser.add_argument('--top', type=int, default=1000,
@@ -43,7 +46,12 @@ def parse_args():
             help='Title for the figure. Default is details about the region')
     parser.add_argument('--fig_height', type=int, default=20)
     parser.add_argument('--blocks_path')
-    parser.add_argument('--red_green', action='store_true')
+    parser.add_argument('--name_table', help='path to name table: a csv file with 2 columns ' \
+                        'and no header. First column is the original pat names ' \
+                        '(no .pat.gz suffix), second column is new name')
+    parser.add_argument('--black_white', action='store_true')
+    parser.add_argument('--meth_color', '-M', default='yellow')
+    parser.add_argument('--unmeth_color', '-U', default='blue')
     return parser.parse_args()
 
 
@@ -55,12 +63,11 @@ def get_strikes_coords(kf):
     return np.hstack([np.argwhere(dif==1), np.argwhere(dif==-1)])[:, [0,1,3]].T
 
 
-
 def plot(tf, headers, gr, args):
 
     # setup figure
     height, width = tf.shape
-    fig = plt.figure(figsize=(args.fig_height * (width / height), args.fig_height))
+    fig = plt.figure(figsize=(args.fig_height * (width / height), args.fig_height), facecolor='none')
     ax = fig.add_subplot(111)
     ax.set_ylim((-1, height + 1 + 3))
     ax.set_xlim((-1, width + 1))
@@ -80,17 +87,18 @@ def plot(tf, headers, gr, args):
     def plot_circles(simb, color):
         x, y = np.argwhere(tf == simb).T[::-1]
         ax.plot(x, height - y, 'o', markersize=msize,
-                markeredgewidth=lw,
-                markeredgecolor='black', c=color)
+                markeredgewidth=0.1,
+                markeredgecolor='gray', c=color)
 
-    # TODO: 1. allow UXM and maybe SNPs, not just C's and T's
-    #       2. allow color customization
-    if args.red_green:
-        plot_circles(3, 'red')
-        plot_circles(4, 'green')
+    # TODO: allow UXM and maybe SNPs, not just C's and T's
+    if args.black_white:
+        meth_color = 'black'
+        unmeth_color = 'white'
     else:
-        plot_circles(3, 'yellow')
-        plot_circles(4, 'blue')
+        meth_color = args.meth_color
+        unmeth_color = args.unmeth_color
+    plot_circles(3, meth_color)
+    plot_circles(4, unmeth_color)
 
     # headers
     fsize = msize * 1.5 * args.font_size
@@ -104,14 +112,14 @@ def plot(tf, headers, gr, args):
     plt.title(title, size=fsize*1.2)
 
     plt.axis('off')
-    plt.savefig(args.outpath)
+    plt.savefig(args.outpath, transparent=True)
 
 
 def validate_args(args):
     validate_file_list(args.pats, '.pat.gz')
     def enforce_positive(var, name):
         if var <= 0:
-            eprint('[wt vis] Invalid {name} flag: must be positive')
+            eprint(f'[wt vis] Invalid {name} flag: must be positive')
             exit()
     enforce_positive(args.col_wrap, 'col_wrap')
     enforce_positive(args.space_rows, 'space_rows')
@@ -119,6 +127,7 @@ def validate_args(args):
     enforce_positive(args.circle_size, 'circle_size')
     enforce_positive(args.font_size, 'font_size')
     enforce_positive(args.line_width, 'line_width')
+    enforce_positive(args.top, 'top')
     fig_suffs = tuple(plt.gcf().canvas.get_supported_filetypes().keys())
     if not args.outpath.endswith(fig_suffs):
         eprint(f'[wt vis] Invalid output flag: {args.outpath}.')
@@ -142,12 +151,25 @@ def pad(table, height=None, width=None):
     return padz
 
 
+def load_names_table(tpath):
+    if tpath is None:
+        return {}
+    try:
+        return pd.read_csv(tpath, names=['old', 'new'], header=None).set_index('old').to_dict()['new']
+    except:
+        eprint(f'[wt pat_fig] failed loading names table {tpath}. using original file names')
+        return {}
+
+
 def main():
     args = parse_args()
     validate_args(args)
 
     # drop duplicated files, while keeping original order
     pats = drop_dup_keep_order(args.pats)
+
+    # load name table (old name : new name)
+    dnames = load_names_table(args.name_table)
 
     tables = []
 
@@ -163,9 +185,9 @@ def main():
         tables.append(pad(t, args.top + args.space_rows, width))
 
     tmp = []
-    N = len(pats)
-    step = args.col_wrap if args.col_wrap < N else N
-    for i in range(0, N, step):
+    nr_pats = len(pats)
+    step = args.col_wrap if args.col_wrap < nr_pats else nr_pats
+    for i in range(0, nr_pats, step):
         row = np.hstack(tables[i:i+step])
         # trim tail (last zero rows), leave 2 lines
         nr_lines = np.argmin(row.sum(axis=1)) + args.space_rows
@@ -179,11 +201,14 @@ def main():
     shifty = 0
     shiftx = 0
     s = 0
-    for i in range(N):
-        name = op.basename(pats[i])[:-7]
+    for i in range(nr_pats):
+        name = op.basename(pats[i])[:-7] # remove dir & extension
+        if name in dnames.keys():
+            name = dnames[name]
+        name = name[:args.max_name_chars] # trim at 'max_name_chars' charachters
         tc.append((shiftx, table.shape[0] - shifty + 2, name))
         shiftx += tables[i].shape[1]
-        if (i+1) % step == 0 and i > 0:
+        if (step == 1) or ((i+1) % step == 0 and (i > 0)):
             shifty += tmp[s].shape[0]
             shiftx = 0
             s += 1
