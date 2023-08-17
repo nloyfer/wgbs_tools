@@ -16,6 +16,7 @@ DIR = str(path.parent)
 SRC_DIR = op.join(path.parent.parent.parent, 'src/')
 pat_sampler = SRC_DIR + 'pat_sampler/pat_sampler'
 pat2beta_tool = SRC_DIR + 'pat2beta/stdin2beta'
+mask_pat_tool = SRC_DIR + 'pat2beta/mask_pat'
 collapse_pat_script = SRC_DIR + 'collapse_pat.pl'
 segment_tool = SRC_DIR + 'segment_betas/segmentor'
 cview_tool = SRC_DIR + 'cview/cview'
@@ -24,6 +25,7 @@ view_beta_script = SRC_DIR + 'view_beta.sh'
 view_lbeta_script = SRC_DIR + 'view_lbeta.sh'
 homog_tool = SRC_DIR + 'homog/homog'
 add_loci_tool = SRC_DIR + 'cpg2bed/add_loci'
+plot_marker_heatmap_script = SRC_DIR + 'R/plot_marker_heatmap.R'
 
 match_maker_tool = SRC_DIR + 'pipeline_wgbs/match_maker'
 patter_tool = SRC_DIR + 'pipeline_wgbs/patter'
@@ -390,6 +392,10 @@ def splitextgz(input_file):
         b, suff = op.splitext(b)
         suff += '.gz'
     return b, suff
+
+
+def pretty_name(fpath):
+    return splitextgz(op.basename(fpath))[0]
 
 
 def safe_remove(fpath):
