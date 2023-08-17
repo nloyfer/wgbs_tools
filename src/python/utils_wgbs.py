@@ -456,10 +456,12 @@ def read_shell(command, **kwargs):
                    "Standard error was:\n{2}")
         raise IOError(message.format(proc.returncode, command, error.decode()))
 
+
 def bed2reg(df):
     if not set(COORDS_COLS3).issubset(set(df.columns)):
         raise IllegalArgumentError('[wt] missing coordinate columns in bed file')
-    return df['chr'] + ':' + df['start'].astype(str) + '-' + df['end'].astype(str)
+    return df['chr'].astype(str) + ':' + df['start'].astype(str) + '-' + df['end'].astype(str)
+
 
 def catch_BrokenPipeError():
     os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
