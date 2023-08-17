@@ -32,21 +32,15 @@ void output_read(std::vector <std::string> &tokens) {
     std::cout << tokens[i] << std::endl;
 }
 
-void consider_line(std::vector<std::string> &tokens, double rate) {
-    int count = std::stoi(tokens[3]);
 
-    while (rate >= 1.0) {
-        output_read(tokens);
-        rate -= 1.0;
-    }
-    if (rate <= 0) {
-        return;
-    }
+void consider_line(std::vector<std::string> &tokens, double rate, int reps) {
+    int read_count = std::stoi(tokens[3]) * reps;
 
+    // set seed
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine generator (seed);
 
-    std::binomial_distribution<int> distribution (count, rate);
+    std::binomial_distribution<int> distribution (read_count, rate);
 
     int newcount = distribution(generator);
     if (newcount) {
@@ -59,19 +53,23 @@ void consider_line(std::vector<std::string> &tokens, double rate) {
 /** main - sample reads from stdin (pat format). Output them to stdout */
 int main( int argc, char *argv[])
 {
-    if (argc != 2){
-        std::cerr << "Usage: pat_sampler RATE" << std::endl;
+    if (argc < 2){
+        std::cerr << "Usage: pat_sampler RATE [REPS]" << std::endl;
         return -1;
     }
 
     try {
         double rate = std::stof(argv[1]);
+        int reps = 1;
+        if (argc > 2) {
+            reps = std::stoi(argv[2]);
+        }
 
         // Sample from stdin
         for (std::string line_str; std::getline(std::cin, line_str);) {
             if (line_str.empty()) { continue; } // skip empty lines
             std::vector<std::string> tokens = line2tokens(line_str);
-            consider_line(tokens, rate);
+            consider_line(tokens, rate, reps);
         }
     }
     catch(std::exception &e) {
