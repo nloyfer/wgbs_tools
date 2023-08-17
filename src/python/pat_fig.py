@@ -52,6 +52,8 @@ def parse_args():
     parser.add_argument('--black_white', action='store_true')
     parser.add_argument('--meth_color', '-M', default='yellow')
     parser.add_argument('--unmeth_color', '-U', default='blue')
+    parser.add_argument('--no_sort', action='store_true',
+                        help='pat: Keep read order, as in pat file')
     return parser.parse_args()
 
 
