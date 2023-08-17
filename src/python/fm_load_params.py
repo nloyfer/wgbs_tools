@@ -112,9 +112,9 @@ class MFParams:
 
         # validate sort_by column
         if self.sort_by is not None:
-            sort_by_ops = ()
-            if self.sort_by not in ('delta_means', 'delta_quants', 'delta_maxmin', 'startCpG'):
-                eprint(f'sort_by argument must be in: {",".join(sort_by_ops)}')
+            sort_by_ops = ('delta_means', 'delta_quants', 'delta_maxmin', 'startCpG', 'tg_quant', 'tg_mean')
+            if self.sort_by not in sort_by_ops:
+                eprint(f'sort_by argument must be in: {", ".join(sort_by_ops)}')
                 raise IllegalArgumentError()
 
         # validate input files
