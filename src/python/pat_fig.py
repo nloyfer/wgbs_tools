@@ -89,8 +89,8 @@ def plot(tf, headers, gr, args):
     def plot_circles(simb, color):
         x, y = np.argwhere(tf == simb).T[::-1]
         ax.plot(x, height - y, 'o', markersize=msize,
-                markeredgewidth=0.1,
-                markeredgecolor='gray', c=color)
+                markeredgewidth=lw,
+                markeredgecolor='black', c=color)
 
     # TODO: allow UXM and maybe SNPs, not just C's and T's
     if args.black_white:
