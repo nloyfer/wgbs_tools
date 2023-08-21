@@ -111,8 +111,8 @@ def cview(pat, args):
 #                        #
 ##########################
 
-def add_view_flags(parser, sub_sample=True, out_path=True):
-    add_GR_args(parser, bed_file=True)
+def add_view_flags(parser, sub_sample=True, out_path=True, bed_file=True):
+    add_GR_args(parser, bed_file=bed_file)
     parser.add_argument('--strict', action='store_true',
                         help='pat: Truncate reads that start/end outside the given region. '
                              'Only relevant if "region", "sites" '
@@ -124,6 +124,8 @@ def add_view_flags(parser, sub_sample=True, out_path=True):
     parser.add_argument('--shuffle', action='store_true',
                         help='pat: Shuffle reads order, while keeping the startCpG order '
                              '(sort -k2,2n -k3,3R)')
+    parser.add_argument('--no_sort', action='store_true',
+                        help='pat: Keep read order, as in the original pat file')
     if sub_sample:
         parser.add_argument('--sub_sample', type=float, #metavar='[0.0, 1.0]',
                             help='pat: subsample from reads. Only supported for pat')
