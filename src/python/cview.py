@@ -33,7 +33,10 @@ def view_gr(pat, args, get_cmd=False):
         cmd = f'gunzip -c {pat} '
     else:
         s, e = gr.sites
-        ms = max(1, s - MAX_PAT_LEN)
+        mpl = MAX_PAT_LEN
+        if args.nanopore:
+            mpl = 100000
+        ms = max(1, s - mpl)
         cmd = f'tabix {pat} {gr.chrom}:{ms}-{e - 1} '
 
     view_flags = set_view_flags(args)
@@ -111,7 +114,7 @@ def cview(pat, args):
 #                        #
 ##########################
 
-def add_view_flags(parser, sub_sample=True, out_path=True, bed_file=True):
+def add_view_flags(parser, sub_sample=True, out_path=True, bed_file=True, long_reads=True):
     add_GR_args(parser, bed_file=bed_file)
     parser.add_argument('--strict', action='store_true',
                         help='pat: Truncate reads that start/end outside the given region. '
@@ -131,6 +134,9 @@ def add_view_flags(parser, sub_sample=True, out_path=True, bed_file=True):
                             help='pat: subsample from reads. Only supported for pat')
     if out_path:
         parser.add_argument('-o', '--out_path', help='Output path. [stdout]')
+    if long_reads:
+        parser.add_argument('-np', '--nanopore', action='store_true',
+                help='BETA VERSION: pull very long reads starting before the requested region')
     return parser
 
 
