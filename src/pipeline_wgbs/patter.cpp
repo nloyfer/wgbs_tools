@@ -6,67 +6,17 @@
 
 char METH = 'C';
 char UNMETH = 'T';
-char UNKNOWN = '.';
+//char UNKNOWN = '.';
 std::string TAB = "\t";
 
-/***************************************************************
- *                                                             *
- *               Print methods                                 *
- *                                                             *
- ***************************************************************/
-
-std::vector <std::string> line2tokens(std::string &line) {
-    /** Break string line to words (a vector of string tokens) */
-    std::vector <std::string> result;
-    std::string cell;
-    std::stringstream lineStream(line);
-    while (getline(lineStream, cell, '\t')) {
-        result.push_back(cell);
-    }
-    return result;
-}
-
-void print_vec(std::vector <std::string> &vec) {
-    /** print a vector to stderr, tab separated */
-    std::string sep = "";
-    for (auto &j: vec) {
-        std::cerr << sep << j;
-        sep = TAB;
-    }
-    std::cerr << std::endl;
-}
-
-
-std::string addCommas(int num) {
-    /** convert integer to string with commas */
-    auto s = std::to_string(num);
-    int n = s.length() - 3;
-    while (n > 0) {
-        s.insert(n, ",");
-        n -= 3;
-    }
-    return s;
-}
+// TODO: smarter threshold. 
+// See https://github.com/nanoporetech/modkit/blob/master/filtering.md
 
 /***************************************************************
  *                                                             *
  *               Load FASTA                                    *
  *                                                             *
  ***************************************************************/
-
-std::string exec(const char* cmd) {
-    /** Execute a command and load output to string */
-    std::array<char, 128> buffer;
-    std::string result;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
-    if (!pipe) {
-        throw std::runtime_error("[ patter ] popen() failed!");
-    }
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-        result += buffer.data();
-    }
-    return result;
-}
 
 void patter::load_genome_ref() {
     /** Load the genome reference, corresponding to chromosome */
@@ -87,12 +37,10 @@ void patter::load_genome_ref() {
         int locus = stoi(tokens[0]);
         int cpg_ind = stoi(tokens[1]);
         dict.insert(std::make_pair(locus, cpg_ind));
-        //std::cerr << locus << "  " << cpg_ind << std::endl;
         loci.push_back(locus);
     }
-    offset = loci.at(0);
-    //std::cerr << "offset: " << offset << std::endl;
-    bsize = loci.at(loci.size() - 1) + 1;
+
+    bsize = loci.at(loci.size() - 1);
 
     conv = new bool[bsize]();
     for (int locus: loci) {
@@ -138,51 +86,6 @@ void patter::dump_mbias() {
  *                                                             *
  ***************************************************************/
 
-std::string patter::clean_CIGAR(std::string seq, std::string CIGAR) {
-
-    /** use CIGAR string to adjust 'seq' so it will be comparable to the reference.
-     * e.g, remove false letters ('I'), insert fictive letters ('D') etc. */
-
-    // parse CIGAR and convert it to a couple of vectors: chars, nums.
-    // e.g, '2S9M' will become ['S', 'M'] and [2, 9]
-    std::vector<char> chars;
-    std::vector<unsigned long> nums;
-    std::string cur_num;
-    for (auto c: CIGAR) {
-        if (isdigit(c)) {
-            cur_num.push_back(c);
-        } else {
-            nums.push_back(stoul(cur_num));
-            cur_num.clear();
-            chars.push_back(c);
-        }
-    }
-
-    // build the adjusted seq
-    std::string adjusted_seq;
-    for (int i = 0; i < (int) chars.size(); i++) {
-        char ch = chars[i]; // CIGAR character
-        int num = nums[i];  // corresponding integer
-        if (ch == 'M') {
-            adjusted_seq += seq.substr(0, num);
-            seq = seq.substr(num, seq.length() - num);
-        } else if (ch == 'D') {
-            for (unsigned long j = 0; j < num; j++)
-                adjusted_seq += 'N';
-        } else if ((ch == 'I') || (ch == 'S')) {
-            seq = seq.substr(num, seq.length() - num);
-        } else if ((ch == 'H')) {
-            continue;
-        } else {
-            throw std::invalid_argument("[ patter ] Unknown CIGAR character: " +
-                                        std::string(1, ch));
-        }
-    }
-
-    return adjusted_seq;
-}
-
-
 int patter::locus2CpGIndex(int locus) {
     /** translate genomic locus to CpG index (in range 1,...,28M~) */
     int start_site = 0;
@@ -195,19 +98,6 @@ int patter::locus2CpGIndex(int locus) {
                                 std::to_string(locus));
     }
     return start_site;
-}
-
-
-int strip_pat(std::string &pat) {
-    // remove dots from the tail (e.g. CCT.C.... -> CCT.C)
-    pat = pat.substr(0, pat.find_last_not_of(UNKNOWN) + 1);
-    if (pat == "") { return -1; }
-    // remove dots from the head (..CCT -> CCT)
-    int pos = pat.find_first_not_of(UNKNOWN);
-    if (pos > 0) {
-        pat = pat.substr(pos, pat.length() - pos);
-    }
-    return pos;
 }
 
 int patter::compareSeqToRef(std::string &seq,
@@ -251,9 +141,7 @@ int patter::compareSeqToRef(std::string &seq,
         
         // this deals with the case where a read exceeds
         // the last CpG of the chromosome. Ignore the rest of the read.
-        if ((start_locus + i) > (bsize - 1)) {
-            continue;  
-        }
+        if ((start_locus + i) > (bsize - 1)) { continue;  }
         mj = bottom ? (seq.length() - i - 1) : i;
         if (mj >= MAX_READ_LEN) {skip_mbias = true;} // read is too long. skip it to avoid seg. fault
         if (conv[start_locus + i]) {
@@ -276,6 +164,7 @@ int patter::compareSeqToRef(std::string &seq,
             // ignore first/last 'clip_size' characters, since they are often biased
             // TODO: allow 4 different clip sizes (OT,OB,CTOT,CTOB)
             if (!((j >= clip_size) && (j < seq.size() - clip_size))) {
+            //if (!(j < seq.size() - clip_size)) {
                 cur_status = UNKNOWN;
             }
             // find first CpG index
@@ -291,58 +180,241 @@ int patter::compareSeqToRef(std::string &seq,
     return first_ind;
 }
 
-std::vector <std::string> merge(std::vector<std::string> l1, 
-                                std::vector<std::string> l2) {
-    /** Merge 2 complementary lines to a single output.
-     * each line has the following fields: [chr, startCpG, pat]
-     * One or more of the lines may be empty */
-
-    // if one of the lines is empty - return the other
-    if (l1.empty()) { return l2; }
-    if (l2.empty()) { return l1; }
-
-    // Swap lines s.t l1 starts before l2
-    if (stoi(l1[1]) > stoi(l2[1])) {
-        std::vector <std::string> tmp = l1;
-        l1 = l2;
-        l2 = tmp;
+bool is_this_CG(std::string &seq, int pos, bool bottom) {
+    // make sure the current letter is a "C", and the next one is a "G"
+    if (seq[pos] != 'C') {
+        //std::cerr << "first is not C:" << seq[pos] << ". " << std::endl;
+        return false;
     }
+    if (pos >= seq.length() - 1) {
+        //std::cerr << "pos is to big" << pos << ". " << std::endl;
+        return false;
+    }
+    pos++;
+    for (; pos < seq.length(); pos++) {
+        //std::cerr << "pos: " << pos << ". seq[pos]: " << seq[pos] << std::endl;
+        if (seq[pos] == 'G') {
+            return true;
+        } else if (seq[pos] == 'N') {
+            //if (bottom) {
+                //return false;
+            //}
+            continue;
+        } else {
+            return false;
+        }
 
-    int start1 = stoi(l1[1]), start2 = stoi(l2[1]);
-    std::string pat1 = l1[2], pat2 = l2[2];
+    }
+    return false;
+}
 
-    std::string merged_pat;  // output pattern
-    int last_site = std::max(start1 + pat1.length(), start2 + pat2.length()); // location of last CpG from both reads
+std::vector <std::string> patter::np_samLineToPatVec(std::vector <std::string> tokens) {
+    /** same as samLineToPatVec, but for nanopore format
+     *  */
+    std::vector<std::string> empty_vec;
 
-    if (last_site - start1 > MAX_PAT_LEN) // sanity check: make sure the two reads are not too far apart
-        throw std::invalid_argument("invalid pairing. merged read is too long");
+    // get MM and ML fields
+    std::vector<std::string> np_fields = get_np_fields(tokens);
+    std::string valMM = np_fields[0];
+    std::string valML = np_fields[1];
 
-    // init merged_pat with missing values
-    for (int i = start1; i < last_site; i++)
-        merged_pat += ".";
+    if ((valMM == "") || (valML == "") || (tokens[9] == "*")) {
+        readsStats.nr_empty++;
+        return empty_vec;
+    }
+    //std::cerr << tokens[9] << std::endl;
 
-    // set merged_pat head with pat1
-    for (unsigned long i = 0; i < pat1.length(); i++)
-        merged_pat[i] = pat1[i];
+    unsigned long start_locus = stoul(tokens[3]);   // Fourth field from bam file
+    int samflag = stoi(tokens[1]);
+    std::string seq = tokens[9];
+    std::string CIGAR = tokens[5];
+    bool bottom = ((samflag & 0x10) == 16);
 
-    // set pat2 in the adjusted position
-    for (unsigned long i = 0; i < pat2.length(); i++) {
-        int adj_i = i + start2 - start1;
-        if (merged_pat[adj_i] == UNKNOWN) {   // this site was missing from read1
-            merged_pat[adj_i] = pat2[i];
-        } else if ((pat2[i] != UNKNOWN) && (merged_pat[adj_i] != pat2[i])) {
-            // read1 and read2 disagree, and none of them is missing ('.').
-            // treat this case as a missing value for now
-            // future work: consider only the read with the higher quality.
-            merged_pat[adj_i] = UNKNOWN;
+    seq = clean_CIGAR(seq, CIGAR);
+
+    std::string np_mask = parse_ONT(tokens);
+    np_mask = clean_CIGAR(np_mask, CIGAR);
+
+    std::vector<int> MM_vals;
+    std::vector<int> ML_vals;
+    parse_np_fields(np_fields, MM_vals, ML_vals);
+
+    if (MM_vals.empty()) { 
+        readsStats.nr_empty++;
+        return empty_vec; 
+    }
+    if (bottom) {
+        std::reverse(ML_vals.begin(),ML_vals.end());
+    }
+    //std::cerr << "cseq: " << seq << std::endl;
+    // build methylation pattern:
+    std::string meth_pattern;
+    char cur_status;
+    int start_site = -1;
+    int MM_vals_ind = 0;
+    for (int i = 0; i < seq.length(); i++ ) {
+        // this deals with the case where a read exceeds
+        // the last CpG of the chromosome. Ignore the rest of the read.
+        if ((start_locus + i) > (bsize - 1)) { continue;  }
+
+        // Only consider cytosines in a CpG context
+        if (!conv[start_locus + i]) { 
+            //std::cerr << start_locus + i << " (" << i << " ) not CpG locus" << std::endl;
+            continue;
+        }
+
+        // The current C is deleted according to the CIGAR
+        if (np_mask[i] == 'N') { 
+            cur_status = UNKNOWN;
+        }
+        // The current C is not mentioned in MM as modified
+        else if (np_mask[i] == 'E') { 
+            if (np_dot) { cur_status = UNMETH; } 
+            else { cur_status = UNKNOWN; }
+        } 
+        // The current C is mentioned in MM as modified
+        //else if (np_mask[i] == '1') { 
+        else { 
+            cur_status = UNKNOWN;
+
+            if (np_mask[i] == 'M') {
+                cur_status = METH;
+            } else if (np_mask[i] == 'U') {   
+                cur_status = UNMETH;
+            }
+            MM_vals_ind++;
+        }
+
+        // make sure the current letter is a "C", and the next one is a "G"
+        if (!(is_this_CG(seq, i, bottom))) {
+            cur_status = UNKNOWN;
+        }
+        //if (!(((seq[i] == 'C') && (i < (seq.length() - 1)) && (seq[i + 1] == 'G')) ||
+                    //((i < (seq.length() - 2)) && (seq.substr(i, 3) == "CNG")))) { 
+            //if (seq[i + 1] != 'G') {
+                //std::cerr << "CNG: " << seq.substr(i, 3) << std::endl;
+            //}
+            //cur_status = UNKNOWN;
+        //}
+
+        if ((i>1000) && (i<1100)){
+            //std::cerr << "i= " << i << ". loc: " << start_locus + i << ". mask: " << np_mask[i];
+            //std::cerr << ". seq: " << seq[i] << seq[i + 1];
+            //std::cerr << " status: " << cur_status << "\n";
+        }
+
+        // ignore first/last 'clip_size' characters, since they are often biased
+        if (!((i >= clip_size) && (i < seq.size() - clip_size))) {
+            cur_status = UNKNOWN;
+        }
+        // find first cpg index
+        if ((start_site < 0) && (cur_status != UNKNOWN)) {
+            start_site = locus2CpGIndex(start_locus + i); 
+        }
+        if (start_site > 0) {
+            meth_pattern.push_back(cur_status);
         }
     }
-    // strip merged pat (remove trailing dots):
-    int pos = strip_pat(merged_pat);
-    if (pos < 0 ) { return {}; }
-    l1[1] = std::to_string(start1 + pos);
-    l1[2] = merged_pat;
-    return l1;
+    if (strip_pat(meth_pattern)) {
+        readsStats.nr_empty++;
+        return empty_vec;
+    }
+
+    // in case read contains no CpG sites:
+    if (start_site < 1) {
+        readsStats.nr_empty++;
+        return empty_vec;     // return empty vector
+    }
+    return pack_pat(tokens[2], start_site, meth_pattern);
+}
+
+void patter::parse_np_fields(std::vector<std::string> &np_fields, 
+                    std::vector<int> &MM_vals, 
+                    std::vector<int> &ML_vals) {
+    // validate fields
+    std::string MM_str = np_fields[0];
+    std::string ML_str = np_fields[1];
+
+    if ((MM_str == "") || (ML_str == "")) {
+        throw std::invalid_argument("Missing MM or ML fields");
+    }
+
+    // validate MM and trim head
+    if (!((MM_str.substr(0, 5) == "C+m?,") ||
+          (MM_str.substr(0, 5) == "C+m.,") ||
+          (MM_str.substr(0, 4) == "C+m,"))) {
+        throw std::invalid_argument("Unsupported MM field:" + MM_str);
+    }
+    np_dot = (MM_str[3] != '?');
+    //np_dot = false; // TODO change
+    // differentiate "C+m." and "C+m" from "C+m?"
+    MM_str = MM_str.substr(MM_str.find_first_of(',') + 1, MM_str.length());
+
+    // validate ML and trim leading comma
+    if (!(ML_str.substr(0, 1) == ",")) {
+        throw std::invalid_argument("Unsupported ML field:" + ML_str);
+    }
+    ML_str = ML_str.substr(1, ML_str.length());
+
+    // split by commas
+    std::vector<int> orig_MM_vals = split_by_comma(MM_str);
+    ML_vals = split_by_comma(ML_str);
+
+    if (orig_MM_vals.size() != ML_vals.size()) {
+        throw std::invalid_argument("Error parsing MM and ML fields.\n" + MM_str + "\n" + ML_str);
+    }
+    // aggregate MM vals
+    int pos = 0;
+    for (int i = 0; i < orig_MM_vals.size(); i++) {
+        pos += orig_MM_vals[i];
+        MM_vals.push_back(pos++);
+    }
+}
+
+std::string patter::parse_ONT(std::vector <std::string> tokens) {
+
+    // get MM and ML fields
+    std::vector<std::string> np_fields = get_np_fields(tokens);
+    std::vector<int> MM_vals;
+    std::vector<int> ML_vals;
+    parse_np_fields(np_fields, MM_vals, ML_vals);
+
+    int samflag = stoi(tokens[1]);
+    bool bottom = ((samflag & 0x10) == 16);
+    std::string work_seq = bottom ? reverse_comp(tokens[9]) : tokens[9];
+    std::string np_mask;
+    int C_counter = 0;
+    int MM_vals_ind = 0;
+    for (int i = 0; i < work_seq.length(); i++ ) {
+
+        // not a C, not interesting
+        if (work_seq[i] != 'C') { 
+            np_mask += "E";
+            continue;
+        }
+
+        if (C_counter == MM_vals[MM_vals_ind]) {
+            //np_mask += "1";
+            if (ML_vals[MM_vals_ind] > (255 * 0.66)) {   // TODO: hard-coded
+                np_mask += "M";
+            } else if (ML_vals[MM_vals_ind] < (255 * (1 - 0.66))) {
+                np_mask  += "U";
+            } else {
+                np_mask  += "N";
+            }
+            //np_mask += std::to_string(int(float(ML_vals[MM_vals_ind]) / 25.5));
+            MM_vals_ind++;
+        } else {
+            np_mask += "E";
+        }
+        C_counter++;
+    }
+    if (bottom) {
+        std::reverse(np_mask.begin(), np_mask.end()); 
+        // shift left by 1 pos
+        np_mask = np_mask.substr(1, np_mask.length()) + "E";
+    }
+    return np_mask;
 }
 
 
@@ -366,10 +438,12 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
         if (tokens.size() < 11) {
             throw std::invalid_argument("too few arguments in line");
         }
+        if (is_nanopore) {
+            return np_samLineToPatVec(tokens);
+        }
         unsigned long start_locus = stoul(tokens[3]);   // Fourth field from bam file
         int samflag = stoi(tokens[1]);
         std::string seq = tokens[9];
-        //std::string bp_qual = tokens[10];
         std::string CIGAR = tokens[5];
 
         seq = clean_CIGAR(seq, CIGAR);
@@ -384,13 +458,7 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
             readsStats.nr_empty++;
             return res;     // return empty vector
         }
-
-        // Push results into res vector and return:
-        res.push_back(tokens[2]);                                  // chr
-        res.push_back(std::to_string(start_site));                 // start site
-        res.push_back(meth_pattern);                               // meth pattern
-
-        return res;
+        return pack_pat(tokens[2], start_site, meth_pattern);
     }
     catch (std::exception &e) {
         std::string msg = "[ " + chr + " ] " + "Exception while processing line "
@@ -404,20 +472,12 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
     return res; // return empty vector
 }
 
-bool are_paired(std::vector <std::string> tokens1,
-                std::vector <std::string> tokens2) {
-    // return true iff the reads are non empty and paired
-    return ((!(tokens2.empty())) && 
-            (!(tokens1.empty())) &&
-            (tokens1[0] == tokens2[0]));
-}
-
 void patter::proc2lines(std::vector <std::string> &tokens1,
                         std::vector <std::string> &tokens2) {
 
     try {
         // sanity check: two lines must have the same QNAME
-        if ((!(tokens2.empty())) && 
+        if ((!(tokens2.empty())) &&
             (!(tokens1.empty())) &&
             (tokens1[0] != tokens2[0])){
             readsStats.nr_invalid += 2;
@@ -425,7 +485,8 @@ void patter::proc2lines(std::vector <std::string> &tokens1,
         }
 
         // Merge 2 complementary lines to a single output. 
-        std::vector <std::string> res = merge(samLineToPatVec(tokens1), samLineToPatVec(tokens2));
+        std::vector <std::string> res = merge_PE(samLineToPatVec(tokens1), 
+                                                 samLineToPatVec(tokens2));
         if (res.empty()) { return; } 
         if ((res[2]).length() < min_cpg) {
             readsStats.nr_short++;
@@ -477,14 +538,42 @@ void patter::print_stats_msg() {
  *                                                             *
  ***************************************************************/
 
-bool patter::first_line(std::string &line) {
+std::vector<std::string> get_np_fields(std::vector <std::string> &tokens) {
+    std::string valMM = "";
+    std::string valML = "";
+    for (auto &j: tokens) {  // TODO: start looking from the 12'th field
+        if (("MM:Z:" == j.substr(0, 5)) || ("Mm:Z:" == j.substr(0, 5))) {
+            valMM = j.substr(5, j.length());
+        }
+        else if (("ML:B:C" == j.substr(0, 6)) || ("Ml:B:C" == j.substr(0, 6))) {
+            valML = j.substr(6, j.length());
+        }
+    }
+    // return results
+    std::vector<std::string> res;
+    res.push_back(valMM);
+    res.push_back(valML);
+    return res;
+}
+
+void patter::first_line(std::string &line) {
     // find out if the input is paired- or single-end
+    // And if it's a nanopore bam file
     try {
         // find out if single- or paired-end
         std::vector <std::string> tokens = line2tokens(line);
         auto flag = (uint16_t) stoi(tokens.at(1));
         chr = tokens.at(2);
-        return (flag & 1);     // file is paired end iff flag 0x1 is on
+        is_paired_end = (flag & 1);     // file is paired end iff flag 0x1 is on
+
+        // find out if this is a nanopore format (iff MM and ML fields are present)
+        std::vector<std::string> npvec = get_np_fields(tokens);
+        is_nanopore = (is_nanopore || ((npvec[0] != "") && (npvec[1] != "")));
+        //std::cerr << "is nanopore: " << is_nanopore << std::endl;
+
+        if (is_paired_end && is_nanopore) {
+            throw std::invalid_argument("Unrecognized bam format: paired end and nanopore");
+        }
     }
     catch (std::exception &e) {
         std::cerr << "[ patter ] " << "[ " + chr + " ]" << "Invalid first line: \n" << line;
@@ -496,7 +585,7 @@ bool patter::first_line(std::string &line) {
 void patter::initialize_patter(std::string &line_str) {
     // first line based initializations
     if (!(dict.empty())) { return; }
-    is_paired_end = first_line(line_str);
+    first_line(line_str);
     load_genome_ref();
 }
 
@@ -522,11 +611,10 @@ void patter::proc1line(std::vector <std::string> &tokens1) {
     tokens1.clear();
 }
 
-void patter::action() {
+void patter::parse_reads_from_stdin() {
     /** parse stdin for sam format lines (single- or pired-end).
      * Translate them to pat format, and output to stdout */
 
-//    std::ios_base::sync_with_stdio(false);
     std::vector <std::string> tokens1, tokens2;
     for (std::string line_str; std::getline(std::cin, line_str); line_i++) {
 
@@ -560,80 +648,3 @@ void patter::action() {
     dump_mbias();
 }
 
-
-/***************************************************************
- *                                                             *
- *                     Main                                    *
- *                                                             *
- ***************************************************************/
-
-/*
- * Input Arguments Parsering class
- */
-class InputParser{
-public:
-    InputParser (int &argc, char **argv){
-        for (int i=1; i < argc; ++i)
-            this->tokens.emplace_back(std::string(argv[i]));
-    }
-    const std::string& getCmdOption(const std::string &option) const{
-        std::vector<std::string>::const_iterator itr;
-        itr =  std::find(this->tokens.begin(), this->tokens.end(), option);
-        if (itr != this->tokens.end() && ++itr != this->tokens.end()){
-            return *itr;
-        }
-        static const std::string empty_string;
-        return empty_string;
-    }
-    bool cmdOptionExists(const std::string &option) const{
-        return std::find(this->tokens.begin(), this->tokens.end(), option)
-               != this->tokens.end();
-    }
-private:
-    std::vector <std::string> tokens;
-};
-
-bool is_number(const std::string& s)
-{
-    std::string::const_iterator it = s.begin();
-    while (it != s.end() && std::isdigit(*it)) ++it;
-    return !s.empty() && it == s.end();
-}
-
-
-int main(int argc, char **argv) {
-    clock_t begin = clock();
-    try {
-        InputParser input(argc, argv);
-        int min_cpg = 1;
-        if (input.cmdOptionExists("--min_cpg")){
-            std::string min_cpg_string = input.getCmdOption("--min_cpg");
-            if ( !is_number(min_cpg_string) )
-                throw std::invalid_argument("Invalid min_cpg argument. Should be a non-negative integer.");
-            min_cpg = std::stoi(min_cpg_string);
-        }
-        int clip = 0;
-        if (input.cmdOptionExists("--clip")){
-            std::string clip_str = input.getCmdOption("--clip");
-            if ( !is_number(clip_str) )
-                throw std::invalid_argument("Invalid clip argument. Should be a non-negative integer.");
-            clip = std::stoi(clip_str);
-        }
-        if (argc < 3) {
-            throw std::invalid_argument("Usage: patter CPG_DICT REGION [--mbias MBIAS_PATH] [--clip CLIP]");
-        }
-        std::string mbias_path = input.getCmdOption("--mbias");
-        patter p(argv[1], argv[2], mbias_path, min_cpg, clip);
-        p.action();
-
-    }
-    catch (std::exception &e) {
-        std::cerr << "[ patter ] Failed! exception:" << std::endl;
-        std::cerr << e.what() << std::endl;
-        return 1;
-    }
-    clock_t end = clock();
-    double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-    //std::cerr << elapsed_secs << std::endl;
-    return 0;
-}

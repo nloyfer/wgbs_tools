@@ -106,7 +106,8 @@ def is_region_empty(view_cmd, region, verbose):
 
 
 def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, mapq, debug,
-             blueprint, clip, temp_dir, blacklist, whitelist, min_cpg, mbias, verbose):
+             blueprint, clip, temp_dir, blacklist, whitelist, min_cpg, mbias, nanopore,
+             np_thresh, verbose):
     """ Convert a temp single chromosome file, extracted from a bam file, into pat """
 
     # Run patter tool on a single chromosome. out_path will have the following fields:
@@ -140,6 +141,8 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, mapq
     patter_cmd += f' --min_cpg {min_cpg} --clip {clip}'
     if mbias:
         patter_cmd += f' --mbias {out_path}.mb'
+    if nanopore:
+        patter_cmd += f' --nanopore --np_thresh {np_thresh} '
 
     if blueprint:
         patter_cmd, match_cmd = blueprint_legacy(genome, region, paired_end)
@@ -158,19 +161,24 @@ def validate_bam(bam):
     if not (op.isfile(bam) and bam.endswith('.bam')):
         eprint(f'[wt bam2pat] Invalid bam: {bam}')
         return False
+    return True
+
+
+def is_bam_sorted(bam):
 
     # check if bam is sorted by coordinate:
     peek_cmd = f'samtools view -H {bam} | head -1'
-    if 'coordinate' not in subprocess.check_output(peek_cmd, shell=True).decode():
-        eprint('bam file must be sorted by coordinate')
-        return False
+    if 'coordinate' in subprocess.check_output(peek_cmd, shell=True).decode():
+        return True
 
     # check if bam is indexed:
-    if not (op.isfile(bam + '.bai')):
-        eprint('[wt bam2pat] bai file was not found! Generating...')
+    if not (op.isfile(bam + '.bai') or op.isfile(bam + '.csi')):
+        eprint('[wt bam2pat] WARNING: index file (bai/csi) not found! Attempting to generate bai...')
         if subprocess.call(['samtools', 'index', bam]):
             eprint(f'[wt bam2pat] Failed indexing bam: {bam}')
+            eprint('              Make sure the bam file is sorted and indexed')
             return False
+
     return True
 
 
@@ -270,7 +278,7 @@ class Bam2Pat:
                        self.args.include_flags,
                        self.args.mapq, self.args.debug, self.args.blueprint, self.args.clip,
                        self.args.temp_dir, blist, wlist, self.args.min_cpg,
-                       self.args.mbias, self.verbose)
+                       self.args.mbias, self.args.nanopore, self.args.np_thresh, self.verbose)
                 params.append(par)
 
             if len(cur_regions) == 1 and self.args.threads == 1:
@@ -372,6 +380,10 @@ def parse_bam2pat_args(parser):
             help='Output mbias plots. Only paired-end data is supported')
     parser.add_argument('--blueprint', '-bp', action='store_true',
             help='filter bad bisulfite conversion reads if <90 percent of CHs are converted')
+    parser.add_argument('--nanopore', '-np', action='store_true',
+            help='BETA VERSION: Input bam is of Oxford Nanopore format. Call methylation from MM & ML fields.')
+    parser.add_argument('--np_thresh', type=float, default=0.67,
+                        help='For Nanopore format: probability cutoff, between 0 to 1. [0.67]')
 
 
 def add_args(parser):
@@ -405,6 +417,12 @@ def parse_args(parser):
     return args
 
 
+def validate_np_thresh(args):
+    if 'np_thresh' in args:
+        if not (0 < args.np_thresh < 1):
+            raise IllegalArgumentError(f'Invalid np_thresh range: must be in range (0,1)')
+
+
 def main():
     """
     Run the WGBS pipeline to generate pat & beta files out of an input bam file
@@ -418,8 +436,10 @@ def main():
 
     validate_local_exe(match_maker_tool)
     validate_local_exe(patter_tool)
+    validate_np_thresh(args)
+
     for bam in args.bam:
-        if not validate_bam(bam):
+        if not (validate_bam(bam) and is_bam_sorted(bam)):
             eprint(f'[wt bam2pat] Skipping {bam}')
             continue
 
