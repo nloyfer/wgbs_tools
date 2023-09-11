@@ -7,7 +7,7 @@ import pandas as pd
 import argparse
 import re
 from operator import itemgetter
-from utils_wgbs import MAX_PAT_LEN, validate_file_list, splitextgz, IllegalArgumentError, \
+from utils_wgbs import validate_file_list, splitextgz, IllegalArgumentError, \
                        color_text, load_borders, drop_dup_keep_order, read_shell
 from genomic_region import GenomicRegion
 from cview import view_gr
@@ -192,7 +192,8 @@ class PatVis:
             table[row, col + len(patt)] = 1              # after read
 
     def cyclic_print(self, df):
-        max_width = self.end - self.start + 2 * MAX_PAT_LEN  # maximal width of the output (in characters)
+        longest_read = df.pat.str.len().max()
+        max_width = self.end - self.start + 2 * longest_read  # maximal width of the output (in characters)
         table = np.zeros((df['count'].sum() + 1, max_width), dtype=np.int8)
         first_to_show = df.loc[0, 'start']
 
