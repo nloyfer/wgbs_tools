@@ -1,6 +1,14 @@
 # wgbstools tutorial
+## Introduction and contents
+wgbstools is an extensive computational suite tailored for bisulfite sequencing data. It allows fast access, ultra-compact representation of high-throughput data, and informative visualizations, as well as machine learning and statistical analysis, from fragment-level to locus-specific representations.
+In this tutorial, we'll work through the main features, including:
+1. [Installation and configuration](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#installation-and-configuration)
+2. [Format conversion](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#generate-pat--beta-files) - Generate \.pat & \.beta files from \.bam file.
+3. [Segmentation](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#segmentation) - Segment a given region into homogenously methylated blocks.
+4. CONTINUE
+
 ## Installation and configuration
-First install `wgbstools` and configure the `hg19` genome
+First, install `wgbstools` and initialize `hg19` as the reference genome:
 ```bash
 git clone https://github.com/nloyfer/wgbs_tools.git
 cd wgbs_tools
@@ -12,6 +20,7 @@ It is recommended to add wgbstools to your $PATH, E.g,
 ```bash
 export PATH=${PATH}:$PWD
 ```
+
 
 ## All set. Let's begin
 ### Data and region
@@ -32,7 +41,7 @@ Sigmoid_Colon_STL003.small.bam
 ```
 
 To keep things compact, we consider a small region of ~4Kb, covering 100 CpG sites.
-`convert` command translates genomic loci to CpG-index range and vice verca. It also prints genomic annotations, when available (currently only hg19).
+`convert` command translates genomic loci to CpG-index range and vice versa. It also prints genomic annotations, when available (currently only hg19).
 ```bash
 $ region=chr3:119527929-119531943
 $ wgbstools convert -r $region
@@ -44,7 +53,7 @@ exon    NR1I2
 ```
 
 ### Generate pat & beta files
-To generate [`pat`](../docs/pat_format.md) and [`beta`](../docs/beta_format.md)) files for each of the samples, we use the `bam2pat` command.
+To generate [`pat`](../docs/pat_format.md) and [`beta`](../docs/beta_format.md) files for each of the samples, we use the `bam2pat` command.
 ```bash
 $ wgbstools bam2pat bams/*.bam -r $region
 [wt bam2pat] bam: bams/Lung_STL002.small.bam
@@ -125,19 +134,22 @@ chr3  119531385  119531943  5394858   5394867  0.87               0.87          
 ```
 
 ### Visualizations
-try different forms of visualizations
-
+Try different forms of visualizations:
+- \.beta files, divided by the blocks we found:
 ```bash
 $ wgbstools vis -r chr3:119527929-119531943 -b blocks.small.bed.gz *beta
 ```
 <!--![alt text](images/wt_vis_beta_1.png "beta vis example")-->
 <img src="images/wt_vis_beta_1.png" width="1050" height="110" />
 
+- Heatmap visualization of the above:
 ```bash
 $ wgbstools vis -r chr3:119527929-119531943 -b blocks.small.bed.gz *beta --heatmap
 ```
 <!--![alt text](images/wt_vis_beta_2.png "beta vis example")-->
 <img src="images/wt_vis_beta_2.png" width="1050" height="110" />
+
+- \.pat files, divided by the blocks we found:
 
 ```bash
 $ wgbstools vis -r chr3:119528585-119528783 -b blocks.small.bed.gz Sigmoid_Colon_STL003.small.pat.gz --min_len 4
