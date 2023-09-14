@@ -105,8 +105,8 @@ wgbstools vis *.beta -r chr3:119528843-119529245 --heatmap
 <!--![alt text](docs/img/colon.beta.png "beta vis example")-->
 <img src="../docs/img/colon.beta.png" width="450" height="600" />
 
-### Segmentation 
-Segment the region into homogenously methylated blocks:
+## Segmentation 
+wgbstools allows us to segment the region into homogenously methylated blocks:
 ```bash
 $ wgbstools segment --betas *beta --min_cpg 3 --max_bp 2000 -r $region -o blocks.small.bed
 [wt segment] found 9 blocks
@@ -126,21 +126,35 @@ chr3    119531385       119531943       5394858 5394867
 The segmentation algorithm finds a partition of the genome that optimizes some homogeneity score, i.e, the CpG sites in each block tend to have a similar methylation status. Many of the blocks are typically singletons (covering a single CpG site), but they are dropped when the `--min_cpg MIN_CPG` flag is specified.
 - **TODO** phrasing - maybe something instead of "some homogenity score"
 
-In this example, the `segment` command segmented the region chr3:119,527,929-119,531,943 to 17 blocks, 9 of them cover at least 3 CpG sites.
-
-The output bed file has 5 columns: chr, start, end, startCpG, endCpG (non inclusive). For example, the first block is chr3:119,527,929-119,528,187, 258bp, 5 CpG sites.
+In this example, the `segment` command segmented the region chr3:119,527,929-119,531,943 to 17 blocks, 9 of them cover at least 3 CpG sites.  
+The output `.bed` file has 5 columns: chr, start, end, startCpG, endCpG (non inclusive). For example, the first block is chr3:119,527,929-119,528,187, 258bp, 5 CpG sites.
 
 **Optional**: bgzip and index the '.bed' file, make it easier to access.
-`index` command wraps bgzip and tabix. It compresses a '\.bed' (or '\.pat') file and generates corresponding index file. This step is necessary if you wish to visualize these blocks later using `vis` command.
+`index` wraps bgzip and tabix. It compresses a `.bed` (or `.pat`) file and generates a corresponding index file. This step is necessary if you wish to visualize these blocks later using the `vis` command.
 ```bash
-$ wgbstools index wgbs_segments.bed
-$ ls -1 wgbs_segments.*
-wgbs_segments.bed.gz
-wgbs_segments.bed.gz.tbi
+$ wgbstools index blocks.small.bed
+$ ls -1 blocks.small.*
+blocks.small.bed.gz
+blocks.small.bed.gz.tbi
 ```
+Having indexed our `.bed` file, we can now visalize the segmentation that we found:
+```bash
+$ wgbstools vis -r chr3:119527929-119531943 -b blocks.small.bed.gz *beta
+```
+<!--![alt text](images/wt_vis_beta_1.png "beta vis example")-->
+<img src="images/wt_vis_beta_1.png" width="1050" height="110" />
 
-### collapse beta files to blocks
-Collapse the beta files to the blocks we just found:
+```bash
+$ wgbstools vis -r chr3:119527929-119531943 -b blocks.small.bed.gz *beta --heatmap
+```
+<!--![alt text](images/wt_vis_beta_2.png "beta vis example")-->
+<img src="images/wt_vis_beta_2.png" width="1050" height="110" />
+
+## Use of segmentation
+⚠️ For use of wgbstools with existing `.bed` files, see [`.bed`.](https://github.com/rsegel/wgbs_tools/blob/master/docs/bed_format.md) ⚠️
+
+### Average methylation over blocks
+We can collapse the beta files and average the methylation over the blocks we found:
 
 ```zsh
 $ wgbstools beta_to_table blocks.small.bed.gz --betas *beta | column -t
@@ -156,38 +170,12 @@ chr3  119530396  119530598  5394846   5394856  0.94               0.91          
 chr3  119531385  119531943  5394858   5394867  0.87               0.87                   0.96
 ```
 
-⚠️ For use of wgbstools with existing `.bed` files, see [`.bed`.]() ⚠️
-
-### Visualizations
-Try different forms of visualizations:
-- Display \.beta files, divided by the blocks we found:
-```bash
-$ wgbstools vis -r chr3:119527929-119531943 -b blocks.small.bed.gz *beta
-```
-<!--![alt text](images/wt_vis_beta_1.png "beta vis example")-->
-<img src="images/wt_vis_beta_1.png" width="1050" height="110" />
-
-- Heatmap visualization of the above:
-```bash
-$ wgbstools vis -r chr3:119527929-119531943 -b blocks.small.bed.gz *beta --heatmap
-```
-<!--![alt text](images/wt_vis_beta_2.png "beta vis example")-->
-<img src="images/wt_vis_beta_2.png" width="1050" height="110" />
-
-- Display \.pat files, divided by the blocks we found:
-
-```bash
-$ wgbstools vis -r chr3:119528585-119528783 -b blocks.small.bed.gz Sigmoid_Colon_STL003.small.pat.gz --min_len 4
-```
-<!--![alt text](images/wt_vis_pat_1.png "pat vis example")-->
-<img src="images/wt_vis_pat_1.png" width="400" height="600" />
-
-### DMRs
+### Differentially Methylated Regions
 We can use the `wgbstools find_markers` command to find DMRs for two or more groups of samples.
 This command takes as input:
 - beta files: a set of beta files to find the DMR for.
 - group file: a `csv` table\ text file defining which beta files are case and which are control, or other groups.
-- blocks file: a `bed` file with 2 extra columns for CpG indexes. Could be the output of the `wgbstools segment` command, or any custom bed file once you added the [startCpG, endCpG] columns with `wgbstools convert -L BED_FILE`.
+- blocks file: a [wgbstools \.bed](https://github.com/rsegel/wgbs_tools/blob/master/docs/bed_format.md ".bed format") file. Could be the output of the wgbstools `segment` command, or any custom bed file after using `convert`.
 
 For each group defined in the `group_file`, `find_markers` will find all regions/ blocks within the supplied blocks file that differentiate between the samples within this group when compared to samples from all other groups.
 Other than these required arguments, there are plenty of configuration arguments. See `find_markers --help` for more information.
