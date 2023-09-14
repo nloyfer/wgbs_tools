@@ -8,7 +8,7 @@ In this tutorial, we'll work through the main features, including:
 4. CONTINUE
 
 ## Installation and configuration
-First, install `wgbstools` and initialize `hg19` as the reference genome:
+First, install `wgbstools` and [initialize](https://github.com/rsegel/wgbs_tools/blob/master/docs/init_genome_ref_wgbs.md "Alternative ref genome") `hg19` as the reference genome:
 ```bash
 git clone https://github.com/nloyfer/wgbs_tools.git
 cd wgbs_tools
@@ -20,7 +20,16 @@ It is recommended to add wgbstools to your $PATH, E.g,
 ```bash
 export PATH=${PATH}:$PWD
 ```
-
+#### Dependencies
+- python 3+, with libraries:
+    - pandas version 1.0+
+    - numpy
+    - scipy
+- samtools
+- tabix / bgzip
+#### Dependencies for some features:
+- bedtools
+- statsmodels - for test_bimodal
 
 ## All set. Let's begin
 ### Data and region
@@ -39,9 +48,8 @@ Lung_STL002.small.bam
 Pancreas_STL002.small.bam
 Sigmoid_Colon_STL003.small.bam
 ```
-
-To keep things compact, we consider a small region of ~4Kb, covering 100 CpG sites.
-`convert` command translates genomic loci to CpG-index range and vice versa. It also prints genomic annotations, when available (currently only hg19).
+### Format conversion
+In many cases, we will want to consider only a small genomic region. wgbstools uses CpG indices, so we can use the `convert` command to translate genomic loci to CpG-index range and vice versa. It also prints genomic annotations, when available (currently only hg19).  
 ```bash
 $ region=chr3:119527929-119531943
 $ wgbstools convert -r $region
@@ -52,8 +60,8 @@ intron  NR1I2
 exon    NR1I2
 ```
 
-### Generate pat & beta files
-To generate [`pat`](../docs/pat_format.md) and [`beta`](../docs/beta_format.md) files for each of the samples, we use the `bam2pat` command.
+#### .pat & .bam
+To generate [`.pat`](../docs/pat_format.md) and [`.beta`](../docs/beta_format.md) files for each of our samples, we use the `bam2pat` command. Notice the usage of our converted region from earlier.
 ```bash
 $ wgbstools bam2pat bams/*.bam -r $region
 [wt bam2pat] bam: bams/Lung_STL002.small.bam
@@ -83,9 +91,22 @@ Sigmoid_Colon_STL003.small.beta
 Sigmoid_Colon_STL003.small.pat.gz
 Sigmoid_Colon_STL003.small.pat.gz.csi
 ```
+Once we have `.pat` and `.beta` files, we can use wgbstools `vis` to visualize them. For example:
+
+```bash
+wgbstools vis Sigmoid_Colon_STL003.pat.gz -r chr3:119528843-119529245
+```
+<!--![alt text](docs/img/colon.pat.png "pat vis example" =100x100)-->
+<img src="../docs/img/colon.pat.png" width="500" height="400" />
+
+```bash
+wgbstools vis *.beta -r chr3:119528843-119529245 --heatmap
+```
+<!--![alt text](docs/img/colon.beta.png "beta vis example")-->
+<img src="../docs/img/colon.beta.png" width="450" height="600" />
 
 ### Segmentation 
-Segment the region into homogenously methylated blocks
+Segment the region into homogenously methylated blocks:
 ```bash
 $ wgbstools segment --betas *beta --min_cpg 3 --max_bp 2000 -r $region -o blocks.small.bed
 [wt segment] found 9 blocks
@@ -102,18 +123,20 @@ chr3    119529584       119530116       5394837 5394844
 chr3    119530396       119530598       5394846 5394856
 chr3    119531385       119531943       5394858 5394867
 ```
-The output bed file has 5 columns: chr, start, end, startCpG, endCpG (non inclusive). For example, the first block is chr3:119,527,929-119,528,187, 258bp, 5 CpG sites.
 The segmentation algorithm finds a partition of the genome that optimizes some homogeneity score, i.e, the CpG sites in each block tend to have a similar methylation status. Many of the blocks are typically singletons (covering a single CpG site), but they are dropped when the `--min_cpg MIN_CPG` flag is specified.
+- **TODO** phrasing - maybe something instead of "some homogenity score"
+
 In this example, the `segment` command segmented the region chr3:119,527,929-119,531,943 to 17 blocks, 9 of them cover at least 3 CpG sites.
 
-#### Index bed
-Optional: bgzip and index the output blocks, make it easier to access.
-`index` command wraps bgzip and tabix. It compresses a bed (or pat) file and generates corresponding index file. This step is necessary if you wish to visualize these blocks later using `vis` command.
+The output bed file has 5 columns: chr, start, end, startCpG, endCpG (non inclusive). For example, the first block is chr3:119,527,929-119,528,187, 258bp, 5 CpG sites.
+
+**Optional**: bgzip and index the '.bed' file, make it easier to access.
+`index` command wraps bgzip and tabix. It compresses a '\.bed' (or '\.pat') file and generates corresponding index file. This step is necessary if you wish to visualize these blocks later using `vis` command.
 ```bash
-$ wgbstools index blocks.small.bed
-$ ls -1 blocks.small.*
-blocks.small.bed.gz
-blocks.small.bed.gz.tbi
+$ wgbstools index wgbs_segments.bed
+$ ls -1 wgbs_segments.*
+wgbs_segments.bed.gz
+wgbs_segments.bed.gz.tbi
 ```
 
 ### collapse beta files to blocks
@@ -133,9 +156,11 @@ chr3  119530396  119530598  5394846   5394856  0.94               0.91          
 chr3  119531385  119531943  5394858   5394867  0.87               0.87                   0.96
 ```
 
+⚠️ For use of wgbstools with existing `.bed` files, see [`.bed`.]() ⚠️
+
 ### Visualizations
 Try different forms of visualizations:
-- \.beta files, divided by the blocks we found:
+- Display \.beta files, divided by the blocks we found:
 ```bash
 $ wgbstools vis -r chr3:119527929-119531943 -b blocks.small.bed.gz *beta
 ```
@@ -149,7 +174,7 @@ $ wgbstools vis -r chr3:119527929-119531943 -b blocks.small.bed.gz *beta --heatm
 <!--![alt text](images/wt_vis_beta_2.png "beta vis example")-->
 <img src="images/wt_vis_beta_2.png" width="1050" height="110" />
 
-- \.pat files, divided by the blocks we found:
+- Display \.pat files, divided by the blocks we found:
 
 ```bash
 $ wgbstools vis -r chr3:119528585-119528783 -b blocks.small.bed.gz Sigmoid_Colon_STL003.small.pat.gz --min_len 4
