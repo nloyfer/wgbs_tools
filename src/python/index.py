@@ -43,7 +43,10 @@ def tabix_fai_workaround(in_file):
 
         # only relevant for tabix versions (1.9-1.15)
         txt = sp.check_output('tabix --version', shell=True).decode()
-        tversion = float(txt.split()[2].split('.')[1])
+        tversion = txt.split()[2].split('.')[1]
+        if '-' in tversion:
+            tversion = tversion[:tversion.find('-')]
+        tversion = float(tversion)
         if tversion <= 9 or tversion >= 15:
             return
     except Exception:
