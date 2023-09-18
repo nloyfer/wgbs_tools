@@ -33,7 +33,7 @@ export PATH=${PATH}:$PWD
 
 ## All set. Let's begin
 ### Data and region
-For this short tutorial, we will use the following publicly available samples from the [Roadmap Epigenomic Project](https://www.nature.com/articles/nature14248). The fastq files were downloaded from [GEO](https://www.ncbi.nlm.nih.gov//geo/query/acc.cgi?acc=GSE16256), mapped to hg19 using [bwa-meth](https://github.com/brentp/bwa-meth), and finally sliced to to the region `chr3:119,527,929-119,531,943`
+For this short tutorial, we will use the following publicly available samples from the [Roadmap Epigenomic Project](https://www.nature.com/articles/nature14248). The fastq files were downloaded from [GEO](https://www.ncbi.nlm.nih.gov//geo/query/acc.cgi?acc=GSE16256), mapped to hg19 using [bwa-meth](https://github.com/brentp/bwa-meth), and sliced to to the region `chr3:119,527,929-119,531,943` during format conversion (see next section).
 
 | SRX  | Tissue  |  Donor |
 |---|---|---|
@@ -171,16 +171,16 @@ chr3  119531385  119531943  5394858   5394867  0.87               0.87          
 ```
 
 ### Differentially Methylated Regions
-We can use the `wgbstools find_markers` command to find DMRs for two or more groups of samples.
+We can use the `wgbstools find_markers` command to find DMRs for two or more groups of samples, e.g. case and control, different tissues, etc.
 This command takes as input:
-- beta files: a set of beta files to find the DMR for.
-- group file: a `csv` table\ text file defining which beta files are case and which are control, or other groups.
+- beta files: a set of beta files to find the DMRs for.
+- group file: a `csv` table or text file defining which beta files belong to each group.
 - blocks file: a [wgbstools \.bed](https://github.com/rsegel/wgbs_tools/blob/master/docs/bed_format.md ".bed format") file. Could be the output of the wgbstools `segment` command, or any custom bed file after using `convert`.
 
-For each group defined in the `group_file`, `find_markers` will find all regions/ blocks within the supplied blocks file that differentiate between the samples within this group when compared to samples from all other groups.
+For each group defined in the `group_file`, `find_markers` will find all regions\blocks within the supplied blocks file that differentiate between the samples within this group when compared to samples from all other groups.
 Other than these required arguments, there are plenty of configuration arguments. See `find_markers --help` for more information.
 
-We use the following group file:
+For the example, we will use the following group file:
 ```bash
 $ cat bams/groups.csv
 name,group
@@ -199,7 +199,8 @@ dumping to ./Markers.lung.bed
 Number of markers found: 0
 dumping to ./Markers.pancreas.bed
 ```
-Here are the output markers (None found for the pancreas):
+
+View the output markers (None found for the pancreas):
 ```bash
 $ head Markers.*.bed
 
@@ -233,6 +234,8 @@ for target in `tail +2 bams/groups.csv| cut -f2 -d,`; do echo "=====\n$target\n=
 ## Bimodal and ASM analysis
 
 Bimodal regions are those where CpG methylation is distributed from two differently behaving sources. One common example of this, in samples with pure cell types, is allele-specific methylation (ASM). Allele specific methylation is the phenomenon whereby one allele is highly methylated and the other is lowly methylated. This occurs in sequence-dependent ASM, meQTLs, and imprinting control regions, as well as some other phenomenon. wgbstools provides tools for bimodal and ASM analysis.
+- **TODO** phrasing - I wouldn't write this description, dunno if it's how things are written. My version follows:
+Allele specific methylation is a phenomenon where two alleles differ significantly in the methylation of a specific region. ASM can be sequence dependent, imprinted depending on parental origin of the allele, or related to other phenomena. wgbstools provides tools for identifying bimodal regions and for ASM analysis.
 
 We begin by creating pat files for our bam:
 ```bash
@@ -247,11 +250,10 @@ wgbstools vis -r $region Left_Ventricle_STL001.IGF2.pat.gz
 <!--![alt text](images/vis_bimodal.png "vis bimodal region")-->
 <img src="images/vis_bimodal.png" width="361" height="584" />
 
-This region is inside of the well known ICR of IGF2. We can see that most of the reads are either mostly methylated or mostly unmethylated, or bimodal, thus suggesting allele-specific methylation.
-
+This region is inside of the well known ICR of IGF2. We can see that most of the reads seem to be either mostly methylated or mostly unmethylated, i.e. bimodal, suggesting allele-specific methylation.
 #### Bimodal analysis
 
-We can get counts for the amount of reads above 65% methylation, below 35% methylation, and in between, as well as visualiztion like so:
+We can get counts for the number of reads above 65% methylation, below 35% methylation, and in between, as well as visualization like so:
 
 ```bash
 wgbstools vis -r $region Left_Ventricle_STL001.IGF2.pat.gz --uxm 0.65
@@ -259,7 +261,7 @@ wgbstools vis -r $region Left_Ventricle_STL001.IGF2.pat.gz --uxm 0.65
 <!--![alt text](images/wgbstools_vis_uxm.png "vis bimodal region with reads classified")-->
 <img src="images/wgbstools_vis_uxm.png" width="429" height="575" />
 
-We can see that we have over 200 reads with 51.2% below 35% methylation,  47.3% above 65% methylation, and 1.4% with methlyation levels between 35-65%.
+We can see that out of ~280 reads we have 51.2% below 35% methylation, 47.3% above 65% methylation, and 1.4% with methlyation levels between 35-65%.
 
 We can conduct a statistical test to verify that this region is indeed bimodal. We will test whether the hypothesis that all reads are generated from a single distribution is more likely than the hypothesis that there are two distinct distributions (with differing probabilities for each CpG to be methylated) from which each read is generated.
 
@@ -271,10 +273,11 @@ pvalue: 0.000e+00
 ```
 
 We can see that the log-likelihood of the two-distribution/two-allele model is much higher than the single-allele model and the p-value is ~0.
+**TODO** - explain the printed results.
 
 #### ASM analysis
 
-We now wish to verify that there is indeed allele-specific methylation. We identify a C/A heterozygous polymorphism at chr11:2019496 within our region of interest. This can be done with various tools (bisulfite SNP calling). We use the IGV to verify that there is indeed at a heterozygous polymorphism:
+We now wish to verify that the bimodality is indeed allele-specific methylation. In order to split the reads by allele, we identify a C/A heterozygous polymorphism at chr11:2019496, within our region of interest. This can be done with various tools (bisulfite SNP calling). We use the IGV to verify that there is indeed at a heterozygous polymorphism:
 <!--![alt text](images/IGV_heterozygous.png "IGV view")-->
 <img src="images/IGV_heterozygous.png" width="567" height="358" />
 
@@ -294,4 +297,5 @@ wgbstools vis -r $region Left_Ventricle_STL001.IGF2.chr11:2019496*pat.gz
 <!--![alt text](images/split_by_allele.png "split by alleles C/A")-->
 <img src="images/split_by_allele.png" width="399" height="627" />
 
-As we can see, almost all of the reads with the A genotype are meythlated while all of the reads with the C genotype are unmethylated. 
+As we can see, almost all of the reads with the A genotype are methylated while all of the reads with the C genotype are unmethylated, displaying clear ASM within the sample.
+
