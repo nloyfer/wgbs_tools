@@ -3,9 +3,19 @@
 wgbstools is an extensive computational suite tailored for bisulfite sequencing data. It allows fast access, ultra-compact representation of high-throughput data, and informative visualizations, as well as machine learning and statistical analysis, from fragment-level to locus-specific representations.
 In this tutorial, we'll work through the main features, including:
 1. [Installation and configuration](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#installation-and-configuration)
-2. [Format conversion](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#generate-pat--beta-files) - Generate \.pat & \.beta files from \.bam file.
+2. [Data conversion](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#format-conversion) - Generate \.pat & \.beta files from \.bam file.
 3. [Segmentation](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#segmentation) - Segment a given region into homogenously methylated blocks.
-4. CONTINUE
+4. [Use of segmentation:](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#use-of-segmentation)
+   - [Average methylation over segments](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#average-methylation-over-blocks)
+   - [Differentially Methylated Regions](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#differentially-methylated-regions) - Find markers to differentiate between sample groups.
+5. [Bimodal and ASM analysis](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#bimodal-and-asm-analysis) - Analyze bimodality and identify allele-specific methylation.
+   
+In addition, we will see ways to visualize our data and results along the way, such as:
+- Methylation patterns (\.pat files)
+- Heatmap visualization of \.beta files
+- Adding segmentation to visualization
+- Splitting reads by allele
+- Exporting figures to \.pdf
 
 ## Installation and configuration
 First, install `wgbstools` and [initialize](https://github.com/rsegel/wgbs_tools/blob/master/docs/init_genome_ref_wgbs.md "Alternative ref genome") `hg19` as the reference genome:
