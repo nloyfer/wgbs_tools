@@ -22,3 +22,12 @@ chr3	119528430	119528783	5394786	5394796	intron	NR1I2
 ```
 
 As in other uses of convert, genomic annotations will be added when available (currently only hg19).
+
+**Optional**: bgzip and index the '.bed' file, make it easier to access.
+`index` wraps bgzip and tabix. It compresses a `.bed` (or `.pat`) file and generates a corresponding index file. **This step is necessary if you wish to visualize these blocks later** using the `vis` command.
+```bash
+$ wgbstools index wgbs_segments.bed
+$ ls -1 wgbs_segments.*
+wgbs_segments.bed.gz
+wgbs_segments.bed.gz.tbi
+```
