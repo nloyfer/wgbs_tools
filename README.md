@@ -74,3 +74,9 @@ wgbstools vis *.beta -r chr3:119528843-119529245 --heatmap
 
 ### Deconvolution
 To deconvolve tissues or blood samples, see our [UXM](https://github.com/nloyfer/UXM_deconv) software
+
+### Citing *wgbstools*
+If you are using the UXM deconvolution in a paper, please cite:
+<br>[Loyfer\*, Magenheim\*, Peretz\* *et al.* (2023)](www.nature.com/articles/s41586-022-05580-6) ‘A DNA methylation atlas of normal human cell types’, *Nature* ,2023.
+<br>[GEO [GSE186458](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE186458) | Genome browser sessions: [hg19](https://genome-euro.ucsc.edu/s/Tomkap/Atlas_hg19) | [hg38](https://genome-euro.ucsc.edu/s/Tomkap/Atlas_hg38)]
+
