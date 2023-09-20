@@ -101,7 +101,14 @@ Sigmoid_Colon_STL003.small.beta
 Sigmoid_Colon_STL003.small.pat.gz
 Sigmoid_Colon_STL003.small.pat.gz.csi
 ```
-Once we have `.pat` and `.beta` files, we can use wgbstools `vis` to visualize them. For example:
+Once we have `.beta` and `.pat` files, we can use wgbstools `vis` to visualize them. For example:
+
+```bash
+wgbstools vis *.beta -r chr3:119528843-119529245 --heatmap
+```
+<!--![alt text](docs/img/colon.beta.png "beta vis example")-->
+<img src="../docs/img/colon.beta.png" width="450" height="600" />
+
 
 ```bash
 wgbstools vis Sigmoid_Colon_STL003.pat.gz -r chr3:119528843-119529245
@@ -109,11 +116,15 @@ wgbstools vis Sigmoid_Colon_STL003.pat.gz -r chr3:119528843-119529245
 <!--![alt text](docs/img/colon.pat.png "pat vis example" =100x100)-->
 <img src="../docs/img/colon.pat.png" width="500" height="400" />
 
+`.pat` visualizations can also be exported to \.pdf using the `pat_fig` command:
 ```bash
-wgbstools vis *.beta -r chr3:119528843-119529245 --heatmap
+wgbstools pat_fig -o pat_fig.pdf *pat.gz -r chr3:119528405-119528783 --top 15 --title "Example figure - pat_fig.pdf:"
 ```
-<!--![alt text](docs/img/colon.beta.png "beta vis example")-->
-<img src="../docs/img/colon.beta.png" width="450" height="600" />
+<!--![alt text](docs/img/pat_fig example.png "pat_fig example" =100x100)-->
+<img src="../docs/img/pat_fig example.png" />  
+
+`pat_fig` can be configured with many different arguments. See `pat_fig --help` for detailed information.
+
 
 ## Segmentation 
 wgbstools allows us to segment the region into homogenously methylated blocks:
@@ -164,7 +175,7 @@ $ wgbstools vis -r chr3:119527929-119531943 -b blocks.small.bed.gz *beta --heatm
 ⚠️ For use of wgbstools with existing `.bed` files, see [`.bed`.](https://github.com/rsegel/wgbs_tools/blob/master/docs/bed_format.md) ⚠️
 
 ### Average methylation over blocks
-We can collapse the beta files and average the methylation over the blocks we found:
+We can calculate the average methylation level of each block we found in each of our beta files:
 
 ```zsh
 $ wgbstools beta_to_table blocks.small.bed.gz --betas *beta | column -t
@@ -180,6 +191,8 @@ chr3  119530396  119530598  5394846   5394856  0.94               0.91          
 chr3  119531385  119531943  5394858   5394867  0.87               0.87                   0.96
 ```
 
+It is also possible to calculate the average methylation of each block for groups of beta files with the `-g group_file.csv` flag. See next section for an example of a group file.
+
 ### Differentially Methylated Regions
 We can use the `wgbstools find_markers` command to find DMRs for two or more groups of samples, e.g. case and control, different tissues, etc.
 This command takes as input:
@@ -187,8 +200,19 @@ This command takes as input:
 - group file: a `csv` table or text file defining which beta files belong to each group.
 - blocks file: a [wgbstools \.bed](https://github.com/rsegel/wgbs_tools/blob/master/docs/bed_format.md ".bed format") file. Could be the output of the wgbstools `segment` command, or any custom bed file after using `convert`.
 
-For each group defined in the `group_file`, `find_markers` will find all regions\blocks within the supplied blocks file that differentiate between the samples within this group when compared to samples from all other groups.
+For each group defined in the `group_file`, `find_markers` will find all regions\blocks within the supplied blocks file that differentiate between the samples from each group when compared to samples from all other groups.
 Other than these required arguments, there are plenty of configuration arguments. See `find_markers --help` for more information.
+
+Define groups using the following format, as a `.csv` file:
+|name               |group  |
+|:-----------------:|:-----:|
+|betafile 1 group A|group A|
+|betafile 2 group A|group A|
+|betafile 3 group A|group A|
+|betafile 1 group B|group B|
+|betafile 2 group B|group B|
+|betafile 1 group C|group C|
+|betafile 2 group C|group C|
 
 For the example, we will use the following group file:
 ```bash
@@ -235,7 +259,13 @@ The `ttest` column is the p-value for a T-test. By default, DMRs with p-value>0.
 
 Let's take a look at the markers:
 ```bash
-for target in `tail +2 bams/groups.csv| cut -f2 -d,`; do echo "=====\n$target\n====="; for r in `cut -f7 Markers.$target.bed`; do echo "$r\n"; wgbstools vis *beta -r $r -b blocks.small.bed.gz; done ; done
+for target in `tail +2 bams/groups.csv| cut -f2 -d,`;
+  do echo "=====\n$target\n=====";
+  for r in `cut -f7 Markers.$target.bed`;
+    do echo "$r\n";
+    wgbstools vis *beta -r $r -b blocks.small.bed.gz;
+    done;
+  done
 ```
 
 <!--![alt text](images/wt_vis_markers.png "beta vis all markers")-->
