@@ -7,6 +7,7 @@ In this tutorial, we'll work through the main features, including:
 3. [Segmentation](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#segmentation) - Segment a given region into homogenously methylated blocks.
 4. [Use of segmentation:](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#use-of-segmentation)
    - [Average methylation over segments](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#average-methylation-over-blocks)
+   - [TODO title of homog section]()
    - [Differentially Methylated Regions](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#differentially-methylated-regions) - Find markers to differentiate between sample groups.
 5. [Bimodal and ASM analysis](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#bimodal-and-asm-analysis) - Analyze bimodality and identify allele-specific methylation.
    
@@ -193,6 +194,27 @@ chr3  119531385  119531943  5394858   5394867  0.87               0.87          
 
 It is also possible to calculate the average methylation of each block for groups of beta files with the `-g group_file.csv` flag. See next section for an example of a group file.
 
+### TODO: find a title for homog section
+Using the `homog` command, we can analyze methylation patterns by block in different `.pat` files. The command generates a compressed `.bed` file for each sample, counting the number of reads by methylation status (Methylated, miXed, Unmethylated) in each block:
+```zsh
+$ wgbstools homog *pat.gz -b blocks.small.bed -o homog_out --thresholds 0.25,0.75
+$ cd homog_out
+$ ls -1
+Lung_STL002.small.uxm.bed.gz
+Pancreas_STL002.small.uxm.bed.gz
+Sigmoid_Colon_STL003.small.uxm.bed.gz
+$ zcat Lung_STL002.small.uxm.bed.gz
+chr3	119527929	119528187	5394767	5394772	0	4	6
+chr3	119528217	119528243	5394774	5394777	3	9	16
+chr3	119528246	119528388	5394777	5394784	10	23	11
+chr3	119528405	119528431	5394784	5394787	9	5	0
+chr3	119528639	119528783	5394789	5394796	27	2	1
+chr3	119528806	119529245	5394796	5394834	190	3	0
+chr3	119529584	119530116	5394837	5394844	0	2	80
+chr3	119530396	119530598	5394846	5394856	0	16	143
+chr3	119531385	119531943	5394858	5394867	2	24	75
+```
+In this example, we chose the threshold for a read to be classified as M to be 75% methylation and U to be 25%. The last three columns in the output the number of U | X | M reads.
 ### Differentially Methylated Regions
 We can use the `wgbstools find_markers` command to find DMRs for two or more groups of samples, e.g. case and control, different tissues, etc.
 This command takes as input:
