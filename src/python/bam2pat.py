@@ -168,11 +168,14 @@ def is_bam_sorted(bam):
 
     # check if bam is sorted by coordinate:
     peek_cmd = f'samtools view -H {bam} | head -1'
-    if 'coordinate' in subprocess.check_output(peek_cmd, shell=True).decode():
-        return True
+    hd_line = subprocess.check_output(peek_cmd, shell=True).decode()
+    if hd_line.startswith('@HD') and 'coordinate' not in hd_line:
+        eprint(f'[wt bam2pat] WARNING: based on the @HD, bam file is not sorted: {bam}')
+        return False
 
     # check if bam is indexed:
-    if not (op.isfile(bam + '.bai') or op.isfile(bam + '.csi')):
+    is_indexed = (op.isfile(bam + '.bai') or op.isfile(bam + '.csi'))
+    if not is_indexed:
         eprint('[wt bam2pat] WARNING: index file (bai/csi) not found! Attempting to generate bai...')
         if subprocess.call(['samtools', 'index', bam]):
             eprint(f'[wt bam2pat] Failed indexing bam: {bam}')
