@@ -195,7 +195,7 @@ chr3  119531385  119531943  5394858   5394867  0.87               0.87          
 It is also possible to calculate the average methylation of each block for groups of beta files with the `-g group_file.csv` flag. See next section for an example of a group file.
 
 ### TODO: find a title for homog section
-Using the `homog` command, we can analyze methylation patterns by block in different `.pat` files. The command generates a compressed `.bed` file for each sample, counting the number of reads by methylation status (Methylated, miXed, Unmethylated) in each block:
+Using the `homog` command, we can analyze methylation patterns by block in different `.pat` files. The command generates a compressed `.bed` file for each sample, counting the number of reads by methylation status (**M**ethylated, mi**X**ed, **U**nmethylated) in each block:
 ```zsh
 $ wgbstools homog *pat.gz -b blocks.small.bed -o homog_out --thresholds 0.25,0.75
 $ cd homog_out
@@ -214,7 +214,7 @@ chr3	119529584	119530116	5394837	5394844	0	2	80
 chr3	119530396	119530598	5394846	5394856	0	16	143
 chr3	119531385	119531943	5394858	5394867	2	24	75
 ```
-In this example, we chose the threshold for a read to be classified as M to be 75% methylation and U to be 25%. The last three columns in the output the number of U | X | M reads.
+In this example, we chose the threshold for a read to be classified as M to be 75% methylation and U to be 25%. The last three columns in the output are the number of U | X | M reads.
 ### Differentially Methylated Regions
 We can use the `wgbstools find_markers` command to find DMRs for two or more groups of samples, e.g. case and control, different tissues, etc.
 This command takes as input:
@@ -297,7 +297,8 @@ for target in `tail +2 bams/groups.csv| cut -f2 -d,`;
 
 Bimodal regions are those where CpG methylation is distributed from two differently behaving sources. One common example of this, in samples with pure cell types, is allele-specific methylation (ASM). Allele specific methylation is the phenomenon whereby one allele is highly methylated and the other is lowly methylated. This occurs in sequence-dependent ASM, meQTLs, and imprinting control regions, as well as some other phenomenon. wgbstools provides tools for bimodal and ASM analysis.
 - **TODO** phrasing - I wouldn't write this description, dunno if it's how things are written. My version follows:
-Allele specific methylation is a phenomenon where two alleles differ significantly in the methylation of a specific region. ASM can be sequence dependent, imprinted depending on parental origin of the allele, or related to other phenomena. wgbstools provides tools for identifying bimodal regions and for ASM analysis.
+
+Bimodal regions are genomic regions where reads from two different sources tend to have different methylation patterns. A common example of this, especially within a pure sample of a single cell type, is allele specific methylation (ASM) - a phenomenon where two alleles display bimodal methylation. ASM can be sequence dependent, imprinted depending on parental origin of the allele, or related to other phenomena. wgbstools provides tools for identifying bimodal regions and for ASM analysis.
 
 We begin by creating pat files for our bam:
 ```bash
@@ -359,5 +360,5 @@ wgbstools vis -r $region Left_Ventricle_STL001.IGF2.chr11:2019496*pat.gz
 <!--![alt text](images/split_by_allele.png "split by alleles C/A")-->
 <img src="images/split_by_allele.png" width="399" height="627" />
 
-As we can see, almost all of the reads with the A genotype are methylated while all of the reads with the C genotype are unmethylated, displaying clear ASM within the sample.
+As we can see, almost all of the reads with the A genotype are methylated while all of the reads with the C genotype are unmethylated, displaying clear ASM within the sample. In this case it is known that this region is imprinted, therefore further analysis of more samples will probably reveal that the methylation pattern is correlated with parental origin rather than with any specific SNP.
 
