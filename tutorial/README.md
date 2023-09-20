@@ -192,7 +192,7 @@ chr3  119530396  119530598  5394846   5394856  0.94               0.91          
 chr3  119531385  119531943  5394858   5394867  0.87               0.87                   0.96
 ```
 
-It is also possible to calculate the average methylation of each block for groups of beta files with the `-g group_file.csv` flag. See next section for an example of a group file.
+It is also possible to calculate the average methylation of each block for groups of beta files with the `-g group_file.csv` flag. See [DMR](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#differentially-methylated-regions) section for an example of a group file.
 
 ### TODO: find a title for homog section
 Using the `homog` command, we can analyze methylation patterns by block in different `.pat` files. The command generates a compressed `.bed` file for each sample, counting the number of reads by methylation status (**M**ethylated, mi**X**ed, **U**nmethylated) in each block:
