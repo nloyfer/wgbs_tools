@@ -275,7 +275,7 @@ chr3    119528246       119528388       5394777 5394784 lung    chr3:119528246-1
 
 ```
 The 10th-11th columns are the target and background methylation average for this block.
-When there is more than one sample in a group, these values show the average across all samlpes in the group (e.g. for the first block, chr3:119528384-119528418, 0.21 is the average of the two "non colon" group of samples). See [`supplemental/find_markers_config.txt`](../supplemental/find_markers_config.txt) for more information.
+When there is more than one sample in a group, these values show the average across all samples in the group (e.g. for the first block, chr3:119528384-119528418, 0.21 is the average of the two "non colon" group of samples). See [`supplemental/find_markers_config.txt`](../supplemental/find_markers_config.txt) for more information.
 The 12th is the difference between them (multiplied by 100). 
 The `ttest` column is the p-value for a T-test. By default, DMRs with p-value>0.05 are filtered out (`--pval 0.05` flag).
 
@@ -296,7 +296,7 @@ for target in `tail +2 bams/groups.csv| cut -f2 -d,`;
 ## Bimodal and ASM analysis
 
 Bimodal regions are those where CpG methylation is distributed from two differently behaving sources. One common example of this, in samples with pure cell types, is allele-specific methylation (ASM). Allele specific methylation is the phenomenon whereby one allele is highly methylated and the other is lowly methylated. This occurs in sequence-dependent ASM, meQTLs, and imprinting control regions, as well as some other phenomenon. wgbstools provides tools for bimodal and ASM analysis.
-- **TODO** phrasing - I wouldn't write this description, dunno if it's how things are written. My version follows:
+- **TODO** phrasing - my version of the description follows, TBD which to use:
 
 Bimodal regions are genomic regions where reads from two different sources tend to have different methylation patterns. A common example of this, especially within a pure sample of a single cell type, is allele specific methylation (ASM) - a phenomenon where two alleles display bimodal methylation. ASM can be sequence dependent, imprinted depending on parental origin of the allele, or related to other phenomena. wgbstools provides tools for identifying bimodal regions and for ASM analysis.
 
