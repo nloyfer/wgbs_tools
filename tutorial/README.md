@@ -227,14 +227,14 @@ Other than these required arguments, there are plenty of configuration arguments
 
 Define groups using the following format, as a `.csv` file:
 |name               |group  |
-|:-----------------:|:-----:|
-|betafile 1 group A|group A|
-|betafile 2 group A|group A|
-|betafile 3 group A|group A|
-|betafile 1 group B|group B|
-|betafile 2 group B|group B|
-|betafile 1 group C|group C|
-|betafile 2 group C|group C|
+|:----:|:-----:|
+|file 1|group A|
+|file 2|group A|
+|file 3|group A|
+|file 4|group B|
+|file 5|group B|
+|file 6|group C|
+|file 7|group C|
 
 For the example, we will use the following group file:
 ```bash
