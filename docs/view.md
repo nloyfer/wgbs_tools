@@ -8,40 +8,36 @@ Output to stdout as default
 
 Flags:
 ```
-usage: view [-h] [--print_region] [-s SITES | -r REGION | -L BED_FILE]
-            [--genome GENOME] [-o OUT_PATH] [--sub_sample [0.0, 1.0]]
-            [--strict] [--strip] [-@ THREADS] [--min_len MIN_LEN]
+usage: view [-h] [-s SITES | -r REGION | -L BED_FILE] [--genome GENOME] [--strict] [--strip] [--min_len MIN_LEN] [--shuffle]
+            [--no_sort] [--sub_sample SUB_SAMPLE] [-o OUT_PATH] [-np]
             input_file
 
-View the content of input file (pat/beta) as plain text. Possible filter by
-genomic region or sites range Output to stdout as default
+View the content of input file (pat/beta) as plain text. Possible filter by genomic region or sites range Output to stdout as default
 
 positional arguments:
   input_file
 
 optional arguments:
   -h, --help            show this help message and exit
-  --print_region        pat: Prints region before reads
   -s SITES, --sites SITES
                         a CpG index range, of the form: "450000-450050"
   -r REGION, --region REGION
                         genomic region of the form "chr1:10,000-10,500"
   -L BED_FILE, --bed_file BED_FILE
-                        Bed file. Columns <chr, start, end>
+                        Bed file. Columns <chr, start, end>. For some features columns 4-5 should be <startCpG, endCpG> (run
+                        wgbstools convert -L BED_PATH)
   --genome GENOME       Genome reference name. Default is "default".
+  --strict              pat: Truncate reads that start/end outside the given region. Only relevant if "region", "sites" or "bed_file"
+                        flags are given.
+  --strip               pat: Remove trailing dots (from beginning/end of reads).
+  --min_len MIN_LEN     pat: Display only reads covering at least MIN_LEN CpG sites [1]
+  --shuffle             pat: Shuffle reads order, while keeping the startCpG order (sort -k2,2n -k3,3R)
+  --no_sort             pat: Keep read order, as in the original pat file
+  --sub_sample SUB_SAMPLE
+                        pat: subsample from reads. Only supported for pat
   -o OUT_PATH, --out_path OUT_PATH
                         Output path. [stdout]
-  --sub_sample [0.0, 1.0]
-                        pat: subsample from reads. Only supported for pat
-  --strict              pat: Truncate reads that start/end outside the given
-                        region. Only relevant if "region", "sites" or
-                        "bed_file" flags are given.
-  --strip               pat: Remove trailing dots (from beginning/end of
-                        reads).
-  -@ THREADS, --threads THREADS
-                        Number of threads to use (default: all available CPUs)
-  --min_len MIN_LEN     pat: Display only reads covering at least MIN_LEN CpG
-                        sites [1]
+  -np, --nanopore       BETA VERSION: pull very long reads starting before the requested region
 
 ```
 
