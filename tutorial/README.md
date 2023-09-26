@@ -3,13 +3,13 @@
 wgbstools is an extensive computational suite tailored for bisulfite sequencing data. It allows fast access, ultra-compact representation of high-throughput data, and informative visualizations, as well as machine learning and statistical analysis, from fragment-level to locus-specific representations.
 In this tutorial, we'll work through the main features, including:
 1. [Installation and configuration](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#installation-and-configuration)
-2. [Data conversion](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#format-conversion) - Generate \.pat & \.beta files from \.bam file.
+2. [Data conversion](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#format-conversion) - Convert genomic loci to CpG indices, generate `.pat` & `.beta` files from `.bam` file, view files as plain text.
 3. [Visualizations]() - Methylation patterns, heatmaps, segmentation, exporting to pdf
-4. [Segmentation](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#segmentation) (Optional) - Segment a given region into homogenously methylated blocks.
-5. [Averaging methylation over segments](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#average-methylation-over-blocks)
-6. [Counting homogenously methylated fragments]()
-7. [Differentially Methylated Regions](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#differentially-methylated-regions) - Find markers to differentiate between sample groups.
-8. [Bimodal and ASM analysis](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#bimodal-and-asm-analysis) - Analyze bimodality and identify allele-specific methylation.
+5. [Segmentation](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#segmentation) (Optional) - Segment a given region into homogenously methylated blocks.
+6. [Averaging methylation over segments](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#average-methylation-over-blocks)
+7. [Counting homogenously methylated fragments](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#counting-homogenously-methylated-fragments)
+8. [Differentially Methylated Regions](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#differentially-methylated-regions) - Find markers to differentiate between sample groups.
+9. [Bimodal and ASM analysis](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#bimodal-and-asm-analysis) - Analyze bimodality and identify allele-specific methylation.
 
 
 ## Installation and configuration
@@ -96,22 +96,73 @@ Sigmoid_Colon_STL003.small.beta
 Sigmoid_Colon_STL003.small.pat.gz
 Sigmoid_Colon_STL003.small.pat.gz.csi
 ```
-Once we have `.beta` and `.pat` files, we can use wgbstools `vis` to visualize them. For example:
+Once we have `.beta` and `.pat` files, we can use wgbstools [`view`](https://github.com/rsegel/wgbs_tools/blob/master/docs/view.md) to view them:
+```bash
+$ wgbstools view -r chr3:119527929-119528309 Pancreas_STL002.small.pat.gz
+chr3	5394764	CCCC	4
+chr3	5394765	CCC	2
+chr3	5394766	CC	7
+chr3	5394766	TC	1
+chr3	5394767	C	3
+chr3	5394768	C	9
+chr3	5394768	CC	7
+chr3	5394768	CCC	3
+chr3	5394768	CT	2
+chr3	5394768	T	1
+chr3	5394768	TC	1
+chr3	5394769	CCC	1
+chr3	5394770	CCCCC	1
+chr3	5394770	CCCTCC	1
+chr3	5394770	CCCTCCCC	1
+chr3	5394770	CTTTCCCT	1
+chr3	5394774	CCCTCTT	1
+chr3	5394775	CCTCCC	1
 
+$ wgbstools view -r chr3:119527929-119528243 --genome hg19 Pancreas_STL002.small.beta  
+chr3	119527928	119527930	17	17
+chr3	119528087	119528089	21	23
+chr3	119528116	119528118	12	14
+chr3	119528180	119528182	8	8
+chr3	119528185	119528187	4	5
+chr3	119528201	119528203	3	4
+chr3	119528207	119528209	1	4
+chr3	119528216	119528218	5	5
+chr3	119528224	119528226	5	5
+chr3	119528241	119528243	4	4
+```
+Notice that we made use of a region flag `-r` to only view reads\values that overlap the specified genomic region. This feature (along with `-s` for CpG sites) utilizes *tabix* and the \.csi index to achieve efficient random access without reading the whole file in the case of \.pat files, and the fixed file size to access values in O(1) in the case of \.beta files.  
+See [`view`](https://github.com/rsegel/wgbs_tools/blob/master/docs/view.md) and `wgbstools view --help` for more options and information.
+
+## Visualization
+wgbstools provides many different options for visualization of our data. Let's take a look at some of the main features:
+
+- Heatmap visualization of `.beta` files:
 ```bash
 wgbstools vis *.beta -r chr3:119528843-119529245 --heatmap
 ```
 <!--![alt text](docs/img/colon.beta.png "beta vis example")-->
 <img src="../docs/img/colon.beta.png" width="450" height="600" />
 
-
+- Visualization of methylation patterns (`pat` files):
 ```bash
 wgbstools vis Sigmoid_Colon_STL003.pat.gz -r chr3:119528843-119529245
 ```
 <!--![alt text](docs/img/colon.pat.png "pat vis example" =100x100)-->
 <img src="../docs/img/colon.pat.png" width="500" height="400" />
 
-`.pat` visualizations can also be exported to \.pdf using the `pat_fig` command:
+- Both `.pat` and `.bam` file visualizations can use segmentation of the genomic region. The segmentation requires a bgzipped and indexed .bed file, see [`bed`](https://github.com/rsegel/wgbs_tools/blob/master/docs/bed_format.md) for full documentation.  
+
+```bash
+region=chr3:119527929-119528783
+wgbstools vis *beta -r $region --blocks_path wgbs_segments.bed.gz
+wgbstools vis *Lung_STL002.small.pat.gz -r $region --genome hg19 --blocks_path wgbs_segments.bed.gz
+```
+<p float="left">
+  <img src="../docs/img/pat vis with blocks example.png" width="500" />
+  <img src="../docs/img/beta vis with blocks example.png" width="500" /> 
+</p>
+
+- `.pat` visualizations can also be exported to \.pdf using the `pat_fig` command:
 ```bash
 wgbstools pat_fig -o pat_fig.pdf *pat.gz -r chr3:119528405-119528783 --top 15 --title "Example figure - pat_fig.pdf:"
 ```
@@ -120,47 +171,36 @@ wgbstools pat_fig -o pat_fig.pdf *pat.gz -r chr3:119528405-119528783 --top 15 --
 
 `pat_fig` can be configured with many different arguments. See `pat_fig --help` for detailed information.
 
+- TODO add flag descriptions - strip, strict, min_len, explain order of operation
+- TODO add explanation of bed
 
-## Segmentation 
-wgbstools allows us to segment the region into homogenously methylated blocks:
+
+### Segmentation
+wgbstools allows us to segment our region into homogenously methylated blocks:
 ```bash
 $ wgbstools segment --betas *beta --min_cpg 3 --max_bp 2000 -r $region -o blocks.small.bed
 [wt segment] found 9 blocks
-             (dropped 8 short blocks)
+             (dropped 9 short blocks)
 $ cat blocks.small.bed
 #chr    start   end     startCpG        endCpG
-chr3    119527929       119528187       5394767 5394772
-chr3    119528217       119528243       5394774 5394777
-chr3    119528246       119528309       5394777 5394781
-chr3    119528384       119528418       5394782 5394786
-chr3    119528430       119528783       5394786 5394796
-chr3    119528806       119529245       5394796 5394834
-chr3    119529584       119530116       5394837 5394844
-chr3    119530396       119530598       5394846 5394856
-chr3    119531385       119531943       5394858 5394867
+chr3	119527929	119528187	5394767	5394772
+chr3	119528217	119528243	5394774	5394777
+chr3	119528246	119528388	5394777	5394784
+chr3	119528405	119528431	5394784	5394787
+chr3	119528639	119528783	5394789	5394796
+chr3	119528806	119529245	5394796	5394834
+chr3	119529584	119530116	5394837	5394844
+chr3	119530396	119530598	5394846	5394856
+chr3	119531385	119531943	5394858	5394867
 ```
 The segmentation algorithm finds a partition of the genome that optimizes some homogeneity score, i.e, the CpG sites in each block tend to have a similar methylation status. Many of the blocks are typically singletons (covering a single CpG site), but they are dropped when the `--min_cpg MIN_CPG` flag is specified.
-- **TODO** phrasing - maybe something instead of "some homogenity score"
 
-In this example, the `segment` command segmented the region chr3:119,527,929-119,531,943 to 17 blocks, 9 of them cover at least 3 CpG sites.  
+In this example, the `segment` command segmented the region chr3:119,527,929-119,531,943 to 18 blocks, 9 of them cover at least 3 CpG sites.  
 The output `.bed` file has 5 columns: chr, start, end, startCpG, endCpG (non inclusive). For example, the first block is chr3:119,527,929-119,528,187, 258bp, 5 CpG sites.
 
-**Optional**: bgzip and index the '.bed' file, make it easier to access.
-`index` wraps bgzip and tabix. It compresses a `.bed` (or `.pat`) file and generates a corresponding index file. This step is necessary if you wish to visualize these blocks later using the `vis` command.
+Let's take a look at the segments (remember that we need to index the `.bed` file to use it with `vis`):
 ```bash
 $ wgbstools index blocks.small.bed
-$ ls -1 blocks.small.*
-blocks.small.bed.gz
-blocks.small.bed.gz.tbi
-```
-Having indexed our `.bed` file, we can now visalize the segmentation that we found:
-```bash
-$ wgbstools vis -r chr3:119527929-119531943 -b blocks.small.bed.gz *beta
-```
-<!--![alt text](images/wt_vis_beta_1.png "beta vis example")-->
-<img src="images/wt_vis_beta_1.png" width="1050" height="110" />
-
-```bash
 $ wgbstools vis -r chr3:119527929-119531943 -b blocks.small.bed.gz *beta --heatmap
 ```
 <!--![alt text](images/wt_vis_beta_2.png "beta vis example")-->
