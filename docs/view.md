@@ -46,8 +46,8 @@ View only reads (or values, in case of \*.beta files) overlapping the specified 
 If no genomic region was provided, *view* outputs the whole file.
 The genomic region may be specified in one of two ways:
 1. CHROM:START-END, e.g. `-r chr1:10,747-10,758`
-2. SITE1-SITE2, e.g. `-s 45-50`. This is non-inclusive, i.e. only sites 45,46,47,48,49 will be considered.
-This feature uses *tabix* and the \*.csi index to achieve a quick random access (without reading the whole pat file). For beta files, it utilizes the fact that they have fixed size, so random access takes O(1).
+2. SITE1-SITE2, e.g. `-s 45-50`. This is non-inclusive, i.e. only sites 45,46,47,48,49 will be considered.  
+This feature uses *tabix* and the \*.csi index to achieve efficient random access (without reading the whole pat file). For beta files, it utilizes the fact that they have fixed size, so random access takes O(1).
 
 ### strict (pat)
 When specified with a region(s), *view* trims reads crossing the borders of the region. For example:
