@@ -158,8 +158,8 @@ wgbstools vis *beta -r $region --blocks_path wgbs_segments.bed.gz
 wgbstools vis *Lung_STL002.small.pat.gz -r $region --genome hg19 --blocks_path wgbs_segments.bed.gz
 ```
 <p float="left">
-  <img src="../docs/img/pat vis with blocks example.png" width="500" />
-  <img src="../docs/img/beta vis with blocks example.png" width="500" /> 
+  <img src="../docs/img/pat vis with blocks example.png" width="500" align="middle"/>
+  <img src="../docs/img/beta vis with blocks example.png" width="500" align="middle"/> 
 </p>
 
 - `.pat` visualizations can also be exported to \.pdf using the `pat_fig` command:
