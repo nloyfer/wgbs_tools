@@ -4,19 +4,13 @@ wgbstools is an extensive computational suite tailored for bisulfite sequencing 
 In this tutorial, we'll work through the main features, including:
 1. [Installation and configuration](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#installation-and-configuration)
 2. [Data conversion](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#format-conversion) - Generate \.pat & \.beta files from \.bam file.
-3. [Segmentation](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#segmentation) - Segment a given region into homogenously methylated blocks.
-4. [Use of segmentation:](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#use-of-segmentation)
-   - [Average methylation over segments](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#average-methylation-over-blocks)
-   - [TODO title of homog section]()
-   - [Differentially Methylated Regions](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#differentially-methylated-regions) - Find markers to differentiate between sample groups.
-5. [Bimodal and ASM analysis](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#bimodal-and-asm-analysis) - Analyze bimodality and identify allele-specific methylation.
-   
-In addition, we will see ways to visualize our data and results along the way, such as:
-- Methylation patterns (\.pat files)
-- Heatmap visualization of \.beta files
-- Adding segmentation to visualization
-- Splitting reads by allele
-- Exporting figures to \.pdf
+3. [Visualizations]() - Methylation patterns, heatmaps, segmentation, exporting to pdf
+4. [Segmentation](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#segmentation) (Optional) - Segment a given region into homogenously methylated blocks.
+5. [Averaging methylation over segments](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#average-methylation-over-blocks)
+6. [Counting homogenously methylated fragments]()
+7. [Differentially Methylated Regions](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#differentially-methylated-regions) - Find markers to differentiate between sample groups.
+8. [Bimodal and ASM analysis](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#bimodal-and-asm-analysis) - Analyze bimodality and identify allele-specific methylation.
+
 
 ## Installation and configuration
 First, install `wgbstools` and [initialize](https://github.com/rsegel/wgbs_tools/blob/master/docs/init_genome_ref_wgbs.md "Alternative ref genome") `hg19` as the reference genome:
@@ -194,7 +188,7 @@ chr3  119531385  119531943  5394858   5394867  0.87               0.87          
 
 It is also possible to calculate the average methylation of each block for groups of beta files with the `-g group_file.csv` flag. See [DMR](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#differentially-methylated-regions) section for an example of a group file.
 
-### TODO: find a title for homog section
+### Counting homogenously methylated fragments
 Using the `homog` command, we can analyze methylation patterns by block in different `.pat` files. The command generates a compressed `.bed` file for each sample, counting the number of reads by methylation status (**M**ethylated, mi**X**ed, **U**nmethylated) in each block:
 ```zsh
 $ wgbstools homog *pat.gz -b blocks.small.bed -o homog_out --thresholds 0.25,0.75
