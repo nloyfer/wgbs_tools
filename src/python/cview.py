@@ -42,7 +42,7 @@ def view_gr(pat, args, get_cmd=False):
     view_flags = set_view_flags(args)
     cmd += f' | {cview_tool} --sites "{s}\t{e}" ' + view_flags
     cmd += add_subsample_cmd(args) # sub-sample reads
-    if not gr.is_whole() and ('no_sort' in args and not args.no_sort):
+    if not gr.is_whole() and (('no_sort' not in args) or (not args.no_sort)):
         cmd += f' | sort -k2,2n -k3,3'
         if args.shuffle:
             cmd += 'R'
