@@ -85,7 +85,7 @@ std::string load_blocks(std::string blocks_path, std::string sites) {
         if ((blocks_path.length() > 3) && (blocks_path.substr(blocks_path.length() - 3) == ".gz")) {
             cmd = "gunzip -c ";
         }
-        cmd += blocks_path + " " + " | cut -f4-5 | sort -k1,1n";
+        cmd += blocks_path + " " + " | grep -v ^# | cut -f4-5 | sort -k1,1n";
         block_data = exec(cmd.c_str());
         if (block_data.length() == 0) {
             throw std::invalid_argument("[ cview ] Error: Unable to read blocks file: " + blocks_path);
