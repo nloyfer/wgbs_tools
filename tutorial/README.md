@@ -4,7 +4,7 @@ wgbstools is an extensive computational suite tailored for bisulfite sequencing 
 In this tutorial, we'll work through the main features, including:
 1. [Installation and configuration](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#installation-and-configuration)
 2. [Data conversion](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#format-conversion) - Convert genomic loci to CpG indices, generate `.pat` & `.beta` files from `.bam` file, view files as plain text.
-3. [Visualizations]() - Methylation patterns, heatmaps, segmentation, exporting to pdf
+3. [Visualizations]() - Methylation patterns, heatmaps, segmentation, use of flags (strict, strip, min_len), exporting to pdf
 5. [Segmentation](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#segmentation) (Optional) - Segment a given region into homogenously methylated blocks.
 6. [Averaging methylation over segments](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#average-methylation-over-blocks)
 7. [Counting homogenously methylated fragments](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#counting-homogenously-methylated-fragments)
@@ -136,21 +136,22 @@ See [`view`](https://github.com/rsegel/wgbs_tools/blob/master/docs/view.md) and 
 ## Visualization
 wgbstools provides many different options for visualization of our data. Let's take a look at some of the main features:
 
-- Heatmap visualization of `.beta` files:
+#### Heatmap visualization of `.beta` files:
 ```bash
 wgbstools vis *.beta -r chr3:119528843-119529245 --heatmap
 ```
 <!--![alt text](docs/img/colon.beta.png "beta vis example")-->
 <img src="../docs/img/colon.beta.png" width="450" height="600" />
 
-- Visualization of methylation patterns (`pat` files):
+#### Visualization of methylation patterns (`pat` files):
 ```bash
 wgbstools vis Sigmoid_Colon_STL003.pat.gz -r chr3:119528843-119529245
 ```
 <!--![alt text](docs/img/colon.pat.png "pat vis example" =100x100)-->
 <img src="../docs/img/colon.pat.png" width="500" height="400" />
 
-- Both `.pat` and `.bam` file visualizations can use segmentation of the genomic region. The segmentation requires a bgzipped and indexed wgbstools .bed file, see [`.bed`](https://github.com/rsegel/wgbs_tools/blob/master/docs/bed_format.md) for full documentation. In this example we'll use the existing `wgbs_segments.bed.gz`:
+#### Segmented visualization
+Both `.pat` and `.bam` file visualizations can use segmentation of the genomic region. The segmentation requires a bgzipped and indexed wgbstools .bed file, see [`.bed`](https://github.com/rsegel/wgbs_tools/blob/master/docs/bed_format.md) for full documentation. In this example we'll use the existing `wgbs_segments.bed.gz`:
 
 ```bash
 $ zcat wgbs_segments.bed.gz
@@ -168,14 +169,37 @@ $ wgbstools vis *Lung_STL002.small.pat.gz -r $region --genome hg19 --blocks_path
   <img src="../docs/img/beta vis with blocks example.png" width="500" align="middle"/>
 </p>
 
-- When visualizing `.pat` files, we can customize exactly which reads will be visualized and how using the `--strict`, `--strip`, and `--min_len` flags.
-    - `--strict` - vis will truncate reads that start/end outside the given region.
-    - `--strip` - vis will remove starting and trailing dots (CpG sites with no data).
-    - `--min_len MIN_LEN` - vis will only display reads of MIN_LEN length at least.
-- If more than one flag is used, `--strict` will run first, then `--strip`, and finally `--min_len`.
+#### Flags: `--strict`, `--strip`, & `--min_len`
 
+When visualizing `.pat` files, we can customize exactly which reads will be visualized and how using the `--strict`, `--strip`, and `--min_len` flags:
+- `--strict` - vis will truncate reads that start/end outside the given region.
+- `--strip` - vis will remove starting and trailing dots (CpG sites with no data).
+- `--min_len MIN_LEN` - vis will only display reads of MIN_LEN length at least.  
+If more than one flag is used, `--strict` will run first, then `--strip`, and finally `--min_len`.
+```bash
+wgbstools vis *Lung*pat.gz -s 5394807-5394815
+```
+<!--![alt text](docs/img/pat vis no flags.png "pat vis no flags" =100x100)-->
+<img src="../docs/img/pat vis no flags.png"/>
 
-- `.pat` visualizations can also be exported to \.pdf using the `pat_fig` command:
+```bash
+wgbstools vis *Lung*pat.gz -s 5394807-5394815 --strict
+wgbstools vis *Lung*pat.gz -s 5394807-5394815 --strict --strip
+```
+|<img src="../docs/img/pat vis strict.png" width="484" align="middle"/> | <img src="../docs/img/pat vis strict strip.png" width="500" align="middle"/>|
+|:-:|:-:|
+|`wgbstools vis --strict`|`wgbstools vis --strict --strip`|
+
+```bash
+wgbstools vis *Lung*pat.gz -s 5394807-5394815 --strict --min_len 5
+wgbstools vis *Lung*pat.gz -s 5394807-5394815 --strict --strip --min_len 5
+```
+|<img src="../docs/img/pat vis strict min.png" width="500" align="middle"/>|<img src="../docs/img/pat vis strict strip min.png" width="500" align="middle"/>|
+|:-:|:-:|
+|`wgbstools vis --strict --min_len 5`|`wgbstools vis --strict --strip --min_len 5`|
+
+#### Export to PDF
+`.pat` visualizations can also be exported to \.pdf using the `pat_fig` command:
 ```bash
 wgbstools pat_fig -o pat_fig.pdf *pat.gz -r chr3:119528405-119528783 --top 15 --title "Example figure - pat_fig.pdf:"
 ```
@@ -184,9 +208,7 @@ wgbstools pat_fig -o pat_fig.pdf *pat.gz -r chr3:119528405-119528783 --top 15 --
 
 `pat_fig` can be configured with many different arguments. See `pat_fig --help` for detailed information.
 
-- TODO add flag descriptions - strip, strict, min_len, explain order of operation
-- TODO add explanation of bed
-
+- TODO add explanation of bed to other sections
 
 ### Segmentation
 wgbstools allows us to segment our region into homogenously methylated blocks:
