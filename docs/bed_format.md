@@ -31,3 +31,5 @@ $ ls -1 wgbs_segments.*
 wgbs_segments.bed.gz
 wgbs_segments.bed.gz.tbi
 ```
+
+- **TODO** - add reference to atlas segmentation
