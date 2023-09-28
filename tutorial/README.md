@@ -10,6 +10,8 @@ In this tutorial, we'll work through the main features, including:
 7. [Counting homogenously methylated fragments](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#counting-homogenously-methylated-fragments)
 8. [Differentially Methylated Regions](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#differentially-methylated-regions) - Find markers to differentiate between sample groups.
 9. [Bimodal and ASM analysis](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#bimodal-and-asm-analysis) - Analyze bimodality and identify allele-specific methylation.
+10. **TODO** - beta_cov
+11. **TODO** - add_cpg_counts - ask Yoni
 
 
 ## Installation and configuration
