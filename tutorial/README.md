@@ -150,17 +150,30 @@ wgbstools vis Sigmoid_Colon_STL003.pat.gz -r chr3:119528843-119529245
 <!--![alt text](docs/img/colon.pat.png "pat vis example" =100x100)-->
 <img src="../docs/img/colon.pat.png" width="500" height="400" />
 
-- Both `.pat` and `.bam` file visualizations can use segmentation of the genomic region. The segmentation requires a bgzipped and indexed .bed file, see [`bed`](https://github.com/rsegel/wgbs_tools/blob/master/docs/bed_format.md) for full documentation.  
+- Both `.pat` and `.bam` file visualizations can use segmentation of the genomic region. The segmentation requires a bgzipped and indexed wgbstools .bed file, see [`.bed`](https://github.com/rsegel/wgbs_tools/blob/master/docs/bed_format.md) for full documentation. In this example we'll use the existing `wgbs_segments.bed.gz`:
 
 ```bash
-region=chr3:119527929-119528783
-wgbstools vis *beta -r $region --blocks_path wgbs_segments.bed.gz
-wgbstools vis *Lung_STL002.small.pat.gz -r $region --genome hg19 --blocks_path wgbs_segments.bed.gz
+$ zcat wgbs_segments.bed.gz
+chr3	119527929	119528187	5394767	5394772	intron	NR1I2
+chr3	119528217	119528243	5394774	5394777	intron	NR1I2
+chr3	119528246	119528309	5394777	5394781	intron	NR1I2
+chr3	119528384	119528418	5394782	5394786	intron	NR1I2
+chr3	119528430	119528783	5394786	5394796	intron	NR1I2
+$ region=chr3:119527929-119528783
+$ wgbstools vis *beta -r $region --blocks_path wgbs_segments.bed.gz
+$ wgbstools vis *Lung_STL002.small.pat.gz -r $region --genome hg19 --blocks_path wgbs_segments.bed.gz
 ```
 <p float="left">
   <img src="../docs/img/pat vis with blocks example.png" width="500" align="middle"/>
-  <img src="../docs/img/beta vis with blocks example.png" width="500" align="middle"/> 
+  <img src="../docs/img/beta vis with blocks example.png" width="500" align="middle"/>
 </p>
+
+- When visualizing `.pat` files, we can customize exactly which reads will be visualized and how using the `--strict`, `--strip`, and `--min_len` flags.
+    - `--strict` - vis will truncate reads that start/end outside the given region.
+    - `--strip` - vis will remove starting and trailing dots (CpG sites with no data).
+    - `--min_len MIN_LEN` - vis will only display reads of MIN_LEN length at least.
+- If more than one flag is used, `--strict` will run first, then `--strip`, and finally `--min_len`.
+
 
 - `.pat` visualizations can also be exported to \.pdf using the `pat_fig` command:
 ```bash
