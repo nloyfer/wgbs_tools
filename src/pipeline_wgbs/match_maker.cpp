@@ -37,6 +37,7 @@ std::string addCommas(int num) {
 
 int read_pos(std::string &read) { return std::stoi(line2tokens(read)[3]); }
 int read_mate_pos(std::string &read) { return std::stoi(line2tokens(read)[7]); }
+std::string read_chrom(std::string &read) { return line2tokens(read)[2]; }
 
 struct PairedEnd
 {
@@ -82,6 +83,7 @@ std::vector<std::string> flush_data(std::vector<std::string> &data,
 
     if (data.empty()) return data;
 
+    std::string last_chrom = read_chrom(data.at(data.size() - 1)); // get last chrom before sort
     std::sort (data.begin(), data.end());
     std::string dummy = "";
     std::vector<bool> flushed(data.size()); // mark which lines are flushed. The others will be returned as singles.
@@ -122,7 +124,9 @@ std::vector<std::string> flush_data(std::vector<std::string> &data,
             if (last_chunk && output_singles) {
                 pairs_vec.push_back(PairedEnd(data.at(i), dummy));
             } else {
-                optimistics.push_back(data.at(i));
+                if (read_chrom(data.at(i)) == last_chrom){
+                    optimistics.push_back(data.at(i));
+                }
             }
         }
     }
@@ -158,7 +162,7 @@ void action(bool output_singles) {
 
     std::ostream &outfile(std::cout);
 
-    int line_i = 0;
+    long long int line_i = 0;
     //clock_t begin = clock();
     std::string log_pref = "[match maker] ";
 //    std::ios_base::sync_with_stdio(false);  // improves reading speed by x70
@@ -169,6 +173,11 @@ void action(bool output_singles) {
 
 
         data.push_back(line);
+        // If we moved to the next chromosome, flush data
+        std::string chrom = read_chrom(line);
+        if (line_i && (chrom != read_chrom(data.at(0)))){
+            data = flush_data(data, outfile, true, output_singles);
+        }
         if (line_i && (line_i % 50000 == 0)) {
         //if (line_i && (line_i % 2000 == 0)) {
 
