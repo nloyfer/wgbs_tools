@@ -96,13 +96,14 @@ class MethSplit:
 
         p = Pool(self.args.threads)
         p.starmap(proc_chr, params)
+
         p.close()
         p.join()
 
 
 def add_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
-    parser.add_argument('bam', help="The full path of the bam file to process")
+    parser.add_argument('bam', help="The full path of the bam file to process", nargs='+')
     parser.add_argument('homog_prop', help="A fraction with which to determine homogenous reads. All reads with "
                                            "methylation proportion >= [homog_prop] will be classified as highly "
                                            "methylated reads while all reads with methylation proportion <= 1 - [homog_prop] "
@@ -143,7 +144,7 @@ def main():
     if (float(args.homog_prop) <= 0.5):
         raise IllegalArgumentError(f"Illegal homog_prop value {args.homog_prop}. Must be above 0.5")
 
-    for bam in [args.bam]:
+    for bam in args.bam:
         if not validate_bam(bam):
             eprint(f'[wt bam2pat] Skipping {bam}')
             continue
