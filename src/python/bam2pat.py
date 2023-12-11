@@ -52,6 +52,44 @@ def subprocess_wrap(cmd, debug):
         # eprint("Failed with subprocess %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
         # raise IllegalArgumentError('Failed')
 
+
+def set_regions(bam_path, gr, tmp_dir=None):
+    # if user specified a region, just use it
+    if gr.region_str:
+        return [gr.region_str]
+
+    # get all chromosomes present in the bam file header
+    cmd = f'samtools idxstats {bam_path} | cut -f1 '
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, error = p.communicate()
+    if p.returncode or not output:
+        eprint("[wt bam2pat] Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
+        eprint(cmd)
+        eprint('[wt bam2pat] falied to find chromosomes')
+        return []
+    bam_chroms = output.decode()[:-1].split('\n')
+
+    # get all chromosomes from the reference genome:
+    ref_chroms = gr.genome.get_chroms()
+    # intersect the chromosomes from the bam and from the reference
+    intersected_chroms = list(set(bam_chroms) & set(ref_chroms))
+
+    if not intersected_chroms:
+        msg = '[wt bam2pat] Failed retrieving valid chromosome names. '
+        msg += 'Perhaps you are using a wrong genome reference. '
+        msg += 'Try running:\n\t\twgbstools set_default_ref -ls'
+        eprint(msg)
+        tmpdir_cleanup(tmp_dir)
+        raise IllegalArgumentError('Failed')
+
+    return list(sorted(intersected_chroms, key=chromosome_order))  # todo use the same order as in ref_chroms instead of resorting it
+
+
+def tmpdir_cleanup(tmp_dir):
+    if tmp_dir is not None:
+        shutil.rmtree(tmp_dir)
+
+
 def gen_pat_part(out_path, debug, temp_dir):
     try:
         # if out_path is empty or missing, return None
@@ -98,8 +136,8 @@ def is_region_empty(view_cmd, region, verbose):
     view_cmd += ' | head -1'
     if not subprocess.check_output(view_cmd, shell=True,
             stderr=subprocess.PIPE).decode().strip():
-        eprint(f'[wt bam2pat] Skipping region {region}, no reads found')
         if verbose:
+            eprint(f'[wt bam2pat] Skipping region {region}, no reads found')
             eprint('[wt bam2pat] ' + view_cmd)
         return True
     return False
@@ -203,42 +241,7 @@ class Bam2Pat:
         self.gr = GenomicRegion(args)
         self.PE = None
         self.start_threads()
-        self.cleanup()
-
-    def cleanup(self):
-        if self.tmp_dir is not None:
-            shutil.rmtree(self.tmp_dir)
-
-    def set_regions(self):
-        # if user specified a region, just use it
-        if self.gr.region_str:
-            return [self.gr.region_str]
-
-        # get all chromosomes present in the bam file header
-        cmd = f'samtools idxstats {self.bam_path} | cut -f1 '
-        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output, error = p.communicate()
-        if p.returncode or not output:
-            eprint("[wt bam2pat] Failed with samtools idxstats %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
-            eprint(cmd)
-            eprint('[wt bam2pat] falied to find chromosomes')
-            return []
-        bam_chroms = output.decode()[:-1].split('\n')
-
-        # get all chromosomes from the reference genome:
-        ref_chroms = self.gr.genome.get_chroms()
-        # intersect the chromosomes from the bam and from the reference
-        intersected_chroms = list(set(bam_chroms) & set(ref_chroms))
-
-        if not intersected_chroms:
-            msg = '[wt bam2pat] Failed retrieving valid chromosome names. '
-            msg += 'Perhaps you are using a wrong genome reference. '
-            msg += 'Try running:\n\t\twgbstools set_default_ref -ls'
-            eprint(msg)
-            self.cleanup()
-            raise IllegalArgumentError('Failed')
-
-        return list(sorted(intersected_chroms, key=chromosome_order))  # todo use the same order as in ref_chroms instead of resorting it
+        tmpdir_cleanup(self.tmp_dir)
 
     def set_lists(self):
         # black/white lists:
@@ -272,7 +275,7 @@ class Bam2Pat:
         tmp_prefix = op.join(self.tmp_dir, name)
 
         params = []
-        cur_regions = self.set_regions()
+        cur_regions = set_regions(self.bam_path, self.gr, self.tmp_dir)
         try:
             for c in cur_regions:
                 out_path = f'{tmp_prefix}.{c}.out'
@@ -300,7 +303,7 @@ class Bam2Pat:
                 eprint("")
                 pat_parts = []
             else:
-                self.cleanup()
+                tmpdir_cleanup(self.tmp_dir)
                 raise e
 
         self.mbias_merge(name, pat_parts)
@@ -389,15 +392,7 @@ def parse_bam2pat_args(parser):
                         help='For Nanopore format: probability cutoff, between 0 to 1. [0.67]')
 
 
-def add_args(parser):
-    parser.add_argument('bam', nargs='+')
-    add_GR_args(parser)
-    parser.add_argument('--out_dir', '-o', default='.')
-    parser.add_argument('--min_cpg', type=int, default=1,
-                help='Reads covering less than MIN_CPG sites are removed [1]')
-    parser.add_argument('--debug', '-d', action='store_true')
-    parser.add_argument('--force', '-f', action='store_true', help='overwrite existing files if exists')
-    parser.add_argument('--verbose', '-v', action='store_true')
+def add_samtools_view_flags(parser):
     parser.add_argument('--include_flags', type=int,
                         help='flags to include from bam file (samtools view parameter -f) ' \
                              f'[3 for PE, None for SE]')
@@ -407,6 +402,18 @@ def add_args(parser):
     parser.add_argument('-q', '--mapq', type=int,
                         help=f'Minimal mapping quality (samtools view parameter) [{MAPQ}]',
                         default=MAPQ)
+
+
+def add_args(parser):
+    parser.add_argument('bam', nargs='+')
+    add_GR_args(parser)
+    add_samtools_view_flags(parser)
+    parser.add_argument('--out_dir', '-o', default='.')
+    parser.add_argument('--min_cpg', type=int, default=1,
+                help='Reads covering less than MIN_CPG sites are removed [1]')
+    parser.add_argument('--debug', '-d', action='store_true')
+    parser.add_argument('--force', '-f', action='store_true', help='overwrite existing files if exists')
+    parser.add_argument('--verbose', '-v', action='store_true')
     parser.add_argument('--clip', type=int, default=0,
                         help='Clip for each read the first and last CLIP characters [0]')
     add_multi_thread_args(parser)
