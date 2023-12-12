@@ -7,6 +7,7 @@ from io import StringIO
 import multiprocessing
 import sys
 from pathlib import Path
+import shutil
 
 
 path = Path(op.realpath(__file__))
@@ -124,6 +125,27 @@ def mkdirp(dpath):
     if dpath:
         Path(dpath).mkdir(parents=True, exist_ok=True)
     return dpath
+
+
+def check_samtools_version(major=1, minor=15, verbose=False):
+    # make sure samtools version >= major.minor
+    try:
+        t = subprocess.check_output(['samtools', '--version']).decode()
+        existing_version = t.splitlines()[0].strip().split()[1]
+        if verbose:
+            eprint('[wt] samtools path:', shutil.which('samtools'), sep='\t')
+            eprint('[wt] samtools version:', existing_version, sep='\t')
+        nums = existing_version.split('.')
+        cmajor = int(nums[0])
+        cminor = int(nums[1])
+        if cmajor != major:
+            return cmajor > major
+        return cminor >= minor
+    except:
+        # failed to run samtools --version
+        pass
+    return False
+
 
 def check_executable(cmd, verbose=False):
     for p in os.environ['PATH'].split(":"):

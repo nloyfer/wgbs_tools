@@ -42,7 +42,7 @@ def extend_region(region, by=MAX_READ_SIZE):
 
 def subprocess_wrap(cmd, debug):
     if debug:
-        print(cmd)
+        eprint(cmd)
         return
     os.system(cmd)
     # p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

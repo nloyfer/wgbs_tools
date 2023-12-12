@@ -10,7 +10,7 @@ import argparse
 from init_genome import chromosome_order
 from utils_wgbs import IllegalArgumentError, match_maker_tool, eprint, \
         add_cpg_count_tool, validate_local_exe, add_GR_args, add_multi_thread_args, \
-        safe_remove
+        safe_remove, check_samtools_version
 from bam2pat import subprocess_wrap, validate_bam, is_pair_end, MAPQ, \
         FLAGS_FILTER, add_samtools_view_flags, is_region_empty, set_regions
 from genomic_region import GenomicRegion
@@ -27,8 +27,9 @@ BAM_SUFF = '.bam'
 # And missing values (255)
 
 
-def proc_chr(input_path, out_path_name, region, genome, paired_end, ex_flags, mapq, debug, min_cpg, clip,
-             bed_file, extended_bed, add_pat, in_flags, drop_singles):
+def proc_chr(input_path, out_path_name, region, genome, paired_end, ex_flags, mapq,
+             debug, verbose, min_cpg, clip, bed_file, extended_bed, add_pat, in_flags,
+             drop_singles):
     """ Convert a temp single chromosome file, extracted from a bam file,
         into a sam formatted (no header) output file."""
 
@@ -48,7 +49,7 @@ def proc_chr(input_path, out_path_name, region, genome, paired_end, ex_flags, ma
     if bed_file is not None:
         cmd += f' -L {bed_file} '
     # check if chrom is empty:
-    if is_region_empty(cmd, region, verbose=False):
+    if is_region_empty(cmd, region, verbose=verbose):
         return ''
 
     if debug:
@@ -67,8 +68,8 @@ def proc_chr(input_path, out_path_name, region, genome, paired_end, ex_flags, ma
 
     sort_cmd = f'samtools sort -o {out_path} -T {out_directory} {unsorted_bam}'  # TODO: use temp directory, as in bam2pat
 
-    subprocess_wrap(cmd, debug)
-    subprocess_wrap(sort_cmd, debug)
+    subprocess_wrap(cmd, verbose)
+    subprocess_wrap(sort_cmd, verbose)
     safe_remove(unsorted_bam)
     return out_path
 
@@ -92,14 +93,14 @@ class BamMethylData:
 
         # check start before end
         if ((df['start'] >= df['end']).any()):
-            eprint(f'[add_cpg_counts] bed file is not legal - end before start')
+            eprint(f'[wt add_cpg_counts] bed file is not legal - end before start')
             raise IllegalArgumentError('Bed file is not legal')
 
         # check start is monotonic
         ref_chroms =  self.gr.genome.get_chroms()
         for chrom in ref_chroms:
             if not df[df['chr'] == chrom]['start'].is_monotonic_increasing:
-                eprint(f'[add_cpg_counts] bed file is not sorted')
+                eprint(f'[wt add_cpg_counts] bed file is not sorted')
                 raise IllegalArgumentError('Bed file is not sorted')
 
         # create tmp files from bed file (extend each region with +-1000 bp)
@@ -132,8 +133,9 @@ class BamMethylData:
                 out_path_name = name + '_' + c
                 params.append((self.bam_path, out_path_name, c, self.gr.genome,
                         is_pair_end(self.bam_path), self.args.exclude_flags,
-                        self.args.mapq, self.args.debug, self.args.min_cpg, self.args.clip, self.args.bed_file,
-                        self.extended_bed_path, self.args.add_pat, self.args.include_flags, self.args.drop_singles))
+                        self.args.mapq, self.args.debug, self.args.verbose, self.args.min_cpg,
+                        self.args.clip, self.args.bed_file, self.extended_bed_path,
+                        self.args.add_pat, self.args.include_flags, self.args.drop_singles))
             p = Pool(self.args.threads)
             res = p.starmap(proc_chr, params)
             p.close()
@@ -143,9 +145,10 @@ class BamMethylData:
             final_path = name + f".{region_str_for_name}" + f".{self.args.suffix}" + BAM_SUFF
             out_path_name = name + '_' + "1"
             res = [proc_chr(self.bam_path, out_path_name, self.gr.region_str, self.gr.genome,
-                            is_pair_end(self.bam_path), self.args.exclude_flags, self.args.mapq, self.args.debug,
-                            self.args.min_cpg, self.args.clip, self.args.bed_file,
-                            self.extended_bed_path, self.args.add_pat, self.args.include_flags, self.args.drop_singles)]
+                            is_pair_end(self.bam_path), self.args.exclude_flags, self.args.mapq,
+                            self.args.debug, self.args.verbose, self.args.min_cpg, self.args.clip,
+                            self.args.bed_file, self.extended_bed_path, self.args.add_pat,
+                            self.args.include_flags, self.args.drop_singles)]
         print('finished adding CpG counts')
         if None in res:
             print('threads failed')
@@ -153,6 +156,10 @@ class BamMethylData:
 
         res = [r for r in res.copy() if r != '']
         print(datetime.datetime.now().isoformat() + ": finished processing each chromosome")
+        if not res:
+            eprint(f'[wt add_cpg_counts] no reads found for {self.bam_path}.')
+            eprint(f'                    run wgbstools add_cpg_counts with --verbose for more information')
+            return
         # Concatenate chromosome files
 
         out_directory = os.path.dirname(final_path)
@@ -215,6 +222,11 @@ def main():
     parser = add_cpg_args(parser)
     args = parser.parse_args()
     validate_local_exe(add_cpg_count_tool)
+    if not check_samtools_version(minor=15, verbose=args.verbose):
+        eprint('[wt add_cpg_counts] Error: add_cpg_counts only works with samtools version >=1.15.\n'
+                '                    Please update samtools.\n'
+                '                    Run wgbstools add_cpg_counts with --verbose for more information')
+        return
     for bam in args.bam:
         if not validate_bam(bam):
             eprint(f'[wt add_cpg_counts] Skipping {bam}')
