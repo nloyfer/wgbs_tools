@@ -45,7 +45,7 @@ def proc_chr(input_path, out_path_name, region, genome, paired_end, ex_flags, ma
         in_flags = '-f 3' if paired_end else ''
     else:
         in_flags = f'-f {in_flags}'
-    cmd = f"samtools view {input_path} {region} -q {mapq} -F {ex_flags} {in_flags} -P"
+    cmd = f'samtools view {input_path} {region} -q {mapq} -F {ex_flags} {in_flags} -P'
     if bed_file is not None:
         cmd += f' -L {bed_file} '
     # check if chrom is empty:
@@ -124,10 +124,10 @@ class BamMethylData:
     def start_threads(self):
         """ Parse each chromosome file in a different process,
             and concatenate outputs to pat and unq files """
-        print(datetime.datetime.now().isoformat() + ": *** starting processing of each chromosome")
+        print(datetime.datetime.now().isoformat() + ': *** starting processing of each chromosome')
         name = op.join(self.out_dir, op.basename(self.bam_path)[:-4])
         if self.gr.region_str is None:
-            final_path = name + f".{self.args.suffix}" + BAM_SUFF
+            final_path = name + f'.{self.args.suffix}' + BAM_SUFF
             params = []
             for c in set_regions(self.bam_path, self.gr):
                 out_path_name = name + '_' + c
@@ -141,9 +141,9 @@ class BamMethylData:
             p.close()
             p.join()
         else:
-            region_str_for_name = self.gr.region_str.replace(":", "_").replace("-", "_")
-            final_path = name + f".{region_str_for_name}" + f".{self.args.suffix}" + BAM_SUFF
-            out_path_name = name + '_' + "1"
+            region_str_for_name = self.gr.region_str.replace(':', '_').replace('-', '_')
+            final_path = name + f'.{region_str_for_name}.{self.args.suffix}{BAM_SUFF}'
+            out_path_name = name + '_' + '1'
             res = [proc_chr(self.bam_path, out_path_name, self.gr.region_str, self.gr.genome,
                             is_pair_end(self.bam_path), self.args.exclude_flags, self.args.mapq,
                             self.args.debug, self.args.verbose, self.args.min_cpg, self.args.clip,
@@ -155,7 +155,7 @@ class BamMethylData:
             return
 
         res = [r for r in res.copy() if r != '']
-        print(datetime.datetime.now().isoformat() + ": finished processing each chromosome")
+        print(datetime.datetime.now().isoformat() + ': finished processing each chromosome')
         if not res:
             eprint(f'[wt add_cpg_counts] no reads found for {self.bam_path}.')
             eprint(f'                    run wgbstools add_cpg_counts with --verbose for more information')
@@ -163,23 +163,17 @@ class BamMethylData:
         # Concatenate chromosome files
 
         out_directory = os.path.dirname(final_path)
-        cmd = f"samtools merge -c -p -f {final_path} " + ' '.join([p for p in res])
+        cmd = f'samtools merge -c -p -f {final_path} ' + ' '.join([p for p in res])
         print(datetime.datetime.now().isoformat() + ': starting cat of files')
         process = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stdin=subprocess.PIPE)
         stdout, stderr = process.communicate()
-        print(datetime.datetime.now().isoformat() + ": finished cat of files")
+        print(datetime.datetime.now().isoformat() + ': finished cat of files')
 
-        # sort_cmd = 'samtools sort -o {} -T {} {}'.format(final_path, out_directory, final_path_unsorted)
-        # print(datetime.datetime.now().isoformat() + ': starting sort of file')
-        # sort_process = subprocess.Popen(shlex.split(sort_cmd), stdout=subprocess.PIPE, stdin=subprocess.PIPE)
-        # stdout, stderr = sort_process.communicate()
-        # print(datetime.datetime.now().isoformat() + ": finished sort of file")
-
-        idx_command = f"samtools index {final_path}"
+        idx_command = f'samtools index {final_path}'
         print('starting index of output bam ' + datetime.datetime.now().isoformat())
         idx_process = subprocess.Popen(shlex.split(idx_command), stdout=subprocess.PIPE, stdin=subprocess.PIPE)
         stdout, stderr = idx_process.communicate()
-        print(datetime.datetime.now().isoformat() + ": finished index of output bam")
+        print(datetime.datetime.now().isoformat() + ': finished index of output bam')
         # remove all small files
         list(map(os.remove, [l for l in res]))
         # remove tmp files
@@ -188,7 +182,7 @@ class BamMethylData:
 def add_cpg_args(parser):
     parser.add_argument('--drop_singles',  action='store_true',
                         help='For paired bam only - if mate is not exists drop single read')
-    parser.add_argument('--suffix', default="counts",
+    parser.add_argument('--suffix', default='counts',
                         help='The output file suffix. The output file will be [in_file].[suffix].bam. By default the '
                              'suffix is "counts".')
     parser.add_argument('--add_pat', action='store_true',
