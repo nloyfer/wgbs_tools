@@ -102,15 +102,15 @@ void patter::load_genome_ref() {
  *                                                             *
  ***************************************************************/
 
-bool validate_seq_bp(std::string &seq, std::string &ref, bool reversed, int margin) {
+bool validate_seq_bp(std::string &seq, std::string &ref, bool bottom, int margin) {
     /** if blueprint filter is set, check for bisulfit conversionrate.
      * Return False if this rate is too low, or if there are not enough CH's 
      */
     int nr_conv = 0;
     int nr_non_conv = 0;
-    // case 1 - read 1 (not reversed)
-    if (! reversed) {
-        for (unsigned long j = 0; j < ref.length() - 1; j++) {
+    // case top
+    if (! bottom) {
+        for (unsigned long j = 0; j < ref.length() - 2; j++) {
             // skip margins
             if ((j < margin) || (j >= seq.size() - margin)) { continue; }
             if ((ref[j] == 'C') && (ref[j + 1] != 'G')) {
@@ -121,11 +121,11 @@ bool validate_seq_bp(std::string &seq, std::string &ref, bool reversed, int marg
                 }
             }
         }
-    } else { // case 2 - read 2 (reversed)
-        for (unsigned long j = 1; j < ref.length(); j++) {
+    } else { // case bottom
+        for (unsigned long j = 1; j < ref.length() - 1; j++) {
             // skip margins
             if ((j < margin) || (j >= seq.size() - margin)) { continue; }
-            if ((ref[j] == 'G') && (ref[j + 1] != 'C')) {
+            if ((ref[j] == 'G') && (ref[j - 1] != 'C')) {
                 if (seq[j] == 'G') {
                     nr_non_conv++;
                 } else if (seq[j] == 'A') {
@@ -235,7 +235,7 @@ int strip_pat(std::string &pat) {
 
 int patter::compareSeqToRef(std::string &seq,
                             std::string &ref,
-                            bool reversed,
+                            bool bottom,
                             std::string &meth_pattern) {
     /** compare seq string to ref string. generate the methylation pattern, and return
      * the CpG index of the first CpG site in the seq (or -1 if there is none) */
@@ -244,7 +244,7 @@ int patter::compareSeqToRef(std::string &seq,
     size_t margin = 3;
 
     // blueprint filter
-    if (blueprint && !validate_seq_bp(seq, ref, reversed, margin)) { return -2; }
+    if (blueprint && !validate_seq_bp(seq, ref, bottom, margin)) { return -2; }
 
     // find CpG indexes on reference sequence
     std::vector<int> cpg_inds;
@@ -262,10 +262,10 @@ int patter::compareSeqToRef(std::string &seq,
 
     // generate the methylation pattern (e.g 'CC.TC'),
     // by comparing the given sequence to reference at the CpG indexes
-    char REF_CHAR = reversed ? 'G' : 'C';
-    char UNMETH_SEQ_CHAR = reversed ? 'A' : 'T';
-    int shift = reversed ? 1 : 0;
-    int mbias_ind = reversed ? 1 : 0;
+    char REF_CHAR = bottom ? 'G' : 'C';
+    char UNMETH_SEQ_CHAR = bottom ? 'A' : 'T';
+    int shift = bottom ? 1 : 0;
+    int mbias_ind = bottom ? 1 : 0;
 
     char cur_status;
     for (unsigned long j: cpg_inds) {
@@ -377,13 +377,13 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
 
         // build methylation pattern:
         std::string meth_pattern;
-        bool reversed;
+        bool bottom;
         if (is_paired_end) {
-            reversed = ((samflag == 83) || (samflag == 163));
+            bottom = ((samflag == 83) || (samflag == 163));
         } else {
-            reversed = ((samflag & 0x0010) == 16);
+            bottom = ((samflag & 0x0010) == 16);
         }
-        int first_locus = compareSeqToRef(seq, ref, reversed, meth_pattern);
+        int first_locus = compareSeqToRef(seq, ref, bottom, meth_pattern);
 
         if (blueprint && first_locus == -2) {
             readsStats.nr_bad_conv++;
@@ -626,7 +626,7 @@ int main(int argc, char **argv) {
             min_cpg = std::stoi(input.getCmdOption("--min_cpg"));
         }
         if (argc < 3) {
-            throw std::invalid_argument("Usage: patter GENOME_PATH CHROM_OFFSET [--bam] [--mbias MBIAS_PATH]");
+            throw std::invalid_argument("Usage: patter GENOME_PATH CHROM_OFFSET [--blueprint] [--mbias MBIAS_PATH] [--min_cpg]");
         }
         bool blueprint = input.cmdOptionExists("--blueprint");
         std::string mbias_path = input.getCmdOption("--mbias");
