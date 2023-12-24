@@ -110,7 +110,7 @@ bool validate_seq_bp(std::string &seq, std::string &ref, bool bottom, int margin
     int nr_non_conv = 0;
     // case top
     if (! bottom) {
-        for (unsigned long j = 0; j < ref.length() - 2; j++) {
+        for (unsigned long j = 0; j < ref.length() - 1; j++) {
             // skip margins
             if ((j < margin) || (j >= seq.size() - margin)) { continue; }
             if ((ref[j] == 'C') && (ref[j + 1] != 'G')) {
@@ -122,7 +122,7 @@ bool validate_seq_bp(std::string &seq, std::string &ref, bool bottom, int margin
             }
         }
     } else { // case bottom
-        for (unsigned long j = 1; j < ref.length() - 1; j++) {
+        for (unsigned long j = 1; j < ref.length(); j++) {
             // skip margins
             if ((j < margin) || (j >= seq.size() - margin)) { continue; }
             if ((ref[j] == 'G') && (ref[j - 1] != 'C')) {
