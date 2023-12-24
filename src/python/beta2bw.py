@@ -5,12 +5,14 @@ import os.path as op
 import sys
 import subprocess
 from utils_wgbs import delete_or_skip, validate_file_list, GenomeRefPaths, \
-                       add_GR_args, IllegalArgumentError, check_executable
+                       add_GR_args, IllegalArgumentError, check_executable, \
+                       safe_remove
 from genomic_region import GenomicRegion
 from beta2bed import beta_to_bed, beta2bed_build_cmd
 from cview import subprocess_wrap_sigpipe
 import os
 import numpy as np
+from pathlib import Path
 
 BG_EXT = '.bedGraph'
 BW_EXT = '.bigwig'
@@ -29,7 +31,7 @@ class BetaToBigWig:
             raise IllegalArgumentError('Invalid output directory: ' + self.outdir)
         self.chrom_sizes = GenomeRefPaths(args.genome).chrom_sizes
 
-    def bed_graph_to_bigwig(self, bed_graph, bigwig):
+    def bed_graph_to_bigwig(self, bed_graph, bigwig, is_sorted=True):
         """
         Generate a bigwig file from a bedGraph
         :param bed_graph: path to bedGraph (input)
@@ -37,8 +39,9 @@ class BetaToBigWig:
         """
 
         # Convert bedGraph to bigWig:
-        b2bw_log(f'[{self.name}] sort bedgraph...')
-        subprocess.check_call('sort -k1,1 -k2,2n {o} -o {o}'.format(o=bed_graph), shell=True)
+        if not is_sorted:
+            b2bw_log(f'[{self.name}] sort bedgraph...')
+            subprocess.check_call('sort -k1,1 -k2,2n {o} -o {o}'.format(o=bed_graph), shell=True)
         b2bw_log(f'[{self.name}] convert bed to bigwig...')
         subprocess.check_call(['bedGraphToBigWig', bed_graph, self.chrom_sizes, bigwig])
 
@@ -55,29 +58,48 @@ class BetaToBigWig:
 
         prefix = op.join(self.outdir, op.splitext(self.name)[0])
         out_bigwig = prefix + BW_EXT
-        out_cov_bigwig = prefix + '.cov' + BW_EXT
         out_bed_graph = prefix + BG_EXT
-        out_cov_bed_graph = prefix + '.cov' + BG_EXT
 
         # Check if the current file should be skipped:
         if not delete_or_skip(out_bigwig, self.args.force):
             return
 
         # convert beta to bed:
-        b2bw_log(f'[{self.name}] Dumping bed...')
-        beta_to_bed(beta_path=beta_path,
-                    gr=self.gr,
-                    bed_file=self.args.bed_file,
-                    min_cov=self.args.min_cov,
-                    mean=True,
-                    keep_na=self.args.keep_na,
-                    force=True,
-                    opath=out_bed_graph)
+        if self.gr.is_whole():
+            # sort chromosomes to unix/ucsc order (chr1, chr10, chr11, ..., chr2, ...)
+            cmd = f'sort -k1,1 {self.chrom_sizes} | cut -f1'
+            sorted_chroms = subprocess.check_output(cmd, shell=True).decode().split()
+
+            # dump bedGraph chromosome by chromosome, so there is no need to sort
+            safe_remove(out_bed_graph)
+            Path(out_bed_graph).touch()
+            b2bw_log(f'[{self.name}] Dumping bedGraph...')
+            for chrom in sorted_chroms:
+                # b2bw_log(f'[{self.name}] {chrom}')
+                cmd = beta2bed_build_cmd(beta_path=beta_path,
+                                   gr=GenomicRegion(region=chrom, genome_name=self.gr.genome_name),
+                                   min_cov=self.args.min_cov,
+                                   bed_file=None,
+                                   mean=True,
+                                   keep_na=self.args.keep_na)
+                cmd += f' >> {out_bed_graph}'
+                subprocess_wrap_sigpipe(cmd)
+        else:
+            beta_to_bed(beta_path=beta_path,
+                        gr=self.gr,
+                        bed_file=self.args.bed_file,
+                        min_cov=self.args.min_cov,
+                        mean=True,
+                        keep_na=self.args.keep_na,
+                        force=True,
+                        opath=out_bed_graph)
 
         # convert bedGraphs to bigWigs:
-        self.bed_graph_to_bigwig(out_bed_graph, out_bigwig)
+        self.bed_graph_to_bigwig(out_bed_graph, out_bigwig, is_sorted=(not self.args.bed_file))
 
         if self.args.dump_cov:
+            out_cov_bigwig = prefix + '.cov' + BW_EXT
+            out_cov_bed_graph = prefix + '.cov' + BG_EXT
             # convert beta to bed:
             b2bw_log(f'[{self.name}] Dumping cov bed...')
             cmd = beta2bed_build_cmd(beta_path=beta_path,
@@ -122,7 +144,7 @@ def main():
     Assuming bedGraphToBigWig is installed and in PATH
     """
     args = parse_args()
-    validate_file_list(args.beta_paths, '.beta')
+    validate_file_list(args.beta_paths)
     if not check_executable('bedGraphToBigWig', verbose=True):
         return
 
