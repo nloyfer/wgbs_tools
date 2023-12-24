@@ -110,8 +110,8 @@ def main():
     args = parse_args()
     if args.nr_bits not in (8 , 16):
         raise IllegalArgumentError('nr_bits must be in {8, 16}')
-    if args.rlen < 3:
-        raise IllegalArgumentError('rlen must be >= 3')
+    if args.rlen < 2:
+        raise IllegalArgumentError('rlen must be >= 2')
     if args.thresholds is not None:
         th = args.thresholds.split(',')
         if not len(th) == 2: # and th[0].is_number():
@@ -119,6 +119,8 @@ def main():
         th = float(th[0]), float(th[1])
         if not (1 > th[1] > th[0] > 0):
             raise IllegalArgumentError('Invalid thresholds')
+    elif args.rlen == 2:
+        raise IllegalArgumentError('for rlen==2, --thresholds must be specified')
     # make sure homog tool is valid:
     validate_local_exe(homog_tool)
 
