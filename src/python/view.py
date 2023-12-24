@@ -33,6 +33,7 @@ def view_other_bin(bin_path, args):
 
 
 def bview_build_cmd(beta_path, gr, bed_path):
+    beta_sanity_check(beta_path, gr.genome)
     # compose a shell command to output a beta file to stdout
     if beta_path.endswith('.beta'):
         vs = view_beta_script
@@ -53,10 +54,10 @@ def bview_build_cmd(beta_path, gr, bed_path):
 def beta_sanity_check(beta_path, genome):
     # sanity test: make sure beta file has the correct number of sites 
     # (fits current genome)
-    nr_sites_in_beta = int(op.getsize(beta_path) / 2)
+    nr_sites_in_beta = op.getsize(beta_path) // 2
     if beta_path.endswith('.lbeta'):
         nr_sites_in_beta /= 2
-    if nr_sites_in_beta != genome.get_nr_sites():
+    if int(nr_sites_in_beta) != genome.get_nr_sites():
         eprint(f'[wt beta] WARNING: beta file size ({nr_sites_in_beta:,} sites)\n' \
                f'          incomatible with current genome reference ' \
                f'({genome.get_nr_sites():,} sites)')
@@ -74,7 +75,6 @@ def view_beta(beta_path, gr, opath, bed_path):
     """
 
     cmd = bview_build_cmd(beta_path, gr, bed_path)
-    beta_sanity_check(beta_path, gr.genome)
 
     if opath is not None:
         if opath.endswith('.gz'):
