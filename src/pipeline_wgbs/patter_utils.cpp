@@ -129,10 +129,10 @@ std::string clean_CIGAR(std::string seq, std::string CIGAR) {
     for (int i = 0; i < (int) chars.size(); i++) {
         char ch = chars[i]; // CIGAR character
         int num = nums[i];  // corresponding integer
-        if (ch == 'M') {
+        if ((ch == 'M') || (ch == '=') || (ch == 'X')) {
             adjusted_seq += seq.substr(0, num);
             seq = seq.substr(num, seq.length() - num);
-        } else if (ch == 'D') {
+        } else if ((ch == 'D') || (ch == 'N')) {
             for (unsigned long j = 0; j < num; j++)
                 adjusted_seq += 'N';
         } else if ((ch == 'I') || (ch == 'S')) {
