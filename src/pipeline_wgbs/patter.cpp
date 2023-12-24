@@ -180,37 +180,26 @@ int patter::compareSeqToRef(std::string &seq,
     return first_ind;
 }
 
-bool is_this_CG(std::string &seq, int pos, bool bottom) {
-    // make sure the current letter is a "C", and the next one is a "G"
-    if (seq[pos] != 'C') {
-        //std::cerr << "first is not C:" << seq[pos] << ". " << std::endl;
-        return false;
-    }
-    if (pos >= seq.length() - 1) {
-        //std::cerr << "pos is to big" << pos << ". " << std::endl;
-        return false;
-    }
+bool is_this_CG(std::string &seq, int pos) {
+    /* check if current letter is a "C", and the next one is a "G"
+       But allow one or more "N"s to be inserted inbetween */
+    // is the first letter a 'C'?
+    if (seq[pos] != 'C') { return false; }
+    // does the sequence end with that C?
+    if (pos >= seq.length() - 1) { return false; }
+    // check if the next letter is 'G'. Allow one or more N's inbetween
+    // i.e., CG, CNG, CNNNNNG are all valid CpG sites
     pos++;
     for (; pos < seq.length(); pos++) {
-        //std::cerr << "pos: " << pos << ". seq[pos]: " << seq[pos] << std::endl;
-        if (seq[pos] == 'G') {
-            return true;
-        } else if (seq[pos] == 'N') {
-            //if (bottom) {
-                //return false;
-            //}
-            continue;
-        } else {
-            return false;
-        }
-
+        if      (seq[pos] == 'G') { return true; }
+        else if (seq[pos] == 'N') { continue; }
+        else                      { return false; }
     }
     return false;
 }
 
 std::vector <std::string> patter::np_samLineToPatVec(std::vector <std::string> tokens) {
-    /** same as samLineToPatVec, but for nanopore format
-     *  */
+    /** same as samLineToPatVec, but for nanopore format  */
     std::vector<std::string> empty_vec;
 
     // get MM and ML fields
@@ -246,7 +235,6 @@ std::vector <std::string> patter::np_samLineToPatVec(std::vector <std::string> t
     if (bottom) {
         std::reverse(ML_vals.begin(),ML_vals.end());
     }
-    //std::cerr << "cseq: " << seq << std::endl;
     // build methylation pattern:
     std::string meth_pattern;
     char cur_status;
@@ -259,7 +247,6 @@ std::vector <std::string> patter::np_samLineToPatVec(std::vector <std::string> t
 
         // Only consider cytosines in a CpG context
         if (!conv[start_locus + i]) { 
-            //std::cerr << start_locus + i << " (" << i << " ) not CpG locus" << std::endl;
             continue;
         }
 
@@ -273,7 +260,6 @@ std::vector <std::string> patter::np_samLineToPatVec(std::vector <std::string> t
             else { cur_status = UNKNOWN; }
         } 
         // The current C is mentioned in MM as modified
-        //else if (np_mask[i] == '1') { 
         else { 
             cur_status = UNKNOWN;
 
@@ -285,22 +271,9 @@ std::vector <std::string> patter::np_samLineToPatVec(std::vector <std::string> t
             MM_vals_ind++;
         }
 
-        // make sure the current letter is a "C", and the next one is a "G"
-        if (!(is_this_CG(seq, i, bottom))) {
+        // make sure the current letter is a "C", and the next one is a "G" (allow N's inbetween)
+        if (!(is_this_CG(seq, i))) {
             cur_status = UNKNOWN;
-        }
-        //if (!(((seq[i] == 'C') && (i < (seq.length() - 1)) && (seq[i + 1] == 'G')) ||
-                    //((i < (seq.length() - 2)) && (seq.substr(i, 3) == "CNG")))) { 
-            //if (seq[i + 1] != 'G') {
-                //std::cerr << "CNG: " << seq.substr(i, 3) << std::endl;
-            //}
-            //cur_status = UNKNOWN;
-        //}
-
-        if ((i>1000) && (i<1100)){
-            //std::cerr << "i= " << i << ". loc: " << start_locus + i << ". mask: " << np_mask[i];
-            //std::cerr << ". seq: " << seq[i] << seq[i + 1];
-            //std::cerr << " status: " << cur_status << "\n";
         }
 
         // ignore first/last 'clip_size' characters, since they are often biased
@@ -328,6 +301,57 @@ std::vector <std::string> patter::np_samLineToPatVec(std::vector <std::string> t
     return pack_pat(tokens[2], start_site, meth_pattern);
 }
 
+void find_Cm_section(std::string &MM_str, std::string &ML_str) {
+    std::vector<std::string> sMM = split_by_semicolon(MM_str);
+    int i = 0;
+    bool found = false;
+    for (i = 0; i < sMM.size(); i++) {
+        std::string sv_field = sMM[i];
+        if (!((sv_field.substr(0, 5) == "C+m?,") ||
+              (sv_field.substr(0, 5) == "C+m.,") ||
+              (sv_field.substr(0, 4) == "C+m,"))) {
+            continue;
+        }
+        else {
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        throw std::invalid_argument("Unsupported MM field:" + MM_str);
+    }
+    MM_str = sMM.at(i);
+    // trim beginning of MM_str
+    std::string MM_str_s = MM_str.substr(MM_str.find_first_of(',') + 1, MM_str.length());
+    std::vector<int> MM_vals = split_by_comma(MM_str_s);
+    // trim beginning of ML_str
+    ML_str = ML_str.substr(ML_str.find_first_of(',') + 1, ML_str.length());
+    std::vector<int> ML_vals = split_by_comma(ML_str);
+    int nr_MM_vals = MM_vals.size();
+    int nr_ML_vals = ML_vals.size();
+    if (!(nr_ML_vals % nr_MM_vals == 0)) {
+        std::cerr << "Error in find_Cm: not modulu 0" << std::endl;;
+        throw std::invalid_argument("Unsupported MM field:" + MM_str);
+    }
+    //std::cerr << "i:\n" << i << std::endl;;
+    std::vector<int> sliced_ML_vals(ML_vals.begin() + (i * nr_MM_vals), ML_vals.begin() + ((i + 1) * nr_MM_vals));
+
+    // vector of ints to string:
+    std::ostringstream oss;
+    // Iterate through the vector
+    for (size_t j = 0; j < sliced_ML_vals.size(); ++j) {
+        // Convert each integer to string and append to the stream
+        oss << sliced_ML_vals[j];
+
+        // Add a comma if it's not the last element
+        if (j < sliced_ML_vals.size() - 1) {
+            oss << ",";
+        }
+    }
+    // Convert the stringstream to a string
+    ML_str = "," + oss.str();
+}
+
 void patter::parse_np_fields(std::vector<std::string> &np_fields, 
                     std::vector<int> &MM_vals, 
                     std::vector<int> &ML_vals) {
@@ -340,14 +364,8 @@ void patter::parse_np_fields(std::vector<std::string> &np_fields,
     }
 
     // validate MM and trim head
-    if (!((MM_str.substr(0, 5) == "C+m?,") ||
-          (MM_str.substr(0, 5) == "C+m.,") ||
-          (MM_str.substr(0, 4) == "C+m,"))) {
-        throw std::invalid_argument("Unsupported MM field:" + MM_str);
-    }
-    np_dot = (MM_str[3] != '?');
-    //np_dot = false; // TODO change
-    // differentiate "C+m." and "C+m" from "C+m?"
+    find_Cm_section(MM_str, ML_str);
+    np_dot = (MM_str[3] != '?'); // differentiate "C+m." and "C+m" from "C+m?"
     MM_str = MM_str.substr(MM_str.find_first_of(',') + 1, MM_str.length());
 
     // validate ML and trim leading comma
@@ -382,32 +400,24 @@ std::string patter::parse_ONT(std::vector <std::string> tokens) {
     int samflag = stoi(tokens[1]);
     bool bottom = ((samflag & 0x10) == 16);
     std::string work_seq = bottom ? reverse_comp(tokens[9]) : tokens[9];
-    std::string np_mask;
     int C_counter = 0;
     int MM_vals_ind = 0;
+    std::string np_mask(work_seq.length(), 'E'); // np_mask == "EEE..."
     for (int i = 0; i < work_seq.length(); i++ ) {
 
         // not a C, not interesting
-        if (work_seq[i] != 'C') { 
-            np_mask += "E";
-            continue;
-        }
-
-        if (C_counter == MM_vals[MM_vals_ind]) {
-            //np_mask += "1";
-            if (ML_vals[MM_vals_ind] > (255 * 0.66)) {   // TODO: hard-coded
-                np_mask += "M";
-            } else if (ML_vals[MM_vals_ind] < (255 * (1 - 0.66))) {
-                np_mask  += "U";
-            } else {
-                np_mask  += "N";
+        if (work_seq[i] == 'C') {
+            if ( MM_vals_ind >= MM_vals.size()) { break;}
+            char cur_status = 'N';
+            if (C_counter == MM_vals.at(MM_vals_ind)) {
+                if (ML_vals[MM_vals_ind] > (255 * np_thresh)) { cur_status = 'M'; }
+                else if (ML_vals[MM_vals_ind] < (255 * (1 - np_thresh))) { cur_status = 'U'; }
+                np_mask[i] = cur_status;
+                MM_vals_ind++;
             }
-            //np_mask += std::to_string(int(float(ML_vals[MM_vals_ind]) / 25.5));
-            MM_vals_ind++;
-        } else {
-            np_mask += "E";
+            C_counter++;
+            if (C_counter > MM_vals.at(MM_vals.size() - 1)) { break; }
         }
-        C_counter++;
     }
     if (bottom) {
         std::reverse(np_mask.begin(), np_mask.end()); 
@@ -461,11 +471,17 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
         return pack_pat(tokens[2], start_site, meth_pattern);
     }
     catch (std::exception &e) {
-        std::string msg = "[ " + chr + " ] " + "Exception while processing line "
-                          + std::to_string(line_i) + ". Line content: \n";
-        std::cerr << "[ patter ] " << msg;
-        print_vec(tokens);
-        std::cerr << "[ patter ] " << e.what() << std::endl;
+        if (readsStats.nr_invalid < 100) {
+            std::string msg = "[ " + chr + " ] " + "Exception while processing line "
+                              + std::to_string(line_i) + ". Line content: \n";
+            std::cerr << "[ patter ] " << msg;
+            print_vec(tokens);
+            std::cerr << "[ patter ] " << e.what() << std::endl;
+        }
+        else if (readsStats.nr_invalid == 100) {
+            std::cerr << "[ patter ] [ " + chr + " ] First 100 failed reads were printed. " +
+                         " The next failed reads will not be printed\n";
+        }
         readsStats.nr_invalid++;
     }
     res.clear();
