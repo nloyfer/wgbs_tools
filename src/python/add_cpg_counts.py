@@ -14,6 +14,7 @@ from utils_wgbs import IllegalArgumentError, match_maker_tool, eprint, \
 from bam2pat import subprocess_wrap, validate_bam, is_pair_end, MAPQ, \
         FLAGS_FILTER, add_samtools_view_flags, is_region_empty, set_regions
 from genomic_region import GenomicRegion
+from convert import load_bed
 import pandas as pd
 import numpy as np
 import os.path as op
@@ -89,7 +90,7 @@ class BamMethylData:
     def validate_bed(self):
         if self.bed_path is None:
             return
-        df = pd.read_csv(self.bed_path, sep='\t', names=['chr', 'start', 'end'])
+        df = load_bed(self.bed_path).iloc[:, :3]
 
         # check start before end
         if ((df['start'] >= df['end']).any()):
