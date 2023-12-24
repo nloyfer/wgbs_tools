@@ -132,6 +132,7 @@ std::vector<int> patter::load_genome_helper(std::string region, std::string cmd)
     std::string cur_chr = exec(cmd.c_str());
     if (cur_chr.length() == 0) {
         // If the region was empty due to lack of CpGs in range, bam2pat.py would have catched that earlier.
+        std::cerr << "[add_cpg_counts] Failed command: " << cmd << std::endl;
         throw std::invalid_argument("Error: Unable to read reference path: " + ref_path + " at " + region + ".");
     }
     std::stringstream ss(cur_chr);
