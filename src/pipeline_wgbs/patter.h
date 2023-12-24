@@ -69,7 +69,7 @@ public:
     bool is_paired_end = false;
     bool is_nanopore = false;
     bool np_dot = false; // Nanopore: Does MM field starts with "C+m." or "C+m?"?
-    float np_thresh = 0.8;
+    float np_thresh = 0.667;
     std::vector <std::string> dummy_tokens;
     void first_line(std::string &line);
 
