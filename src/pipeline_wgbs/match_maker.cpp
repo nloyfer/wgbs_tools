@@ -5,35 +5,8 @@
 #include <fstream>
 #include <regex>
 #include <sstream>
+#include "patter_utils.h"
 
-
-std::vector<std::string> line2tokens(const std::string &line) {
-    /** Break string line to words (a std::vector of string tokens) */
-    std::vector<std::string> result;
-    std::string cell;
-    std::stringstream lineStream(line);
-    while(getline(lineStream, cell, '\t'))
-        result.push_back(cell);
-    if (result.empty()) { throw std::runtime_error("line2tokens: tokens shouldn't be empty!"); }
-    return result;
-}
-
-void print_vec(std::vector<std::string> &vec){
-    /** print a vector to stderr, tab separated */
-    for (auto &j: vec)
-        std::cerr << j << std::endl;
-}
-
-std::string addCommas(int num) {
-    /** add commas to an integer, and return it as a string */
-    std::string s = std::to_string(num);
-    int n = s.length() - 3;
-    while (n > 0) {
-        s.insert(n, ",");
-        n -= 3;
-    }
-    return s;
-}
 
 int read_pos(std::string &read) { return std::stoi(line2tokens(read)[3]); }
 int read_mate_pos(std::string &read) { return std::stoi(line2tokens(read)[7]); }
@@ -163,9 +136,7 @@ void action(bool output_singles) {
     std::ostream &outfile(std::cout);
 
     long long int line_i = 0;
-    //clock_t begin = clock();
     std::string log_pref = "[match maker] ";
-//    std::ios_base::sync_with_stdio(false);  // improves reading speed by x70
     for (std::string line; std::getline(std::cin, line) && (line_i > -1); line_i++) {
         
         // add chromosome to log prefix
@@ -198,7 +169,6 @@ void action(bool output_singles) {
     std::cerr << log_pref << "finished " << addCommas(line_i) << " lines." << std::endl;
     if (!(data.empty())) {
         std::cerr << log_pref << "Filtered " << addCommas(data.size()) << " unpaired reads" << std::endl;
-        //std::cerr << data[0];
     }
 }
 
