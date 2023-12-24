@@ -11,7 +11,7 @@
  *                                                             *
  ***************************************************************/
 
-std::vector <std::string> line2tokens(std::string &line) {
+std::vector <std::string> line2tokens(const std::string &line) {
     /** Break string line to words (a vector of string tokens) */
     std::vector <std::string> result;
     std::string cell;
@@ -64,6 +64,19 @@ std::vector<int> split_by_comma(std::string str_line) {
         if (ss.peek() == ',') { ss.ignore(); }
     }
     return prob_vec;
+}
+
+std::vector<std::string> split_by_semicolon(std::string str_line) {
+    /** split a semicolon separated list of strings,
+     * and output it as vector of strings */
+    std::vector<std::string> str_vec;
+    std::istringstream ss(str_line);
+    std::string token;
+
+    while (std::getline(ss, token, ';')) {
+        str_vec.push_back(token);
+    }
+    return str_vec;
 }
 
 
@@ -132,7 +145,6 @@ std::string clean_CIGAR(std::string seq, std::string CIGAR) {
         }
     }
 
-    //std::cout << adjusted_seq.substr(0, 2000) << std::endl;
     return adjusted_seq;
 }
 

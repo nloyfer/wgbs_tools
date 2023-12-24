@@ -23,11 +23,12 @@
 #define MAX_READ_LEN 1000
 
 
-std::vector<std::string> line2tokens(std::string &line);
+std::vector<std::string> line2tokens(const std::string &line);
 void print_vec(std::vector<std::string> &vec);
 void print_vec(std::vector<int> &vec);
 std::string addCommas(int num);
 std::vector<int> split_by_comma(std::string str_line);
+std::vector<std::string> split_by_semicolon(std::string str_line);
 
 std::string exec(const char* cmd);
 
