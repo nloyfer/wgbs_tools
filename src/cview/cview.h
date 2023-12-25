@@ -15,8 +15,7 @@
 #include <stdlib.h>
 #include <array>
 #include <algorithm> // find in main
-#include <memory>    // unique_ptr
-
+#include "../pipeline_wgbs/patter_utils.h"
 
 #define SEP "\t"
 

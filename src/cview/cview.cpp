@@ -2,54 +2,14 @@
 
 #include "cview.h"
 
-std::string exec(const char* cmd) {
-    /** Execute a command and load output to string */
-    std::array<char, 128> buffer;
-    std::string result;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
-    if (!pipe) {
-        throw std::runtime_error("[ cview ] popen() failed!");
-    }
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-        result += buffer.data();
-    }
-    return result;
-}
-
-std::vector <std::string> line2tokens(std::string &line) {
-    /**
-     * Break string line to tokens, return it as a vector of strings
-     */
-    std::vector <std::string> result;
-    std::string cell;
-    std::stringstream lineStream(line);
-    while (getline(lineStream, cell, '\t'))
-        result.push_back(cell);
-    return result;
-}
-
-void print_vec(std::vector <std::string> &vec) {
-    /** print a vector to stderr, tab separated */
-    for (auto &j: vec)
-        std::cerr << j << "\t";
-    std::cerr << std::endl;
-}
 
 void Cview::strip_read(std::vector <std::string> &tokens) {
-
-    auto pat = tokens[2];
-    // remove dots from the tail (e.g. CCT.C.... -> CCT.C)
-    pat = pat.substr(0, pat.find_last_not_of('.') + 1);
-    if (pat == "") { 
+    // strip pat (remove trailing dots):
+    int pos = strip_pat(tokens[2]);
+    if (pos < 0 ) { 
         tokens.clear();
         return;
     }
-    // remove dots from the head (..CCT -> CCT)
-    int pos = pat.find_first_not_of('.');
-    if (pos > 0) {
-        pat = pat.substr(pos, pat.length() - pos);
-    }
-    tokens[2] = pat;
     tokens[1] = std::to_string(pos + std::stoi(tokens[1]));
 }
 
@@ -107,8 +67,6 @@ int Cview::read_blocks() {
         // skip empty lines
         if (line_str.empty() || (!(line_str.rfind("#", 0)))) { continue; }
         tokens = line2tokens(line_str);
-        // break when "-1" occurs
-        //if ( (tokens.size() == 1) && (tokens[0] == "-1") ) { break; }
 
         if (tokens.size() != 2) {
             std::cerr << "Invalid blocks format. Should be: startCpG\tendCpG\n";
@@ -260,3 +218,26 @@ void Cview::parse() {
 }
 
 
+
+int main(int argc, char *argv[]) {
+
+    InputParser input(argc, argv);
+
+    int min_cpgs = std::stoi(input.getOptionWithDefault("--min_cpgs", "1"));
+    std::string blocks_path = input.getCmdOption("--blocks_path");
+    std::string sites = input.getCmdOption("--sites");
+
+    bool debug = input.cmdOptionExists("-d");
+    bool verbose = input.cmdOptionExists("-v");
+    bool strict = input.cmdOptionExists("--strict");
+    bool strip = input.cmdOptionExists("--strip");
+
+    try {
+        Cview(blocks_path, sites, strict, strip, min_cpgs, debug, verbose).parse();
+    }
+    catch (std::exception &e) {
+        std::cerr << e.what() << std::endl;
+        return -1;
+    }
+    return 0;
+}
