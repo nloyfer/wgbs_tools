@@ -45,9 +45,12 @@ modules = {
         'patter'        : 'g++ -std=c++11 -c -o src/pipeline_wgbs/main.o src/pipeline_wgbs/main.cpp && '\
                           'g++ -std=c++11 -c -o src/pipeline_wgbs/patter.o src/pipeline_wgbs/patter.cpp && '\
                           'g++ -std=c++11 -c -o src/pipeline_wgbs/patter_utils.o src/pipeline_wgbs/patter_utils.cpp && '\
-                          'g++ -std=c++11 -o src/pipeline_wgbs/patter src/pipeline_wgbs/main.o src/pipeline_wgbs/patter_utils.o src/pipeline_wgbs/patter.o',
+                          'g++ -std=c++11 -c -o src/pipeline_wgbs/ont.o src/pipeline_wgbs/ont.cpp && '\
+                          'g++ -std=c++11 -o src/pipeline_wgbs/patter src/pipeline_wgbs/main.o src/pipeline_wgbs/patter_utils.o src/pipeline_wgbs/patter.o src/pipeline_wgbs/ont.o',
         'bp_patter'     : 'g++ -std=c++11 src/pipeline_wgbs/blueprint/patter.cpp -o src/pipeline_wgbs/blueprint/patter',
-        'snp_patter'    : 'g++ -std=c++11 src/pipeline_wgbs/snp_patter.cpp -o src/pipeline_wgbs/snp_patter',
+        'snp_patter'    : 'g++ -std=c++11 -c -o src/pipeline_wgbs/snp_patter.o src/pipeline_wgbs/snp_patter.cpp && '\
+                          'g++ -std=c++11 -c -o src/pipeline_wgbs/patter_utils.o src/pipeline_wgbs/patter_utils.cpp && '\
+                          'g++ -std=c++11 -o src/pipeline_wgbs/snp_patter src/pipeline_wgbs/snp_patter.o src/pipeline_wgbs/patter_utils.o',
         'match_maker'   : 'g++ -std=c++11 src/pipeline_wgbs/match_maker.cpp src/pipeline_wgbs/patter_utils.cpp -o src/pipeline_wgbs/match_maker',
         'segmentor'     : 'g++ -std=c++11 src/segment_betas/main.cpp src/segment_betas/segmentor.cpp -o src/segment_betas/segmentor ',
         'cview'         : 'g++ -std=c++11 -c -o src/cview/main.o src/cview/main.cpp && '\
@@ -56,7 +59,9 @@ modules = {
         'homog'         : 'g++ -std=c++11 -c -o src/homog/main.o src/homog/main.cpp && '\
                           'g++ -std=c++11 -c -o src/homog/homog.o src/homog/homog.cpp && '\
                           'g++ -std=c++11 -o src/homog/homog src/homog/main.o src/homog/homog.o',
-        'add_cpg_counts': 'g++ -std=c++11 src/pipeline_wgbs/add_cpg_counts.cpp -o src/pipeline_wgbs/add_cpg_counts',
+        'add_cpg_counts': 'g++ -std=c++11 -c -o src/pipeline_wgbs/add_cpg_counts.o src/pipeline_wgbs/add_cpg_counts.cpp && '\
+                          'g++ -std=c++11 -c -o src/pipeline_wgbs/patter_utils.o src/pipeline_wgbs/patter_utils.cpp && '\
+                          'g++ -std=c++11 -o src/pipeline_wgbs/add_cpg_counts src/pipeline_wgbs/add_cpg_counts.o src/pipeline_wgbs/patter_utils.o',
         'add_loci'      : 'g++ -std=c++11 -pthread src/cpg2bed/add_loci.cpp src/cpg2bed/cpg_dict.cpp -o src/cpg2bed/add_loci'
         }
 
@@ -78,23 +83,6 @@ def compile_all(args):
 
     os.chdir(curdir)
 
-
-# def config_file(args):
-    # from config_wgbs import default_anno_file, default_blocks_path, ilmn2cpg_dict
-
-    # validate_file(default_anno_file)
-    # validate_index_file(default_anno_file)
-
-    # validate_file(default_blocks_path)
-    # validate_index_file(default_blocks_path)
-
-    # validate_file(ilmn2cpg_dict)
-    # return
-
-# TODO:
-# 1. blocks file: make a symbolic link to references/genome/blocks.bed.gz[.tbi]
-#    Maybe even upload an ultra compressed (diffs) version of the latest hg19 blocks to GitHub.
-# 2. add shebang line to wgbs_tools.py. Maybe add it to PATH, or add instructions in the README.md
 
 def main():
     args = parse_args()

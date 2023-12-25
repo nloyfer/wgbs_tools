@@ -3,98 +3,7 @@
 //
 
 #include "add_cpg_counts.h"
-//#include <string_view>
 
-
-char METH = 'C';
-char UNMETH = 'T';
-char UNKNOWN = '.';
-std::string TAB = "\t";
-
-/***************************************************
- *                                                 *
- *      Input Arguments Parsering class            *
- *                                                 *
- ***************************************************/
-class InputParser{
-public:
-    InputParser (int &argc, char **argv){
-        for (int i=1; i < argc; ++i)
-            this->tokens.emplace_back(std::string(argv[i]));
-    }
-    const std::string& getCmdOption(const std::string &option) const{
-        std::vector<std::string>::const_iterator itr;
-        itr =  std::find(this->tokens.begin(), this->tokens.end(), option);
-        if (itr != this->tokens.end() && ++itr != this->tokens.end()){
-            return *itr;
-        }
-        static const std::string empty_string;
-        return empty_string;
-    }
-    bool cmdOptionExists(const std::string &option) const{
-        return std::find(this->tokens.begin(), this->tokens.end(), option)
-               != this->tokens.end();
-    }
-private:
-    std::vector <std::string> tokens;
-};
-
-std::vector <std::string> line2tokens(std::string &line) {
-    /** Break string line to words (a vector of string tokens) */
-    std::vector <std::string> result;
-    std::string cell;
-    std::stringstream lineStream(line);
-    while (getline(lineStream, cell, '\t')) {
-        result.push_back(cell);
-    }
-//    if (result.empty()) { throw std::runtime_error("line2tokens: tokens shouldn't be empty!"); }
-    return result;
-}
-
-/***************************************************
- *                                                 *
- *                  Utils                          *
- *                                                 *
- ***************************************************/
-
-bool is_number(const std::string& s)
-{
-    std::string::const_iterator it = s.begin();
-    while (it != s.end() && std::isdigit(*it)) ++it;
-    return !s.empty() && it == s.end();
-}
-
-std::string addCommas(int num) {
-    /** convert integer to string with commas */
-    auto s = std::to_string(num);
-    int n = s.length() - 3;
-    while (n > 0) {
-        s.insert(n, ",");
-        n -= 3;
-    }
-    return s;
-}
-
-void print_vec(std::vector <std::string> &vec) {
-    /** print a vector to stderr, tab separated */
-    for (auto &j: vec)
-        std::cerr << j << TAB;
-    std::cerr << std::endl;
-}
-
-std::string exec(const char* cmd) {
-    /** Execute a command and load output to string */
-    std::array<char, 128> buffer;
-    std::string result;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
-    if (!pipe) {
-        throw std::runtime_error("[ patter ] popen() failed!");
-    }
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-        result += buffer.data();
-    }
-    return result;
-}
 
 /***************************************************
  *                                                 *
@@ -103,6 +12,10 @@ std::string exec(const char* cmd) {
  ***************************************************/
 
 std::vector<int> get_loci(std::string r){
+    /** Take region string and output start, end vector
+     *  Example: Input: chr1:1200-4500
+     *           Output: [1200, 4500]
+     */
     std::vector<int> v;
     std::string loci_str = r.substr(r.find(":") + 1);
     int start = stoi(loci_str.substr(0, loci_str.find('-')));
@@ -113,12 +26,15 @@ std::vector<int> get_loci(std::string r){
 }
 
 std::string extend_region(std::string region){
+    /** Take region string and extend it by 1,000bp for each side
+     *  Example: Input:  chr1:1200-4500
+     *           Output: chr1:200-5500
+     */
     std::string chrom = region.substr(0, region.find(":"));
     std::vector<int> start_end_loci = get_loci(region);
-    int start = start_end_loci[0];
-    int end = start_end_loci[1];
-    std::string extend_r = chrom + ":" + std::to_string(start - 1000) + "-" + std::to_string(end + 1000);
-    return extend_r;
+    int start = std::max(1, start_end_loci.at(0) - 1000);
+    int end = start_end_loci.at(1) + 1000;
+    return chrom + ":" + std::to_string(start) + "-" + std::to_string(end);
 }
 
 /***************************************************
@@ -176,8 +92,8 @@ void patter::load_genome_ref() {
 
             // init conv base on original region
             std::vector<int> start_end_loci = get_loci(region);
-            int start = start_end_loci[0];
-            int end = start_end_loci[1];
+            int start = start_end_loci.at(0);
+            int end = start_end_loci.at(1);
             update_conv(loci, start, end, 0);
         } else { // CASE for region=chr
             std::string cmd = "tabix " + ref_path + " " + region + " | cut -f2-3";
@@ -228,46 +144,6 @@ void patter::load_genome_ref() {
  *                                                 *
  ***************************************************/
 
-std::string patter::clean_CIGAR(std::string seq, std::string CIGAR) {
-
-    /** use CIGAR string to adjust 'seq' so it will be comparable to the reference.
-     * e.g, remove false letters ('I'), insert fictive letters ('D') etc. */
-
-    // parse CIGAR and convert it to a couple of vectors: chars, nums.
-    // e.g, '2S9M' will become ['S', 'M'] and [2, 9]
-    std::vector<char> chars;
-    std::vector<unsigned long> nums;
-    std::string cur_num;
-    for (auto c: CIGAR) {
-        if (isdigit(c)) {
-            cur_num.push_back(c);
-        } else {
-            nums.push_back(stoul(cur_num));
-            cur_num.clear();
-            chars.push_back(c);
-        }
-    }
-
-    // build the adjusted seq, using original seq and the vectors:
-    std::string adjusted_seq;
-    for (int i = 0; i < (int) chars.size(); i++) {
-        if (chars[i] == 'M') {
-            adjusted_seq += seq.substr(0, nums[i]);
-            seq = seq.substr(nums[i], seq.length() - nums[i]);
-        } else if (chars[i] == 'D') {
-            for (unsigned long j = 0; j < nums[i]; j++)
-                adjusted_seq += 'N';
-        } else if ((chars[i] == 'I') || (chars[i] == 'S')) {
-            seq = seq.substr(nums[i], seq.length() - nums[i]);
-        } else {
-            throw std::invalid_argument("Unknown CIGAR character: " +
-                                        std::string(1, chars[i]));
-        }
-    }
-
-    return adjusted_seq;
-}
-
 
 int patter::locus2CpGIndex(int locus) {
     /** translate genomic locus to CpG index (in range 1,...,28M~) */
@@ -283,18 +159,6 @@ int patter::locus2CpGIndex(int locus) {
     return start_site;
 }
 
-int strip_pat(std::string &pat) {
-    // remove dots from the tail (e.g. CCT.C.... -> CCT.C)
-    pat = pat.substr(0, pat.find_last_not_of(UNKNOWN) + 1);
-    if (pat == "") { return -1; }
-    // remove dots from the head (..CCT -> CCT)
-    int pos = pat.find_first_not_of(UNKNOWN);
-    if (pos > 0) {
-        pat = pat.substr(pos, pat.length() - pos);
-    }
-    return pos;
-}
-
 int patter::compareSeqToRef(std::string &seq,
                             int start_locus,
                             int samflag,
@@ -303,15 +167,8 @@ int patter::compareSeqToRef(std::string &seq,
      * the CpG index of the first CpG site in the seq (or -1 if there is none) */
 
     // get orientation
-    bool bottom;
-    if (is_paired_end) {
-        bottom = ( ((samflag & 0x53) == 83) || ((samflag & 0xA3) == 163) );
-    } else {
-        bottom = ((samflag & 0x10) == 16);
-    }
+    bool bottom = is_bottom(samflag, is_paired_end);
     ReadOrient ro = bottom ? OB : OT;
-
-    bool skip_mbias = true;
 
     // generate the methylation pattern (e.g 'CC.TC'),
     // by comparing the given sequence to reference at the CpG indexes
@@ -326,17 +183,14 @@ int patter::compareSeqToRef(std::string &seq,
         if (start_locus + 1 > (bsize - 1)) {
             continue;
         }
-//        if (i >= MAX_READ_LEN) {skip_mbias = false;}
         if (conv[start_locus + i]) {
             j = i + ro.shift;
             char s = seq[j];
             cur_status = UNKNOWN;
             if (s == ro.unmeth_seq_chr) {
                 cur_status = UNMETH;
-//                if (!skip_mbias) mb[mbias_ind].unmeth[j]++;
             } else if (s == ro.ref_chr) {
                 cur_status = METH;
-//                if (!skip_mbias) mb[mbias_ind].meth[j]++;
             }
             // ignore first/last 'clip_size' characters, since they are often biased
             if (!((j >= clip_size) && (j < seq.size() - clip_size))) {
@@ -610,14 +464,6 @@ void patter::print_progress(){
     }
 }
 
-bool are_paired(std::vector <std::string> tokens1,
-                std::vector <std::string> tokens2) {
-    // return true iff the reads are non empty and paired
-    return ((!(tokens2.empty())) &&
-            (!(tokens1.empty())) &&
-            (tokens1[0] == tokens2[0]));
-}
-
 void patter::proc_sam_in_stream(std::istream& in) {
     std::vector <std::string> tokens1, tokens2;
     std::string line1, line2;
@@ -665,11 +511,9 @@ void patter::action_sam(std::string samFilePath) {
 
     if (!(samFile)){
         proc_sam_in_stream(std::cin);
-    } else {
-        if (samFile.is_open()) {
-            proc_sam_in_stream(samFile);
-            samFile.close();
-        }
+    } else if (samFile.is_open()) {
+        proc_sam_in_stream(samFile);
+        samFile.close();
     }
     print_stats_msg();
 }

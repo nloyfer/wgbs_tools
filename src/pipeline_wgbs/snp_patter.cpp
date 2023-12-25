@@ -3,116 +3,8 @@
 //
 
 #include "snp_patter.h"
+#include "patter_utils.h"
 #include <set>
-
-char METH = 'C';
-char UNMETH = 'T';
-char UNKNOWN = '.';
-std::string TAB = "\t";
-
-/***************************************************************
- *                                                             *
- *               Print methods                                 *
- *                                                             *
- ***************************************************************/
-
-std::vector <std::string> line2tokens(std::string &line) {
-    /** Break string line to words (a vector of string tokens) */
-    std::vector <std::string> result;
-    std::string cell;
-    std::stringstream lineStream(line);
-    while (getline(lineStream, cell, '\t')) {
-        result.push_back(cell);
-    }
-    return result;
-}
-
-void print_vec(std::vector <std::string> &vec) {
-    /** print a vector to stderr, tab separated */
-    std::string sep = "";
-    for (auto &j: vec) {
-        std::cerr << sep << j;
-        sep = TAB;
-    }
-    std::cerr << std::endl;
-}
-
-
-std::string addCommas(int num) {
-    /** convert integer to string with commas */
-    auto s = std::to_string(num);
-    int n = s.length() - 3;
-    while (n > 0) {
-        s.insert(n, ",");
-        n -= 3;
-    }
-    return s;
-}
-
-/***************************************************************
- *                                                             *
- *               Load FASTA                                    *
- *                                                             *
- ***************************************************************/
-
-std::string exec(const char* cmd) {
-    /** Execute a command and load output to string */
-    std::array<char, 128> buffer;
-    std::string result;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
-    if (!pipe) {
-        throw std::runtime_error("[ patter ] popen() failed!");
-    }
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-        result += buffer.data();
-    }
-    return result;
-}
-
-/***************************************************************
- *                                                             *
- *               Niche                                         *
- *                                                             *
- ***************************************************************/
-
-bool validate_seq_bp(std::string &seq, std::string &ref, bool reversed, int margin) {
-    /** if blueprint filter is set, check for bisulfit conversionrate.
-     * Return False if this rate is too low, or if there are not enough CH's
-     */
-    int nr_conv = 0;
-    int nr_non_conv = 0;
-    // case 1 - read 1 (not reversed)
-    if (! reversed) {
-        for (unsigned long j = 0; j < ref.length() - 1; j++) {
-            // skip margins
-            if ((j < margin) || (j >= seq.size() - margin)) { continue; }
-            if ((ref[j] == 'C') && (ref[j + 1] != 'G')) {
-                if (seq[j] == 'C') {
-                    nr_non_conv++;
-                } else if (seq[j] == 'T') {
-                    nr_conv++;
-                }
-            }
-        }
-    } else { // case 2 - read 2 (reversed)
-        for (unsigned long j = 1; j < ref.length(); j++) {
-            // skip margins
-            if ((j < margin) || (j >= seq.size() - margin)) { continue; }
-            if ((ref[j] == 'G') && (ref[j + 1] != 'C')) {
-                if (seq[j] == 'G') {
-                    nr_non_conv++;
-                } else if (seq[j] == 'A') {
-                    nr_conv++;
-                }
-            }
-        }
-    }
-    int nr_ch = nr_conv + nr_non_conv;
-    if (nr_ch < 3) {
-        return false;
-    }
-    return (((float) nr_conv / (float) nr_ch) >= 0.9) ? true : false;
-}
 
 
 /***************************************************************
@@ -121,67 +13,10 @@ bool validate_seq_bp(std::string &seq, std::string &ref, bool reversed, int marg
  *                                                             *
  ***************************************************************/
 
-std::string snp_patter::clean_CIGAR(std::string seq, std::string CIGAR) {
-
-    /** use CIGAR string to adjust 'seq' so it will be comparable to the reference.
-     * e.g, remove false letters ('I'), insert fictive letters ('D') etc. */
-
-    // parse CIGAR and convert it to a couple of vectors: chars, nums.
-    // e.g, '2S9M' will become ['S', 'M'] and [2, 9]include <set>
-    std::vector<char> chars;
-    std::vector<unsigned long> nums;
-    std::string cur_num;
-    for (auto c: CIGAR) {
-        if (isdigit(c)) {
-            cur_num.push_back(c);
-        } else {
-            nums.push_back(stoul(cur_num));
-            cur_num.clear();
-            chars.push_back(c);
-        }
-    }
-
-    // build the adjusted seq, using original seq and the vectors:
-    std::string adjusted_seq;
-    for (int i = 0; i < (int) chars.size(); i++) {
-        if (chars[i] == 'M') {
-            adjusted_seq += seq.substr(0, nums[i]);
-            seq = seq.substr(nums[i], seq.length() - nums[i]);
-        } else if (chars[i] == 'D') {
-            for (unsigned long j = 0; j < nums[i]; j++)
-                adjusted_seq += 'N';
-        } else if ((chars[i] == 'I') || (chars[i] == 'S')) {
-            seq = seq.substr(nums[i], seq.length() - nums[i]);
-        } else {
-            throw std::invalid_argument("[ patter ] Unknown CIGAR character: " +
-                                        std::string(1, chars[i]));
-        }
-    }
-
-    return adjusted_seq;
-}
-
-
-int strip_pat(std::string &pat) {
-    // remove dots from the tail (e.g. CCT.C.... -> CCT.C)
-    pat = pat.substr(0, pat.find_last_not_of(UNKNOWN) + 1);
-    if (pat == "") { return -1; }
-    // remove dots from the head (..CCT -> CCT)
-    int pos = pat.find_first_not_of(UNKNOWN);
-    if (pos > 0) {
-        pat = pat.substr(pos, pat.length() - pos);
-    }
-    return pos;
-}
-
 char snp_patter::compareSeqToRef(std::string &seq,
-                                std::string &ref,
                                 bool bottom,
-                                std::string &meth_pattern,
                                 std::string &qual_str,
                                 int start_pos) {
-    /** compare seq string to ref string. generate the methylation pattern, and return
-     * the CpG index of the first CpG site in the seq (or -1 if there is none) */
 
     char snp_letter = 'Z';
     int snp_index = snp_pos - start_pos;
@@ -223,64 +58,7 @@ char snp_patter::compareSeqToRef(std::string &seq,
     return snp_letter;
 }
 
-
-
-std::vector <std::string> merge(std::vector <std::string> l1, std::vector <std::string> l2) {
-    /** Merge 2 complementary lines to a single output.
-     * each line has the following fields: [chr, startCpG, snp_let, pat]
-     * One or more of the lines may be empty */
-
-    // if one of the lines is empty - return the other
-    if (l1.empty()) { return l2; }
-    if (l2.empty()) { return l1; }
-
-    // Swap lines s.t l1 starts before l2
-    if (stoi(l1[1]) > stoi(l2[1])) {
-        std::vector <std::string> tmp = l1;
-        l1 = l2;
-        l2 = tmp;
-    }
-
-    int start1 = stoi(l1[1]), start2 = stoi(l2[1]);
-    std::string pat1 = l1[3], pat2 = l2[3];
-
-    std::string merged_pat;  // output pattern
-    int last_site = std::max(start1 + pat1.length(), start2 + pat2.length()); // location of last CpG from both reads
-
-    if (last_site - start1 > MAX_PAT_LEN) // sanity check: make sure the two reads are not too far apart
-        throw std::invalid_argument("invalid pairing. merged read is too long");
-
-    // init merged_pat with missing values
-    for (int i = start1; i < last_site; i++)
-        merged_pat += ".";
-
-    // set merged_pat head with pat1
-    for (unsigned long i = 0; i < pat1.length(); i++)
-        merged_pat[i] = pat1[i];
-
-    // set pat2 in the adjusted position
-    for (unsigned long i = 0; i < pat2.length(); i++) {
-        int adj_i = i + start2 - start1;
-        if (merged_pat[adj_i] == UNKNOWN) {   // this site was missing from read1
-            merged_pat[adj_i] = pat2[i];
-        } else if ((pat2[i] != UNKNOWN) && (merged_pat[adj_i] != pat2[i])) {
-            // read1 and read2 disagree, and none of them is missing ('.').
-            // treat this case as a missing value for now
-            // future work: consider only the read with the higher quality.
-            merged_pat[adj_i] = UNKNOWN;
-        }
-    }
-    // strip merged pat:
-    int pos = strip_pat(merged_pat);
-    if (pos < 0 ) { return {}; }
-    l1[1] = std::to_string(start1 + pos);
-//    l1[]
-    l1[3] = merged_pat;
-    return l1;
-}
-
-
-char snp_patter::samLineToPatVec(std::vector <std::string> tokens) {
+char snp_patter::samLineToSNP(std::vector <std::string> tokens) {
     /** Given tokens of a sam line:
      *       QNAME, FLAG, RNAME (chrom), POS, MAPQ, CIGAR, RNEXT,
      *       PNEXT, TLEN, SEQ, QUAL, and possibly more.
@@ -291,41 +69,26 @@ char snp_patter::samLineToPatVec(std::vector <std::string> tokens) {
      *  and update the corresponding counter
      *  */
 
-    std::vector <std::string> res;
-    if (tokens.empty()) {
-        return 'Z';
-    }
+    if (tokens.empty()) { return 'Z'; }
     try {
 
         if (tokens.size() < 11) {
             throw std::invalid_argument("too few arguments in line");
         }
-        unsigned long start_locus = stoul(tokens[3]);   // Fourth field from bam file
+        unsigned long start_locus = stoul(tokens[3]);
         int samflag = stoi(tokens[1]);
         std::string seq = tokens[9];
         std::string qual_str = tokens[10];
-        //std::string bp_qual = tokens[10];
         std::string CIGAR = tokens[5];
+
+        // skip duplicated reads
+        if ((samflag & 0x400) == 1024){ return 'Z'; }
 
         seq = clean_CIGAR(seq, CIGAR);
         qual_str = clean_CIGAR(qual_str, CIGAR);
+        bool bottom = is_bottom(samflag, is_paired_end);
 
-//        unsigned long seq_len = seq.length();   // We may need the original length later.
-        std::string ref = "";//genome_ref.substr(start_locus - 1, seq_len);
-
-        // build methylation pattern:
-        std::string meth_pattern;
-        bool bottom;
-        if (is_paired_end) {
-            bottom = (((samflag & 0x53) == 83) || ((samflag & 0xA3) == 163) );
-        } else {
-            bottom = ((samflag & 0x0010) == 16);
-        }
-        if ((samflag & 0x400) == 1024){
-            return 'Z';
-        }
-
-        return compareSeqToRef(seq, ref, bottom, meth_pattern, qual_str, start_locus);
+        return compareSeqToRef(seq, bottom, qual_str, start_locus);
     }
     catch (std::exception &e) {
         std::string msg = "[ " + chr + " ] " + "Exception while processing line "
@@ -335,14 +98,12 @@ char snp_patter::samLineToPatVec(std::vector <std::string> tokens) {
         std::cerr << "[ patter ] " << e.what() << std::endl;
         readsStats.nr_invalid++;
     }
-//    res.clear();
     return 'Z'; // return empty vector
 }
 
 
 char snp_patter::proc2lines(std::vector <std::string> tokens1,
                             std::vector <std::string> tokens2) {
-
 
     /** print result to stdout */
     try {
@@ -354,8 +115,8 @@ char snp_patter::proc2lines(std::vector <std::string> tokens1,
         }
 
         // Merge 2 complementary lines to a single output.
-        char snp_read1 = samLineToPatVec(tokens1);
-        char snp_read2 = samLineToPatVec(tokens2);
+        char snp_read1 = samLineToSNP(tokens1);
+        char snp_read2 = samLineToSNP(tokens2);
         if (snp_read1 == 'Z') {
             readsStats.nr_empty++;
             return snp_read2;
@@ -396,13 +157,7 @@ void snp_patter::print_stats_msg() {
     }
     msg += addCommas(line_i - readsStats.nr_empty - readsStats.nr_invalid) + " good, ";
     msg += addCommas(readsStats.nr_empty) + " empty, ";
-    if (min_cpg > 1) {
-        msg += addCommas(readsStats.nr_short) + " with too few CpGs. ";
-    }
     msg += addCommas(readsStats.nr_invalid) + " invalid. ";
-    if (blueprint) {
-        msg += addCommas(readsStats.nr_bad_conv) + " bad conversion. ";
-    }
     msg += "(success " + std::to_string(sucess) + "%)\n";
     std::cerr << "[ patter ] " << msg;
 }
@@ -431,9 +186,8 @@ bool snp_patter::first_line(std::string &line) {
 
 void snp_patter::initialize_patter(std::string &line_str) {
     // first line based initializations
-    if (genome_ref.empty()) {
+    if (chr == "") {
         is_paired_end = first_line(line_str);
-//        load_genome_ref();
     }
 }
 
@@ -442,14 +196,6 @@ void snp_patter::initialize_patter(std::string &line_str) {
  *                     Parse bam                               *
  *                                                             *
  ***************************************************************/
-
-bool are_paired(std::vector <std::string> tokens1,
-                std::vector <std::string> tokens2) {
-    // return true iff the reads are non empty and paired
-    return ((!(tokens2.empty())) &&
-            (!(tokens1.empty())) &&
-            (tokens1[0] == tokens2[0]));
-}
 
 void snp_patter::print_progress(){
     if (line_i && !(line_i % 5000000)){
@@ -470,7 +216,6 @@ void snp_patter::proc_sam_in_stream(std::istream& in){
      * Translate them to pat format, and output to stdout */
 
     bool first_in_pair = true;
-//    std::ios_base::sync_with_stdio(false);
     std::vector <std::string> tokens1, tokens2;
     std::string read1, read2;
     for (std::string line_str; std::getline(in, line_str); line_i++){
@@ -478,8 +223,7 @@ void snp_patter::proc_sam_in_stream(std::istream& in){
         print_progress();
 
         // skip empty lines
-        if (line_str.empty())
-            continue;
+        if (line_str.empty()) { continue; }
 
         initialize_patter(line_str);
 
@@ -531,11 +275,9 @@ void snp_patter::action(std::string samFilePath) {
 
     if (!(samFile)){
         proc_sam_in_stream(std::cin);
-    } else {
-        if (samFile.is_open()) {
+    } else if (samFile.is_open()) {
             proc_sam_in_stream(samFile);
             samFile.close();
-        }
     }
 }
 
@@ -546,42 +288,7 @@ void snp_patter::action(std::string samFilePath) {
  *                                                             *
  ***************************************************************/
 
-/*
- * Input Arguments Parsering class
- */
-class InputParser{
-public:
-    InputParser (int &argc, char **argv){
-        for (int i=1; i < argc; ++i)
-            this->tokens.emplace_back(std::string(argv[i]));
-    }
-    const std::string& getCmdOption(const std::string &option) const{
-        std::vector<std::string>::const_iterator itr;
-        itr =  std::find(this->tokens.begin(), this->tokens.end(), option);
-        if (itr != this->tokens.end() && ++itr != this->tokens.end()){
-            return *itr;
-        }
-        static const std::string empty_string;
-        return empty_string;
-    }
-    bool cmdOptionExists(const std::string &option) const{
-        return std::find(this->tokens.begin(), this->tokens.end(), option)
-               != this->tokens.end();
-    }
-private:
-    std::vector <std::string> tokens;
-};
-
-bool is_number(const std::string& s)
-{
-    std::string::const_iterator it = s.begin();
-    while (it != s.end() && std::isdigit(*it)) ++it;
-    return !s.empty() && it == s.end();
-}
-
-
 int main(int argc, char **argv) {
-//    clock_t begin = clock();
     try {
         InputParser input(argc, argv);
         long snp_pos = -1;
@@ -619,7 +326,7 @@ int main(int argc, char **argv) {
             quality_filter = std::stoi(qual_str);
         }
         if (argc < 3) {
-            throw std::invalid_argument("Usage: patter GENOME_PATH CPG_CHROM_SIZE_PATH [--bam] [--mbias MBIAS_PATH]");
+            throw std::invalid_argument("Usage: patter GENOME_PATH CPG_CHROM_SIZE_PATH [--bam]");
         }
         snp_patter p(snp_pos, snp_let1, snp_let2, quality_filter);
         p.action("");
@@ -630,9 +337,5 @@ int main(int argc, char **argv) {
         std::cerr << e.what() << std::endl;
         return 1;
     }
-//    clock_t end = clock();
-//    double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-//    std::cout << elapsed_secs << std::endl;
-//    std::cerr << elapsed_secs << std::endl;
     return 0;
 }

@@ -16,6 +16,7 @@
 #include <unordered_map>
 #include <sstream>      // std::stringstream
 #include <array>        // std::array
+#include "patter_utils.h"
 
 
 #define MAX_PAT_LEN 300
@@ -78,7 +79,6 @@ public:
     void print_stats_msg();
     void print_progress();
     int locus2CpGIndex(int locus);
-    std::string clean_CIGAR(std::string seq, std::string CIGAR);
     std::vector<std::string> samLineToPatVec(std::vector<std::string> tokens);
     void action_sam(std::string samFilePath);
     std::string samLineMethyldataMakeString(std::string originalLine, patter::MethylData md);
@@ -97,11 +97,6 @@ public:
     int update_conv(std::vector<int> loci, int start, int end, int counter);
 };
 
-std::vector<std::string> line2tokens(std::string &line);
-void print_vec(std::vector<std::string> &vec);
-bool is_number(const std::string& s);
-std::string addCommas(int num);
-std::string exec(const char* cmd);
 
 #endif //FAST_PAT_PATTER_H
 

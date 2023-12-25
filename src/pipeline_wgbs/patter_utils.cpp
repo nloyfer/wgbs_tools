@@ -5,6 +5,14 @@
 //std::vector <std::string> make_pat_vec(std::string chrom, int start_site, 
                                        //std::string meth_pattern);
 
+
+bool is_number(const std::string& s)
+{
+    std::string::const_iterator it = s.begin();
+    while (it != s.end() && std::isdigit(*it)) ++it;
+    return !s.empty() && it == s.end();
+}
+
 /***************************************************************
  *                                                             *
  *               Print methods                                 *
@@ -22,7 +30,7 @@ std::vector <std::string> line2tokens(const std::string &line) {
     return result;
 }
 
-void print_vec(std::vector <std::string> &vec) {
+void print_vec(const std::vector <std::string> &vec) {
     /** print a vector to stderr, tab separated */
     std::string sep = "";
     for (auto &j: vec) {
@@ -32,7 +40,7 @@ void print_vec(std::vector <std::string> &vec) {
     std::cerr << std::endl;
 }
 
-void print_vec(std::vector <int> &vec) {
+void print_vec(const std::vector <int> &vec) {
     /** print a vector to stderr, tab separated */
     std::string sep = "";
     for (auto &j: vec) {
@@ -42,7 +50,7 @@ void print_vec(std::vector <int> &vec) {
     std::cerr << std::endl;
 }
 
-std::string addCommas(int num) {
+std::string addCommas(const int num) {
     /** convert integer to string with commas */
     auto s = std::to_string(num);
     int n = s.length() - 3;
@@ -146,6 +154,13 @@ std::string clean_CIGAR(std::string seq, std::string CIGAR) {
     }
 
     return adjusted_seq;
+}
+
+bool is_bottom(int samflag, bool is_paired_end) {
+    if (is_paired_end) { 
+        return (((samflag & 0x53) == 83) || ((samflag & 0xA3) == 163));
+    };
+    return ((samflag & 0x10) == 16);
 }
 
 bool are_paired(std::vector <std::string> tokens1,
@@ -252,3 +267,4 @@ std::string reverse_comp(std::string seq) {
     }
     return revcomp;
 }
+
