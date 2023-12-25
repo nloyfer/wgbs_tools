@@ -61,6 +61,19 @@ std::string addCommas(const int num) {
     return s;
 }
 
+std::vector<float> split_float_by_comma(std::string str_line) {
+    /** split a comma separated list of floats,
+     * and output it as vector of floats */
+    std::vector<float> prob_vec;
+    std::stringstream ss(str_line);
+
+    for (float i; ss >> i;) {
+        prob_vec.push_back(i);
+        if (ss.peek() == ',') { ss.ignore(); }
+    }
+    return prob_vec;
+}
+
 std::vector<int> split_by_comma(std::string str_line) {
     /** split a comma separated list of ints,
      * and output it as vector of ints */
@@ -87,6 +100,14 @@ std::vector<std::string> split_by_semicolon(std::string str_line) {
     return str_vec;
 }
 
+bool hasEnding(std::string const &fullString, std::string const &suffix) {
+    /** return true iff "fullString" ends with "suffix" */
+    if (fullString.length() >= suffix.length()) {
+        return (0 == fullString.compare(fullString.length() - suffix.length(), suffix.length(), suffix));
+    } else {
+        return false;
+    }
+}
 
 /***************************************************************
  *                                                             *

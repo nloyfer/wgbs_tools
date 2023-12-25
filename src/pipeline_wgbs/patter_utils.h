@@ -28,8 +28,10 @@ void print_vec(const std::vector<std::string> &vec);
 void print_vec(const std::vector<int> &vec);
 std::string addCommas(const int num);
 std::vector<int> split_by_comma(std::string str_line);
+std::vector<float> split_float_by_comma(std::string str_line);
 std::vector<std::string> split_by_semicolon(std::string str_line);
 
+bool hasEnding(std::string const &fullString, std::string const &suffix);
 std::string exec(const char* cmd);
 
 bool are_paired(std::vector <std::string> tokens1,
@@ -72,9 +74,24 @@ public:
         return std::find(this->tokens.begin(), this->tokens.end(), option)
                != this->tokens.end();
     }
+    std::string getOptionWithDefault(const std::string &option, const std::string &defval) {
+        std::string param_str = this->getCmdOption(option);
+        if (param_str.empty()) { 
+            return defval;
+        }
+        return param_str; 
+    }
+    std::string getRequiredOption(const std::string &option) {
+        std::string param_str = this->getCmdOption(option);
+        if (param_str.empty()) { 
+            throw std::invalid_argument("Missing required argument: " + option);
+        }
+        return param_str;
+    }
 private:
     std::vector <std::string> tokens;
 };
+
 
 #endif //PATTER_UTILS_H
 
