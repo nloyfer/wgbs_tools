@@ -1,53 +1,12 @@
 
 #include "homog.h"
 
-
-std::vector <std::string> line2tokens(std::string &line) {
-    /** Break string line to tokens, return it as a vector of strings */
-    std::vector <std::string> result;
-    std::string cell;
-    std::stringstream lineStream(line);
-    while (getline(lineStream, cell, '\t'))
-        result.push_back(cell);
-    return result;
-}
-
-void print_vec(std::vector <std::string> &vec) {
-    /** print a vector to stderr, tab separated */
-    for (auto &j: vec)
-        std::cerr << j << "\t";
-    std::cerr << std::endl;
-}
-
-void print_vec(std::vector <int> &vec) {
-    /** print a vector to stderr, tab separated */
-    for (auto &j: vec)
-        std::cerr << j << "\t";
-    std::cerr << std::endl;
-}
-
-
 int32_t *Homog::init_array(int len) {
     int *arr = new int32_t[nr_blocks * len];
     std::fill_n(arr, nr_blocks * len, 0);
     return arr;
 }
 
-std::string exec(const char* cmd) {
-    /** Execute a command and load output to string */
-    std::array<char, 128> buffer;
-    std::string result;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
-    if (!pipe) {
-        throw std::runtime_error("[ homog ] popen() failed!");
-    }
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-        result += buffer.data();
-    }
-    return result;
-}
-
-// Constructor
 Homog::Homog(std::string in_blocks_path, std::vector<float> in_range,
              int in_min_cpgs, bool deb, std::string in_name, std::string in_chrom) {
     min_cpgs = in_min_cpgs;
@@ -110,11 +69,6 @@ int Homog::blocks_helper(std::istream &instream) {
             throw std::invalid_argument("Invalid block: startCpG < 1");
         }
 
-        // skip borders with <min_cpgs CpGs
-        //if ((cur_end - cur_start < min_cpgs)) {
-            //continue;
-        //}
-
         // if block is duplicated, continue
         if ((!borders_starts.empty()) &&    // Can't be dup if it's first 
                 (borders_starts.back() == cur_start) &&
@@ -147,10 +101,7 @@ int Homog::blocks_helper(std::istream &instream) {
 }
 
 int Homog::read_blocks() {
-    /**
-     * Load blocks gzipped file into vector<int> borders_starts, borders_ends.
-     */
-
+    /** * Load blocks gzipped file into vector<int> borders_starts, borders_ends.  */
 
     std::cerr << sname + "loading blocks..." << std::endl;
 
@@ -177,10 +128,8 @@ int Homog::read_blocks() {
     return 0;
 }
 
-
 void Homog::dump(int32_t *data, int width) {
-    /**
-     */
+    /** print counts */
     for (int i = 0; i < nr_blocks; i++) {
         for (int d = 0; d < borders_counts[i]; d++) {
             for (int j = 0; j < width; j++) {
@@ -192,7 +141,6 @@ void Homog::dump(int32_t *data, int width) {
         }
     }
 }
-
 
 void Homog::update_m2(int block_ind, std::string pat, int count) {
 
@@ -222,21 +170,15 @@ void Homog::update_m2(int block_ind, std::string pat, int count) {
     if (bin_ind == range.size() - 1) {
         bin_ind--;
     }
-//    std::cout << "block:" << block_ind << ", pat: " <<  pat << ", meth: " << meth << ", bin_ind:" <<  bin_ind << std::endl;
     counts[block_ind * nr_bins + bin_ind] += count;
 }
 
 void Homog::update_block(int block_ind, std::string pat, int32_t count) {
 
-//    std::cerr << block_ind << ") updating: " << pat << std::endl;
-
-    int len = pat.length();
-    // skip reads with less then min_cpgs sites:
-    if (len < min_cpgs) {
-        return;
+    // skip reads with less then min_cpgs sites
+    if (pat.length() >= min_cpgs) {
+        update_m2(block_ind, pat, count);
     }
-
-    update_m2(block_ind, pat, count);
 }
 
 int Homog::proc_line(std::vector <std::string> tokens) {
@@ -305,20 +247,6 @@ int Homog::proc_line(std::vector <std::string> tokens) {
     return 0;
 }
 
-void Homog::debug_print(int ind, std::vector <std::string> tokens) {
-    std::cerr << ind << ") " << borders_starts[ind] << "-" << borders_ends[ind] << std::endl;
-    print_vec(tokens);
-}
-
-
-bool hasEnding(std::string const &fullString, std::string const &ending) {
-    if (fullString.length() >= ending.length()) {
-        return (0 == fullString.compare(fullString.length() - ending.length(), ending.length(), ending));
-    } else {
-        return false;
-    }
-}
-
 void Homog::parse() {
 
     try {
@@ -327,8 +255,6 @@ void Homog::parse() {
             if (line_str.empty()) { continue; } // skip empty lines
 
             std::vector <std::string> tokens = line2tokens(line_str);
-//            std::cerr << line_i << std::endl;
-//	    print_vec(tokens); // TODO: del
             if (tokens.size() < 4) {
                 throw std::invalid_argument("too few columns in file, line " + std::to_string(line_i));
             } else if (!(tokens.empty())) {
@@ -341,7 +267,6 @@ void Homog::parse() {
                 std::cerr << "something went wrong... tokens is empty" << std::endl;
             }
             line_i++;
-//            std::cerr << line_i << std::endl;
             if (line_i % 10000000 == 0) {
                 std::cerr << sname << line_i / 1000000 << "M" << std::endl;
             }
@@ -359,4 +284,65 @@ void Homog::parse() {
     }
 }
 
+
+/***************************************************
+ *                                                 *
+ *                      Main                       *
+ *                                                 *
+ **************************************************/
+
+std::vector<float> parse_range(std::string &range_str) {
+    std::vector<float> vect = split_float_by_comma(range_str);
+
+    float tmp = -1;
+    for (std::size_t i = 0; i < vect.size(); i++) {
+        if (vect[i] <= tmp) {
+            std::cout << "Invalid range - non monotonic: " << range_str << std::endl;
+            throw std::invalid_argument("Invalid range");
+        }
+        if ((vect[i] < 0) || (vect[i] > 1)) {
+            std::cout << "Invalid range - must be in [0,1]: " << vect[i] << std::endl;
+            throw std::invalid_argument("Invalid range");
+        }
+        tmp = vect[i];
+    }
+    if ((vect[0] > 0) || (vect[vect.size() - 1] < 1)) {
+        std::cout << "Invalid range - must start with 0 and end with 1."  << std::endl;
+        throw std::invalid_argument("Invalid range");
+    }
+    return vect;
+}
+
+int main(int argc, char *argv[]) {
+
+    if ((argc < 3)) {
+        std::cerr << "Usage: EXEC -r RANGE -b BLOCKS_PATH [-l MIN_LEN] [-n NAME] [-d]\n"
+                  << "-l       Minimal sites in read to consider. Default is l=5.\n"
+                  << "-r       Ranges of methylation average, in [0,1]. For example: 0,0.2001,0.8,1.\n"
+                  << "-b       Blocks file. No header. First 5 columns are:\n"
+                  << "         <chr, start, end, startCpG, endCpG>.\n"
+                  << "         File may be gzipped. Note sometimes bgzip causes problems.\n"
+                  << "-d       Debug mode. Only use the first 2,500 blocks in the blocks file."
+                  << std::endl;
+        return -1;
+    }
+
+    InputParser input(argc, argv);
+    std::string name = input.getCmdOption("-n");
+    std::string blocks_path = input.getRequiredOption("-b");
+    std::string range_str = input.getRequiredOption("-r");
+    int min_cpgs = std::stoi(input.getOptionWithDefault("-l", DEFAULT_LEN));
+    std::string chrom = input.getCmdOption("--chrom");
+    bool debug = input.cmdOptionExists("-d");
+
+    try {
+        std::vector<float> range = parse_range(range_str);
+        Homog(blocks_path, range, min_cpgs, debug, name, chrom).parse();
+    }
+    catch (std::exception &e) {
+        std::cerr << e.what() << std::endl;
+        return -1;
+    }
+    return 0;
+}
 

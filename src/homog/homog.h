@@ -16,7 +16,7 @@
 #include <algorithm>    // std::find
 #include <array>        // std::array
 #include <memory>       // std::unique_ptr
-
+#include "../pipeline_wgbs/patter_utils.h"
 
 #define SEP "\t"
 #define DEFAULT_LEN "5"
@@ -52,8 +52,6 @@ class Homog {
 
     int32_t* init_array(int len);
 
-    void debug_print(int ind, std::vector<std::string> tokens);
-
     int blocks_helper(std::istream &instream);
 
 public:
@@ -66,5 +64,4 @@ public:
     void parse();
 };
 
-bool hasEnding (std::string const &fullString, std::string const &ending);
 #endif //PATS_READS_LENS_PAT2RLEN_H
