@@ -1,4 +1,3 @@
-//#include <boost/algorithm/string/predicate.hpp>
 #include <vector>
 #include <sstream>
 #include <iostream>
@@ -9,13 +8,8 @@
 #include <stdexcept>      // std::invalid_argument
 
 
-//  g++ -std=c++11 stdin2beta.cpp -o stdin2beta
-
-
 std::vector<std::string> line2tokens(std::string &line) {
-    /**
-     * Break string line to tokens, return it as a vector of strings
-     */
+    /** * Break string line to tokens, return it as a vector of strings */
     std::vector<std::string> result;
     std::string cell;
     std::stringstream lineStream(line);
@@ -58,9 +52,7 @@ Pat2Beta::Pat2Beta(int in_start, int in_end) {
 void Pat2Beta::dumpbin() {
     for ( int i = 0; i < nr_sites; i++ ) {
         std::cout << meth[i] << " " << cover[i] << " "; 
-        //std::cout << i + start  << ": " << meth[i] << " " << cover[i] << std::endl;
     }
-    //std::cerr << "nr_sites: " << nr_sites << std::endl;
     std::cout << std::endl;
 }
 
@@ -97,7 +89,6 @@ int Pat2Beta::proc_line(std::vector<std::string> tokens) {
             meth[cur_ind] += count; 
         }
     }
-
     return 0;
 }
 
@@ -122,7 +113,6 @@ void Pat2Beta::parse(){
             line_i++;
         }
 
-        // dump_bed
         dumpbin();
     }
     catch(std::exception &e) {
