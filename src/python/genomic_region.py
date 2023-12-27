@@ -24,10 +24,11 @@ def get_genome_name(gname):
 
 
 class GenomicRegion:
-    def __init__(self, args=None, region=None, sites=None, genome_name=None):
+    def __init__(self, args=None, region=None, sites=None, array_id=None, genome_name=None):
         self.genome_name = get_genome_name(genome_name)
         self.chrom = None
         self.sites = sites
+        self.array_id = array_id
         self.region_str = region
         self.bp_tuple = None
         self.args = args
@@ -40,12 +41,17 @@ class GenomicRegion:
                 self.parse_sites(args.sites)
             elif args.region:
                 self.parse_region(args.region)
+            elif args.array_id:
+                self.parse_array_id(args.array_id)
         elif region is not None:
             self.genome = GenomeRefPaths(self.genome_name)
             self.parse_region(region)
         elif sites is not None:
             self.genome = GenomeRefPaths(self.genome_name)
             self.parse_sites(sites)
+        elif array_id is not None:
+            self.genome = GenomeRefPaths(self.genome_name)
+            self.parse_array_id(array_id)
         else:
             raise IllegalArgumentError(f'Invalid GR init {region}')
 
@@ -155,7 +161,6 @@ class GenomicRegion:
             raise IllegalArgumentError(f'Invalid genomic region: {self.region_str}. No CpGs in range')
 
         s1, s2 = self._sites_str_to_tuple(res)
-        # s2 += 1     # non-inclusive
         return s1, s2
 
     def _sites_str_to_tuple(self, sites_str):
@@ -206,6 +211,28 @@ class GenomicRegion:
             msg = f'Failed retrieving locus for site {index} with command:\n{cmd}\n{e}'
             raise IllegalArgumentError(msg)
         return chrom, loc
+
+    def parse_array_id(self, array_id):
+        """ Parse input of the type --array_id (e.g cg00001755) """
+
+        # validate ID
+        if not (array_id.startswith('cg') and len(array_id) > 2 and array_id[2:].isdigit()):
+            eprint(f'ERROR: Invalid Illumina array id: {array_id}')
+            raise IllegalArgumentError('Invalid Illumina array ID')
+        # verify there is an Illumina map file
+        idict = self.genome.ilmn2cpg_dict
+        if idict is None or not op.isfile(idict):
+            raise IllegalArgumentError(f'Could not find Illumina map file: {idict}')
+
+        # Find cg ID in the map file
+        try:
+            cmd = f'gunzip -c {idict} | grep -w {array_id} | cut -f2'
+            cpg_ind = int(subprocess.check_output(cmd, shell=True).decode().strip())
+        except ValueError as e:
+            msg = f'Failed retrieving locus for site {array_id} with command:\n{cmd}\n{e}'
+            raise IllegalArgumentError(msg)
+
+        self.parse_sites(str(cpg_ind))
 
     def __str__(self):
         if self.sites is None:

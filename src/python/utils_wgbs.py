@@ -234,6 +234,7 @@ def add_GR_args(parser, required=False, bed_file=False, no_anno=False, expand=Fa
     region_or_sites = parser.add_mutually_exclusive_group(required=required)
     region_or_sites.add_argument('-s', '--sites', help='a CpG index range, of the form: "450000-450050"')
     region_or_sites.add_argument('-r', '--region', help='genomic region of the form "chr1:10,000-10,500"')
+    region_or_sites.add_argument('--array_id', help='Illumina array id, e.g. cg00001755')
     if bed_file:
         region_or_sites.add_argument('-L', '--bed_file', help='Bed file. Columns <chr, start, end>. '\
                 'For some features columns 4-5 should be <startCpG, endCpG> (run wgbstools convert -L BED_PATH)')
