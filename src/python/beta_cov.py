@@ -9,6 +9,12 @@ from multiprocessing import Pool
 from genomic_region import GenomicRegion
 from beta_to_blocks import collapse_process, is_block_file_nice, load_blocks_file
 
+def plot_hist2(beta_path, sites):
+    ymax = 255 if beta_path.endswith('.beta') else 1000
+    import plotille
+    data = load_beta_data(beta_path, sites)[:, 1]
+    h = plotille.histogram(data, x_min=0, x_max=ymax)
+    print(h)
 
 def plot_hist(names, covs):
     import matplotlib.pyplot as plt
@@ -31,6 +37,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('betas', nargs='+', help='one or more beta files')
     parser.add_argument('--plot', action='store_true', help='Plot histogram of coverages')
+    parser.add_argument('--hist', action='store_true', help='Plot in-terminal histogram of coverages')
     add_GR_args(parser, bed_file=True)
     add_multi_thread_args(parser)
     args = parser.parse_args()
@@ -84,7 +91,8 @@ def main():
 
     for cov, beta_path in zip(covs, args.betas):
         print('{}\t{:.2f}'.format(pretty_name(beta_path), cov))
-
+        if args.hist:
+            plot_hist2(beta_path, sites)
     if args.plot:
         plot_hist([pretty_name(b) for b in args.betas], covs)
 
