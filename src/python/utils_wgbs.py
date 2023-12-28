@@ -289,21 +289,23 @@ def trim_to_uint8(data, lbeta = False):
     return data.astype(dtype)
 
 
+def beta_sanity_check(beta_path, genome):
+    # sanity test: make sure beta file has the correct number of sites 
+    # (fits current genome)
+    nr_sites_in_beta = op.getsize(beta_path) // 2
+    if beta_path.endswith('.lbeta'):
+        nr_sites_in_beta /= 2
+    if int(nr_sites_in_beta) != genome.get_nr_sites():
+        eprint(f'[wt beta] WARNING: beta file size ({nr_sites_in_beta:,} sites)\n' \
+               f'          incomatible with current genome reference ' \
+               f'({genome.get_nr_sites():,} sites)')
+        return False
+    return True
 
-def load_beta_data2(beta_path, gr=None, bed=None):
-    if gr is not None and bed is not None:
-        eprint('Error: both gr and bed_path supplied')
-        raise IllegalArgumentError('Invalid usage of load_beta_data2')
-    elif gr is not None and bed is None:
-        return load_beta_data(beta_path, gr.sites)
-    elif gr is None and bed is not None:
-        inds = load_dict_section(' -R ' + bed.bed_path, bed.genome)['idx'].values - 1
-        return load_beta_data(beta_path)[inds, :]
-    else:
-        return load_beta_data(beta_path, None)
 
-
-def load_beta_data(beta_path, sites=None):
+def load_beta_data(beta_path, sites=None, genome=None):
+    if genome is not None:
+        beta_sanity_check(beta_path, genome)
     suff = op.splitext(beta_path)[1]
     if not (op.isfile(beta_path) and (suff in ('.beta', '.lbeta', '.bin'))):
         raise IllegalArgumentError(f'Invalid beta file:\n{beta_path}')

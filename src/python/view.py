@@ -3,9 +3,9 @@
 import argparse
 import numpy as np
 import os.path as op
-from utils_wgbs import load_beta_data2, validate_single_file, \
+from utils_wgbs import load_beta_data, validate_single_file, \
     IllegalArgumentError, catch_BrokenPipeError, view_beta_script, \
-    view_lbeta_script, eprint #, check_executable
+    view_lbeta_script, eprint, beta_sanity_check #, check_executable
 from genomic_region import GenomicRegion
 from cview import cview, subprocess_wrap_sigpipe, add_view_flags
 
@@ -49,20 +49,6 @@ def bview_build_cmd(beta_path, gr, bed_path):
         validate_single_file(bed_path)
         cmd += f' | bedtools intersect -b {bed_path} -a stdin -wa '
     return cmd
-
-
-def beta_sanity_check(beta_path, genome):
-    # sanity test: make sure beta file has the correct number of sites 
-    # (fits current genome)
-    nr_sites_in_beta = op.getsize(beta_path) // 2
-    if beta_path.endswith('.lbeta'):
-        nr_sites_in_beta /= 2
-    if int(nr_sites_in_beta) != genome.get_nr_sites():
-        eprint(f'[wt beta] WARNING: beta file size ({nr_sites_in_beta:,} sites)\n' \
-               f'          incomatible with current genome reference ' \
-               f'({genome.get_nr_sites():,} sites)')
-        return False
-    return True
 
 
 def view_beta(beta_path, gr, opath, bed_path):

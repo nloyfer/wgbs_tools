@@ -7,8 +7,7 @@ import os.path as op
 import pandas as pd
 from utils_wgbs import validate_single_file, validate_file_list, load_beta_data, \
                        beta2vec, IllegalArgumentError, eprint, \
-                       add_multi_thread_args, GenomeRefPaths
-from view import beta_sanity_check
+                       add_multi_thread_args, GenomeRefPaths, beta_sanity_check
 from multiprocessing import Pool
 
 # https://support.illumina.com/array/array_kits/infinium-methylationepic-beadchip-kit/downloads.html
