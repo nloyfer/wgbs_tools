@@ -74,7 +74,7 @@ int Homog::blocks_helper(std::istream &instream) {
                 (borders_starts.back() == cur_start) &&
                 (borders_ends.back() == cur_end)) {
             // only update the count and continue:
-            borders_counts[bi - 1]++;
+            borders_counts.at(bi - 1)++;
             continue;
         }
         
@@ -131,7 +131,7 @@ int Homog::read_blocks() {
 void Homog::dump(int32_t *data, int width) {
     /** print counts */
     for (int i = 0; i < nr_blocks; i++) {
-        for (int d = 0; d < borders_counts[i]; d++) {
+        for (int d = 0; d < borders_counts.at(i); d++) {
             for (int j = 0; j < width; j++) {
                 std::cout << data[i * width + j];
                 if (j < width - 1)
@@ -194,9 +194,6 @@ int Homog::proc_line(std::vector <std::string> tokens) {
     std::string pattern = tokens[2];
     int count = std::stoi(tokens[3]);
     int read_end = read_start + (int) pattern.length() - 1;
-
-//    print_vec(tokens);
-
 
     // read starts later than the last border - finish
     //                                          CTCTCT
