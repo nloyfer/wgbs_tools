@@ -3,28 +3,31 @@
 import numpy as np
 import os.path as op
 import sys
+import os
 import pandas as pd
 import argparse
 from utils_wgbs import load_beta_data, add_GR_args, \
-        add_multi_thread_args
+        add_multi_thread_args, load_dict_section
 from multiprocessing import Pool
 from genomic_region import GenomicRegion
 from beta_cov import pretty_name
+import tempfile
+import subprocess
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('betas', nargs='+', help='one or more beta files')
     parser.add_argument('--width', '-w', type=int, default=120, help='max width to print output table [120]')
-    add_GR_args(parser, bed_file=False)  # TODO: support bed
+    add_GR_args(parser, bed_file=True)
     add_multi_thread_args(parser)
     args = parser.parse_args()
     return args
 
 
-def print_stats(fpath, sites):
-    data = load_beta_data(fpath, sites)
-    name = pretty_name(fpath)#[:20]
+def print_stats(beta_path, data):
+    assert data.size, beta_path + ': Data table is empty!'
+    name = pretty_name(beta_path)#[:20]
     names = []
     vals = []
     np.seterr(divide='ignore', invalid='ignore')
@@ -53,8 +56,26 @@ def print_stats(fpath, sites):
     return df
 
 
-def beta_stats(beta_path, sites=None):
-    return print_stats(beta_path, sites)
+def load_beta_by_bed(beta_path, bed_path, genome_name):
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    data = np.array(())
+    try:
+        cmd = f'cut -f 1-3 {bed_path} > {tmp.name}'
+        subprocess.check_call(cmd, shell=True)
+        inds = load_dict_section(' -R ' + tmp.name, genome_name)['idx'].values - 1
+        data = load_beta_data(beta_path)[np.unique(inds), :]
+    finally:
+        tmp.close()
+        os.unlink(tmp.name)
+    return data
+
+
+def beta_stats(beta_path, gr=None, bed_path=None):
+    if bed_path:
+        data = load_beta_by_bed(beta_path, bed_path, gr.genome.genome)
+    else:
+        data = load_beta_data(beta_path, gr.sites, gr.genome)
+    return print_stats(beta_path, data)
 
 
 def main():
@@ -64,9 +85,9 @@ def main():
 
     args = parse_args()
 
-    sites = GenomicRegion(args).sites
+    gr = GenomicRegion(args)
 
-    params = [(beta, sites) for beta in args.betas]
+    params = [(beta, gr, args.bed_file) for beta in args.betas]
     p = Pool(args.threads)
     stats_arr = p.starmap(beta_stats, params)
     p.close()
