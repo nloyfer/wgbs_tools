@@ -160,7 +160,7 @@ class MarkerFinder:
         import tempfile
         import shutil
         import subprocess
-        from utils_wgbs import beta2vec, load_beta_data2, main_script
+        from utils_wgbs import beta2vec, load_beta_data, main_script
 
         # create temp dir for binary files
         tmp_bins = op.join(self.args.out_dir, 'tmp_bins.')
@@ -181,7 +181,7 @@ class MarkerFinder:
         for beta in os.listdir(tmp_bins):
             if not beta.endswith('.bin'):
                 continue
-            v = beta2vec(load_beta_data2(op.join(tmp_bins, beta)), min_cov=self.args.min_cov)
+            v = beta2vec(load_beta_data(op.join(tmp_bins, beta)), min_cov=self.args.min_cov)
             blocks_df[beta[:-4]] = v
 
         # cleanup
