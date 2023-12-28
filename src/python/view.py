@@ -28,7 +28,7 @@ from cview import cview, subprocess_wrap_sigpipe, add_view_flags
 def view_other_bin(bin_path, args):
     # view bin files. Minimal support. Works very slow for whole genome.
     gr = GenomicRegion(args)
-    data = load_beta_data2(bin_path, gr=gr)
+    data = load_beta_data(bin_path, gr=gr.sites)
     np.savetxt('/dev/stdout', data, fmt='%s', delimiter='\t')
 
 
