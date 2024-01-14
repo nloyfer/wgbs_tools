@@ -157,9 +157,9 @@ class PatVis:
         return uxm_status * len(patt)
 
     def insert_read_to_table(self, read, table, shift):
-        read_start = int(read[1])
-        patt = read[2]
-        count = int(read[3])
+        read_start = int(read.iloc[1])
+        patt = read.iloc[2]
+        count = int(read.iloc[3])
 
         # skip empty (all dots) reads:
         if not patt.strip('.'):
