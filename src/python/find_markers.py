@@ -369,9 +369,9 @@ class MarkerFinder:
     def dump_results(self, tf):
         eprint(f'Number of markers found: {tf.shape[0]:,}')
         if self.args.sort_by:
-            tf = tf.sort_values(by=self.args.sort_by, ascending=False, kind='stable') # todo: stable for repro.
+            tf.sort_values(by=self.args.sort_by, ascending=False, inplace=True)
         if self.args.top:
-            tf = tf.head(self.args.top)
+            tf = tf.head(self.args.top).copy()
         tf['target'] = self.group
         tf['lenCpG'] = tf['lenCpG'].astype(str) + 'CpGs'
         tf['bp'] = (tf['end'] - tf['start']).astype(str) + 'bp'
