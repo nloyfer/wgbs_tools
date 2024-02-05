@@ -182,6 +182,7 @@ void segmentor::read_beta_file(const char *beta_path, float *data){
         if (data[2 * i] > data[2 * i + 1]) {
             std::cerr << "invalid data, i = " << i << ". data: ";
             std::cerr << data[2 * i] << ", " << data[2 * i + 1] << std::endl;
+            std::cerr << "beta path: " << beta_path << std::endl;
             throw 0;
         }
     }
