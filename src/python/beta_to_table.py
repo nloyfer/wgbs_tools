@@ -114,7 +114,7 @@ def betas2table(betas, blocks, groups_file, min_cov, threads=8, verbose=False):
     return get_table(blocks_df, gf, min_cov, threads, verbose)
 
 
-def dump(outpath, df, first, digits):
+def dump(outpath, df, first=True, digits=3):
     if first:
         header = True
         mode = 'w'
