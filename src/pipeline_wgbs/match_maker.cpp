@@ -137,10 +137,20 @@ void action(bool output_singles) {
 
     long long int line_i = 0;
     std::string log_pref = "[match maker] ";
+    bool is_chrom_set = false;
     for (std::string line; std::getline(std::cin, line) && (line_i > -1); line_i++) {
+
+        // skip header lines
+        if (!line.empty() && line[0] == '@'){
+            std::cout << line << std::endl;
+            continue;
+        }
         
         // add chromosome to log prefix
-        if (line_i == 0) { log_pref += "[ " + line2tokens(line)[2] + " ] "; }
+        if (!is_chrom_set) { 
+            log_pref += "[ " + line2tokens(line)[2] + " ] "; 
+            is_chrom_set = true;
+        }
 
 
         data.push_back(line);
