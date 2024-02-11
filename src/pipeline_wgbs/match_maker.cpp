@@ -141,7 +141,7 @@ void action(bool output_singles) {
     for (std::string line; std::getline(std::cin, line) && (line_i > -1); line_i++) {
 
         // skip header lines
-        if (!line.empty() && line[0] == '@'){
+        if ((!is_chrom_set) && (!line.empty()) && (line[0] == '@')){
             std::cout << line << std::endl;
             continue;
         }
