@@ -10,7 +10,7 @@ import argparse
 from init_genome import chromosome_order
 from utils_wgbs import IllegalArgumentError, match_maker_tool, eprint, \
         add_cpg_count_tool, validate_local_exe, add_GR_args, add_multi_thread_args, \
-        safe_remove, check_samtools_version
+        safe_remove, check_samtools_version, pretty_name
 from bam2pat import subprocess_wrap, validate_bam, is_pair_end, MAPQ, \
         FLAGS_FILTER, add_samtools_view_flags, is_region_empty, set_regions
 from genomic_region import GenomicRegion
@@ -107,7 +107,7 @@ class BamMethylData:
         # create tmp files from bed file (extend each region with +-1000 bp)
         df['start'] = np.maximum(1, df['start'] - 1000)
         df['end'] += 1000
-        extended_bed_path = op.join(self.out_dir, op.basename(self.bam_path)[:-4]) + str(uuid.uuid4())[:6] + '.tmp.bed'
+        extended_bed_path = op.join(self.out_dir, pretty_name(self.bam_path) + str(uuid.uuid4()))[:6] + '.tmp.bed'
         df.to_csv(extended_bed_path, sep='\t', header=False, index=False)
         return extended_bed_path
 
@@ -126,7 +126,7 @@ class BamMethylData:
         """ Parse each chromosome file in a different process,
             and concatenate outputs to pat and unq files """
         print(datetime.datetime.now().isoformat() + ': *** starting processing of each chromosome')
-        name = op.join(self.out_dir, op.basename(self.bam_path)[:-4])
+        name = op.join(self.out_dir, pretty_name(self.bam_path))
         if self.gr.region_str is None:
             final_path = name + f'.{self.args.suffix}' + BAM_SUFF
             params = []
