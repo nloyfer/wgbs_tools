@@ -6,9 +6,12 @@ import numpy as np
 import os.path as op
 import sys
 import os
+from pathlib import Path
 from index import Indxer
-from utils_wgbs import validate_file_list, splitextgz, delete_or_skip, trim_to_uint8, load_beta_data, \
-        collapse_pat_script, IllegalArgumentError, main_script, eprint, pretty_name
+from utils_wgbs import validate_file_list, splitextgz, delete_or_skip, \
+        trim_to_uint8, load_beta_data, collapse_pat_script, \
+        IllegalArgumentError, main_script, eprint, pretty_name, \
+        GenomeRefPaths, safe_remove
 from cview import add_view_flags
 from genomic_region import GenomicRegion
 
@@ -45,6 +48,7 @@ def extract_view_flags(args):
 class MergePats:
     def __init__(self, pats, outpath, labels, args):
         self.args = args
+        self.gr = GenomicRegion(args)
         self.pats = pats
         validate_file_list(self.pats, force_suff='.pat.gz')
         self.outpath = outpath
@@ -52,7 +56,12 @@ class MergePats:
 
     def merge_pats(self):
         view_flags = [extract_view_flags(self.args)] * len(self.pats)
-        self.fast_merge_pats(view_flags)
+
+        if self.gr.is_whole():
+            self.merge_by_chrom(view_flags)
+        else:
+            self.fast_merge_pats(view_flags)
+        Indxer(self.outpath).run()
 
     def compose_view_cmd(self, i, view_flags):
         if not view_flags:
@@ -66,7 +75,7 @@ class MergePats:
         view_cmd += f'{tagcmd})'
         return view_cmd
 
-    def fast_merge_pats(self, view_flags=None):
+    def fast_merge_pats(self, view_flags=None, append=False):
         """ Use piping and sort -m to merge pat files w/o intermediate files """
         cmd = 'sort -m -k2,2n -k3,3'
 
@@ -83,7 +92,10 @@ class MergePats:
             cmd += self.compose_view_cmd(i, view_flags)
         cmd += f' | {collapse_pat_script} - '
         # cmd += f' | bedtools groupby -g 1-3 -c 4'  # TODO: check how many columns in self.pats[0] and use groupby instead of collapse_pat_script
-        cmd += f' | bgzip > {self.outpath}'
+        if append:
+            cmd += f' | bgzip >> {self.outpath}'
+        else:
+            cmd += f' | bgzip > {self.outpath}'
         cmd = f'/bin/bash -c "{cmd}"'
         if self.args.verbose:
             eprint(cmd)
@@ -91,7 +103,22 @@ class MergePats:
 
         if not op.isfile(self.outpath):
             raise IllegalArgumentError(f'[wt merge] Error: failed to create file {self.outpath}')
-        Indxer(self.outpath).run()
+
+    def merge_by_chrom(self, view_flags):
+        # merge pat files chrom by chrom when we merge whole-genome (much faster because it saves the sorting process lots of time)
+        sorted_chroms = GenomeRefPaths(self.args.genome).get_chroms()
+
+        # dump merged pat chromosome by chromosome, 
+        # so that the unix sort will run on each chromosome separately
+        safe_remove(self.outpath)
+        Path(self.outpath).touch()
+        if self.args.verbose:
+            eprint('[wt merge] Merging chrom by chrom...')
+        for chrom in sorted_chroms:
+            if self.args.verbose:
+                eprint(f'[wt merge] {chrom}')
+            chrom_view_flags = [v + f' -r {chrom}' for v in view_flags]
+            self.fast_merge_pats(chrom_view_flags, append=True)
 
 
 def merge_betas(betas, opath, lbeta=False):
