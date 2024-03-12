@@ -1,56 +1,12 @@
-//#include <boost/algorithm/string/predicate.hpp>
 #include <vector>
 #include <sstream>
 #include <iostream>
 #include <fstream>
-#include <math.h>
-#include <array>        // std::array
-#include <memory>       // std::unique_ptr
 #include <set>          // std::set
 #include <string>
 #include <iostream>
 #include <stdexcept>      // std::invalid_argument
-
-
-char UNKNOWN = '.';
-//  g++ -std=c++11 stdin2beta.cpp -o stdin2beta
-
-
-std::vector<std::string> line2tokens(std::string &line) {
-    /**
-     * Break string line to tokens, return it as a vector of strings
-     */
-    std::vector<std::string> result;
-    std::string cell;
-    std::stringstream lineStream(line);
-    while(getline(lineStream, cell, '\t'))
-        result.push_back(cell);
-    return result;
-}
-
-void print_vec(std::vector <std::string> &vec) {
-    /** print a vector to stderr, tab separated */
-    std::string sep = "";
-    for (auto &j: vec) {
-        std::cerr << sep << j;
-        sep = '\t';
-    }
-    std::cerr << std::endl;
-}
-
-std::string exec(const char* cmd) {
-    /** Execute a command and load output to string */
-    std::array<char, 128> buffer;
-    std::string result;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
-    if (!pipe) {
-        throw std::runtime_error("[ mask_pat ] popen() failed!");
-    }
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-        result += buffer.data();
-    }
-    return result;
-}
+#include "../pipeline_wgbs/patter_utils.h"
 
 // Load blocks
 int read_bed(std::string bed_path, std::set<int> &sites_to_hide) {
@@ -60,10 +16,12 @@ int read_bed(std::string bed_path, std::set<int> &sites_to_hide) {
 
     std::cerr << "[ mask_pat ] loading sites..." << std::endl;
 
+    // choose the read command (cat/gunzip)
     std::string cmd = "cat " + bed_path;
     if ((bed_path.length() > 3) && (bed_path.substr(bed_path.length() - 3) == ".gz")) {
         cmd = "gunzip -c " + bed_path;
     }
+    // load whole bed file to memory
     std::string bed_data = exec(cmd.c_str());
     if (bed_data.length() == 0) {
         throw std::invalid_argument("[ mask_pat ] Error: Unable to load bed:" + bed_path);
@@ -136,17 +94,10 @@ int proc_line(std::vector<std::string> tokens, std::set<int> &sites_to_hide) {
         }
     }
     tokens[2] = pattern;
-    // ignore this read if it's all dots
-    std::string spat = pattern.substr(0, pattern.find_last_not_of(UNKNOWN) + 1);
-    if (spat == "") { return 0; }
+    // strip pat and ignore this read if it's all dots
+    if (strip_pat(tokens[2]) < 0) { return 0; }
 
-    std::string sep = "";
-    for (auto &j: tokens) {
-        std::cout << sep << j;
-        sep = '\t';
-    }
-    std::cout << std::endl;
-
+    output_vec(tokens);
     return 0;
 }
 
