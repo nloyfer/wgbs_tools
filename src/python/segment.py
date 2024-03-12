@@ -11,7 +11,8 @@ import argparse
 import subprocess
 from utils_wgbs import IllegalArgumentError, eprint, segment_tool, add_GR_args, \
                        validate_file_list, validate_single_file, \
-                       add_multi_thread_args, GenomeRefPaths, validate_local_exe
+                       add_multi_thread_args, GenomeRefPaths, validate_local_exe, \
+                       beta_sanity_check
 from convert import add_bed_to_cpgs
 from genomic_region import GenomicRegion, index2chrom
 from beta_to_blocks import load_blocks_file
@@ -72,6 +73,13 @@ class SegmentByChunks:
                           'genome': self.genome
                           }
         self.args = args
+        self.validate_genome()
+
+    def validate_genome(self):
+        for beta in self.betas:
+            if not beta_sanity_check(beta, self.genome):
+                msg = f'[wt segment] ERROR: current genome reference ({self.genome.genome}) does not match the input beta file ({beta}).'
+                raise IllegalArgumentError(msg)
 
     def break_to_chunks(self):
         """ Break range of sites to chunks of size 'step',
