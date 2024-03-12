@@ -6,7 +6,7 @@ import os.path as op
 import numpy as np
 from genomic_region import GenomicRegion
 from utils_wgbs import validate_single_file, mask_pat_tool, \
-        delete_or_skip, main_script, \
+        delete_or_skip, main_script, collapse_pat_script, \
         GenomeRefPaths, add_GR_args, eprint
 
 
@@ -26,7 +26,8 @@ def mask_pat(pat_path, sites_to_hide, prefix, args):
         gr = GenomicRegion(args)
         if not gr.is_whole():
             cmd += f' -r {gr.region_str}'
-    cmd += f'| {mask_pat_tool} {args.sites_to_hide} '
+    cmd += f' | {mask_pat_tool} {args.sites_to_hide} '
+    cmd += f' | {collapse_pat_script} -'
     cmd += f' | bgzip -@ 4 > {pat_out}'
     cmd += f' && {main_script} index {pat_out}'
     # eprint(cmd)
