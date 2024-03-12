@@ -1,23 +1,11 @@
 
 #include "patter_utils.h"
 
-//std::vector<std::string> get_np_fields(std::vector <std::string> &tokens);
-//std::vector <std::string> make_pat_vec(std::string chrom, int start_site, 
-                                       //std::string meth_pattern);
-
-
-bool is_number(const std::string& s)
-{
-    std::string::const_iterator it = s.begin();
-    while (it != s.end() && std::isdigit(*it)) ++it;
-    return !s.empty() && it == s.end();
-}
-
-/***************************************************************
- *                                                             *
- *               Print methods                                 *
- *                                                             *
- ***************************************************************/
+/***************************************************
+ *                                                 *
+ *                 Print methods                   *
+ *                                                 *
+ **************************************************/
 
 std::vector <std::string> line2tokens(const std::string &line) {
     /** Break string line to words (a vector of string tokens) */
@@ -32,22 +20,35 @@ std::vector <std::string> line2tokens(const std::string &line) {
 
 void print_vec(const std::vector <std::string> &vec) {
     /** print a vector to stderr, tab separated */
-    std::string sep = "";
-    for (auto &j: vec) {
+    const auto separator = "\t";
+    auto sep = "";
+    for (const auto &j: vec) {
         std::cerr << sep << j;
-        sep = "\t";
+        sep = separator;
     }
     std::cerr << std::endl;
 }
 
 void print_vec(const std::vector <int> &vec) {
     /** print a vector to stderr, tab separated */
-    std::string sep = "";
-    for (auto &j: vec) {
+    const auto separator = "\t";
+    auto sep = "";
+    for (const auto &j: vec) {
         std::cerr << sep << j;
-        sep = "\t";
+        sep = separator;
     }
     std::cerr << std::endl;
+}
+
+void output_vec(const std::vector <std::string> &vec) {
+    /** print a vector to stdout, tab separated */
+    const auto separator = "\t";
+    auto sep = "";
+    for (const auto &j: vec) {
+        std::cout << sep << j;
+        sep = separator;
+    }
+    std::cout << std::endl;
 }
 
 std::string addCommas(const int num) {
@@ -60,6 +61,12 @@ std::string addCommas(const int num) {
     }
     return s;
 }
+
+/***************************************************
+ *                                                 *
+ *                 Split strings                   *
+ *                                                 *
+ **************************************************/
 
 std::vector<float> split_float_by_comma(std::string str_line) {
     /** split a comma separated list of floats,
@@ -100,6 +107,12 @@ std::vector<std::string> split_by_semicolon(std::string str_line) {
     return str_vec;
 }
 
+/***************************************************
+ *                                                 *
+ *                 General utils                   *
+ *                                                 *
+ **************************************************/
+
 bool hasEnding(std::string const &fullString, std::string const &suffix) {
     /** return true iff "fullString" ends with "suffix" */
     if (fullString.length() >= suffix.length()) {
@@ -109,11 +122,19 @@ bool hasEnding(std::string const &fullString, std::string const &suffix) {
     }
 }
 
-/***************************************************************
- *                                                             *
- *               Load from exec                                *
- *                                                             *
- ***************************************************************/
+bool is_number(const std::string& s)
+{
+    std::string::const_iterator it = s.begin();
+    while (it != s.end() && std::isdigit(*it)) ++it;
+    return !s.empty() && it == s.end();
+}
+
+/***************************************************
+ *                                                 *
+ *                 Load from exec                  *
+ *                                                 *
+ **************************************************/
+
 std::string exec(const char* cmd) {
     /** Execute a command and load output to string */
     std::array<char, 128> buffer;
@@ -128,11 +149,56 @@ std::string exec(const char* cmd) {
     return result;
 }
 
-/***************************************************************
- *                                                             *
- *               CIGAR                                         *
- *                                                             *
- ***************************************************************/
+
+/***************************************************
+ *                                                 *
+ *                sam read methods                 *
+ *                                                 *
+ **************************************************/
+
+bool is_bottom(int samflag, bool is_paired_end) {
+    if (is_paired_end) { 
+        return (((samflag & 0x53) == 83) || ((samflag & 0xA3) == 163));
+    };
+    return ((samflag & 0x10) == 16);
+}
+
+bool are_paired(std::vector <std::string> tokens1,
+                std::vector <std::string> tokens2) {
+    // return true iff the reads are non empty and paired
+    return ((!(tokens2.empty())) && 
+            (!(tokens1.empty())) &&
+            (tokens1[0] == tokens2[0]));
+}
+
+
+std::string reverse_comp(std::string seq) {
+    std::string revcomp = "";
+    char oc, nc;
+    for (int i = seq.length() - 1; i > -1; i--) {
+        oc = seq[i];
+        if (oc == 'A') {
+            nc = 'T';
+        } else if (oc == 'C') {
+            nc = 'G';
+        } else if (oc == 'G') {
+            nc = 'C';
+        } else if (oc == 'T') {
+            nc = 'A';
+        } else {
+            throw std::runtime_error("[ patter ] Unsupported base");
+        }
+        revcomp += nc;
+    }
+    return revcomp;
+}
+
+/***************************************************
+ *                                                 *
+ *                     CIGAR                       *
+ *                                                 *
+ **************************************************/
+
 std::string clean_CIGAR(std::string seq, std::string CIGAR) {
 
     /** use CIGAR string to adjust 'seq' so it will be comparable to the reference.
@@ -177,19 +243,21 @@ std::string clean_CIGAR(std::string seq, std::string CIGAR) {
     return adjusted_seq;
 }
 
-bool is_bottom(int samflag, bool is_paired_end) {
-    if (is_paired_end) { 
-        return (((samflag & 0x53) == 83) || ((samflag & 0xA3) == 163));
-    };
-    return ((samflag & 0x10) == 16);
-}
 
-bool are_paired(std::vector <std::string> tokens1,
-                std::vector <std::string> tokens2) {
-    // return true iff the reads are non empty and paired
-    return ((!(tokens2.empty())) && 
-            (!(tokens1.empty())) &&
-            (tokens1[0] == tokens2[0]));
+/***************************************************
+ *                                                 *
+ *                pat read methods                 *
+ *                                                 *
+ **************************************************/
+
+void strip_read(std::vector <std::string> &tokens) {
+    // strip pat (remove trailing dots), and update the start position
+    int pos = strip_pat(tokens[2]);
+    if (pos < 0 ) { 
+        tokens.clear();
+        return;
+    }
+    tokens[1] = std::to_string(pos + std::stoi(tokens[1]));
 }
 
 int strip_pat(std::string &pat) {
@@ -261,31 +329,8 @@ std::vector <std::string> merge_PE(std::vector<std::string> l1,
         }
     }
     // strip merged pat (remove trailing dots):
-    int pos = strip_pat(merged_pat);
-    if (pos < 0 ) { return {}; }
-    l1[1] = std::to_string(start1 + pos);
     l1[2] = merged_pat;
+    strip_read(l1);
     return l1;
-}
-
-std::string reverse_comp(std::string seq) {
-    std::string revcomp = "";
-    char oc, nc;
-    for (int i = seq.length() - 1; i > -1; i--) {
-        oc = seq[i];
-        if (oc == 'A') {
-            nc = 'T';
-        } else if (oc == 'C') {
-            nc = 'G';
-        } else if (oc == 'G') {
-            nc = 'C';
-        } else if (oc == 'T') {
-            nc = 'A';
-        } else {
-            throw std::runtime_error("[ patter ] Unsupported base");
-        }
-        revcomp += nc;
-    }
-    return revcomp;
 }
 
