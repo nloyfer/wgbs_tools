@@ -232,7 +232,7 @@ std::string clean_CIGAR(std::string seq, std::string CIGAR) {
                 adjusted_seq += 'N';
         } else if ((ch == 'I') || (ch == 'S')) {
             seq = seq.substr(num, seq.length() - num);
-        } else if ((ch == 'H')) {
+        } else if (ch == 'H') {
             continue;
         } else {
             throw std::invalid_argument("[ patter ] Unknown CIGAR character: " +
