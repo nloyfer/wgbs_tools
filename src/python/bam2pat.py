@@ -2,18 +2,17 @@
 
 import os
 import os.path as op
-import argparse
-import numpy as np
-import pandas as pd
 import subprocess
 import shutil
 import uuid
-import re
+import argparse
 from multiprocessing import Pool
+import numpy as np
+import pandas as pd
 from utils_wgbs import IllegalArgumentError, match_maker_tool, patter_tool, \
     add_GR_args, eprint, add_multi_thread_args, EmptyBamError, \
     validate_single_file, delete_or_skip, check_executable, \
-    add_no_beta_arg, validate_local_exe, mkdirp
+    add_no_beta_arg, validate_local_exe, mkdirp, pretty_name
 from init_genome import chromosome_order
 from pat2beta import pat2beta
 from index import Indxer
@@ -28,7 +27,6 @@ MAPQ = 10
 FLAGS_FILTER = 1796  # filter flags with these bits
 MAX_READ_SIZE = 1000 # extend samtools view region by this size
 
-# TODO: extend regsion in the samtools view call
 # currently we are missing the far mates
 def extend_region(region, by=MAX_READ_SIZE):
     if ':' not in region:
@@ -73,7 +71,6 @@ def set_regions(bam_path, gr, tmp_dir=None):
     ref_chroms = gr.genome.get_chroms()
     # intersect the chromosomes from the bam and from the reference
     intersected_chroms = list(set(bam_chroms) & set(ref_chroms))
-
     if not intersected_chroms:
         msg = '[wt bam2pat] Failed retrieving valid chromosome names. '
         msg += 'Perhaps you are using a wrong genome reference. '
@@ -82,7 +79,7 @@ def set_regions(bam_path, gr, tmp_dir=None):
         tmpdir_cleanup(tmp_dir)
         raise IllegalArgumentError('Failed')
 
-    return list(sorted(intersected_chroms, key=chromosome_order))  # todo use the same order as in ref_chroms instead of resorting it
+    return list(sorted(intersected_chroms, key=chromosome_order))
 
 
 def tmpdir_cleanup(tmp_dir):
@@ -114,7 +111,7 @@ def gen_pat_part(out_path, debug, temp_dir):
 
 def blueprint_legacy(genome, region, paired_end):
     if not op.isfile(genome.genome_path):
-        eprint(f'[ wt bam2pat ] Error: not genome reference fasta file: {genome_path}')
+        eprint(f'[ wt bam2pat ] Error: not genome reference fasta file: {genome.genome_path}')
         raise IllegalArgumentError('Failed')
     chrom = region
     if ':' in region:
@@ -126,7 +123,7 @@ def blueprint_legacy(genome, region, paired_end):
 
     bppatter_tool = patter_tool.replace('/patter', '/blueprint/patter')
     patter_cmd = f' | {bppatter_tool} {genome.genome_path} {chr_offset[chrom]} '
-    patter_cmd += f' --blueprint'
+    patter_cmd += ' --blueprint'
     match_cmd = f' | {match_maker_tool} --drop_singles ' if paired_end else ''
     return patter_cmd, match_cmd
 
@@ -148,7 +145,7 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, mapq
              np_thresh, verbose):
     """ Convert a temp single chromosome file, extracted from a bam file, into pat """
 
-    # Run patter tool on a single chromosome. out_path will have the following fields:
+    # Run patter tool on a single chromosome (or region). out_path will have the following fields:
     # chr   CpG   Pattern   begin_loc   length(bp)
 
 
@@ -247,9 +244,9 @@ class Bam2Pat:
         # black/white lists:
         blacklist = self.args.blacklist
         whitelist = self.args.whitelist
-        if blacklist == True:
+        if blacklist is True:
             blacklist = self.gr.genome.blacklist
-        elif whitelist == True:
+        elif whitelist is True:
             whitelist = self.gr.genome.whitelist
         if blacklist:
             validate_single_file(blacklist)
@@ -266,9 +263,8 @@ class Bam2Pat:
 
         self.PE = is_pair_end(self.bam_path)
         blist, wlist = self.set_lists()
-        name = op.join(self.out_dir, op.basename(self.bam_path)[:-4])
         # build temp dir:
-        name = op.splitext(op.basename(self.bam_path))[0]
+        name = pretty_name(self.bam_path)
         self.tmp_dir = op.join(self.out_dir,
                 f'{name}.PID{os.getpid()}.{str(uuid.uuid4())[:8]}')
         os.mkdir(self.tmp_dir)
@@ -309,7 +305,8 @@ class Bam2Pat:
         self.mbias_merge(name, pat_parts)
         self.concat_parts(name, pat_parts)
 
-    def validate_parts(self, pat_parts):
+    @staticmethod
+    def validate_parts(pat_parts):
         # validate parts:
         pat_parts = [p for p in pat_parts if p]  # in case only some of the parts are empty
 
@@ -395,7 +392,7 @@ def parse_bam2pat_args(parser):
 def add_samtools_view_flags(parser):
     parser.add_argument('--include_flags', type=int,
                         help='flags to include from bam file (samtools view parameter -f) ' \
-                             f'[3 for PE, None for SE]')
+                             '[3 for PE, None for SE]')
     parser.add_argument('-F', '--exclude_flags', type=int,
                         help='flags to exclude from bam file (samtools view parameter -F) ' \
                              f'[{FLAGS_FILTER}]', default=FLAGS_FILTER)
@@ -429,8 +426,8 @@ def parse_args(parser):
 
 def validate_np_thresh(args):
     if 'np_thresh' in args:
-        if not (0 < args.np_thresh < 1):
-            raise IllegalArgumentError(f'Invalid np_thresh range: must be in range (0,1)')
+        if not 0 < args.np_thresh < 1:
+            raise IllegalArgumentError('Invalid np_thresh range: must be in range (0,1)')
 
 
 def main():
@@ -453,7 +450,7 @@ def main():
             eprint(f'[wt bam2pat] Skipping {bam}')
             continue
 
-        pat = op.join(args.out_dir, op.basename(bam)[:-4] + PAT_SUFF)
+        pat = op.join(args.out_dir, pretty_name(bam) + PAT_SUFF)
         if not delete_or_skip(pat, args.force):
             continue
         Bam2Pat(args, bam)
