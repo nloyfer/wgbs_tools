@@ -56,6 +56,11 @@ def set_regions(bam_path, gr, tmp_dir=None):
     if gr.region_str:
         return [gr.region_str]
 
+    # get all chromosomes from the reference genome:
+    ref_chroms = gr.genome.get_chroms()
+    if bam_path.endswith('.cram'):
+        return list(sorted(ref_chroms, key=chromosome_order))
+
     # get all chromosomes present in the bam file header
     cmd = f'samtools idxstats {bam_path} | cut -f1 '
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -67,8 +72,6 @@ def set_regions(bam_path, gr, tmp_dir=None):
         return []
     bam_chroms = output.decode()[:-1].split('\n')
 
-    # get all chromosomes from the reference genome:
-    ref_chroms = gr.genome.get_chroms()
     # intersect the chromosomes from the bam and from the reference
     intersected_chroms = list(set(bam_chroms) & set(ref_chroms))
     if not intersected_chroms:
@@ -193,7 +196,7 @@ def validate_bam(bam):
 
     # validate bam path:
     eprint('[wt bam2pat] bam:', bam)
-    if not (op.isfile(bam) and bam.endswith('.bam')):
+    if not (op.isfile(bam) and bam.endswith(('.bam', '.cram'))):
         eprint(f'[wt bam2pat] Invalid bam: {bam}')
         return False
     return True
@@ -209,7 +212,7 @@ def is_bam_sorted(bam):
         return False
 
     # check if bam is indexed:
-    is_indexed = (op.isfile(bam + '.bai') or op.isfile(bam + '.csi'))
+    is_indexed = (op.isfile(bam + '.bai') or op.isfile(bam + '.csi') or op.isfile(bam + '.crai'))
     if not is_indexed:
         eprint('[wt bam2pat] WARNING: index file (bai/csi) not found! Attempting to generate bai...')
         if subprocess.call(['samtools', 'index', bam]):
