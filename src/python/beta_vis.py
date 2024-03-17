@@ -1,11 +1,11 @@
 #!/usr/bin/python3 -u
 
 import re
+import os.path as op
+import numpy as np
 from utils_wgbs import load_borders, load_beta_data, validate_file_list, color_text, \
         beta2vec, catch_BrokenPipeError, drop_dup_keep_order
 from genomic_region import GenomicRegion
-import os.path as op
-import numpy as np
 
 FULL_SQUARE = '\u25A0'
 # FULL_SQUARE = '\u2588'
@@ -18,7 +18,6 @@ class BetaVis:
     def __init__(self, args):
         self.gr = GenomicRegion(args)
         self.start, self.end = self.gr.sites
-        self.nr_sites = self.end - self.start
         self.args = args
 
         # drop duplicated files, while keeping original order
@@ -39,7 +38,7 @@ class BetaVis:
 
     def load_data(self):
         # raw table from *beta files:
-        dsets = np.zeros((len(self.files), self.nr_sites, 2))
+        dsets = np.zeros((len(self.files), self.end - self.start, 2))
         for i, fpath in enumerate(self.files):
             dsets[i] = load_beta_data(fpath, self.gr.sites)
         return dsets
@@ -125,7 +124,7 @@ def generate_colors_dict(scheme=16):
         ]
     else:
         colors = [10, 47, 70, 28, 3, 3, 202, 204, 197, 196]
-    return dict([(str(i), colors[i]) for i in range(10)])
+    return {str(i): colors[i] for i in range(10)}
 
 
 def main(args):

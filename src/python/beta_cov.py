@@ -1,13 +1,14 @@
 #!/usr/bin/python3
 
-import numpy as np
 import os.path as op
 import argparse
-from utils_wgbs import load_beta_data, add_GR_args, eprint, \
-        add_multi_thread_args
 from multiprocessing import Pool
+import numpy as np
+from utils_wgbs import load_beta_data, add_GR_args, \
+        add_multi_thread_args
 from genomic_region import GenomicRegion
 from beta_to_blocks import collapse_process, is_block_file_nice, load_blocks_file
+
 
 def plot_hist2(beta_path, sites):
     ymax = 255 if beta_path.endswith('.beta') else 1000
