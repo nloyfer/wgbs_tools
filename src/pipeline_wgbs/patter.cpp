@@ -36,7 +36,7 @@ void patter::load_genome_ref() {
         loci.push_back(locus);
     }
 
-    bsize = loci.at(loci.size() - 1);
+    bsize = loci.at(loci.size() - 1) + 1;
 
     conv = new bool[bsize]();
     for (int locus: loci) {
