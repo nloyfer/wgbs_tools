@@ -106,7 +106,7 @@ def gen_pat_part(out_path, debug, temp_dir):
         subprocess_wrap(cmd, debug)
 
         return pat_path
-    except IllegalArgumentError as e:
+    except IllegalArgumentError:
         return None
 
 def blueprint_legacy(genome, region, paired_end):
@@ -160,7 +160,7 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, mapq
         view_cmd += f' -M -L {whitelist} '
     elif blacklist:
         if not check_executable('bedtools'):
-            eprint(f'[wt bam2pat] blacklist flag only works if bedtools is installed')
+            eprint('[wt bam2pat] blacklist flag only works if bedtools is installed')
             raise IllegalArgumentError('Failed')
         view_cmd += f' -b | bedtools intersect -sorted -v -abam stdin -b {blacklist} | samtools view '
 
