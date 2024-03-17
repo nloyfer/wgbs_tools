@@ -2,12 +2,10 @@
 
 import argparse
 import os.path as op
-import sys
 import pandas as pd
 import numpy as np
 from utils_wgbs import delete_or_skip, splitextgz, trim_to_uint8, validate_file_list, \
-                       load_dict, eprint, load_dict_section
-from genomic_region import GenomicRegion
+                       eprint, load_dict_section
 
 
 def load_bed(bed_path, nrows, add1=False):
@@ -86,4 +84,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

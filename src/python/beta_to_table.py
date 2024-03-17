@@ -1,12 +1,12 @@
 #!/usr/bin/python3 -u
 
 import argparse
-import numpy as np
 import sys
 import os.path as op
-import pandas as pd
 import warnings
 from multiprocessing import Pool
+import pandas as pd
+import numpy as np
 from dmb import load_gfile_helper, match_prefix_to_bin, load_uxm
 from beta_to_blocks import collapse_process, load_blocks_file, is_block_file_nice
 from utils_wgbs import validate_single_file, validate_file_list, eprint, \
@@ -56,17 +56,15 @@ def groups_load_wrap(groups_file, betas):
     return gf
 
 
-def cwrap(beta_path, blocks_df, is_nice, min_cov, verbose):
-    # if verbose:
-    #   eprint('[wt table]', op.splitext(op.basename(beta_path))[0])
+def cwrap(beta_path, blocks_df, is_nice, min_cov):
     if beta_path.endswith('.beta'):
         r = collapse_process(beta_path, blocks_df, is_nice)
         if r is None:
             return
         name = op.splitext(op.basename(beta_path))[0]
         return {name: beta2vec(r, min_cov)}
-    else:
-        return {op.basename(beta_path)[:-4]: load_uxm(beta_path, blocks_df, 'U', min_cov)}
+
+    return {op.basename(beta_path)[:-4]: load_uxm(beta_path, blocks_df, 'U', min_cov)}
 
 
 def get_table(blocks_df, gf, min_cov, threads=8, verbose=False, group=True):
@@ -76,7 +74,6 @@ def get_table(blocks_df, gf, min_cov, threads=8, verbose=False, group=True):
     betas = drop_dup_keep_order(gf['full_path'])
     p = Pool(threads)
     params = [(b, blocks_df, is_nice, min_cov, verbose) for b in betas]
-    # arr = [cwrap(*p) for p in params] # todo: remove
     arr = p.starmap(cwrap, params)
     p.close()
     p.join()
@@ -101,9 +98,9 @@ def get_table(blocks_df, gf, min_cov, threads=8, verbose=False, group=True):
         warnings.filterwarnings('ignore', category=RuntimeWarning)
         empty_df = pd.DataFrame(index=blocks_df.index, columns=ugroups)
         blocks_df = pd.concat([blocks_df, empty_df], axis=1)
-        for group in ugroups:
-            blocks_df[group] = np.nanmean(
-                np.concatenate([dres[k][None, :] for k in gf['fname'][gf['group'] == group]]), axis=0).T
+        for ugroup in ugroups:
+            blocks_df[ugroup] = np.nanmean(
+                np.concatenate([dres[k][None, :] for k in gf['fname'][gf['group'] == ugroup]]), axis=0).T
     return blocks_df
 
 

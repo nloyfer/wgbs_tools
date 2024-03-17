@@ -1,12 +1,11 @@
 #!/usr/bin/python3 -u
 
 import argparse
-import os
-import numpy as np
-import os.path as op
-import pandas as pd
-from multiprocessing import Pool
 import sys
+import os.path as op
+from multiprocessing import Pool
+import pandas as pd
+import numpy as np
 from utils_wgbs import load_beta_data, trim_to_uint8, \
                         IllegalArgumentError, add_multi_thread_args, \
                         splitextgz, validate_file_list, validate_single_file, \
@@ -23,36 +22,28 @@ def b2b_log(*args, **kwargs):
 
 def is_block_file_nice(df):
 
+    msg = ''
     # no empty blocks (noCpGs):
     # no missing values (NAs)
     if df[['startCpG', 'endCpG']].isna().values.sum() > 0:
         msg = 'Some blocks are empty (NA)'
-        return False, msg
-
     # no (startCpG==endCpG)
-    if not (df['endCpG'] - df['startCpG'] > 0).all():
+    elif not (df['endCpG'] - df['startCpG'] > 0).all():
         msg = 'Some blocks are empty (startCpG==endCpG)'
-        return False, msg
-
     # blocks are sorted
     # startCpG and endCpG are monotonically increasing
-    if not np.all(np.diff(df['startCpG'].values) >= 0):
+    elif not np.all(np.diff(df['startCpG'].values) >= 0):
         msg = 'startCpG is not monotonically increasing'
-        return False, msg
-    if not np.all(np.diff(df['endCpG'].values) >= 0):
+    elif not np.all(np.diff(df['endCpG'].values) >= 0):
         msg = 'endCpG is not monotonically increasing'
-        return False, msg
-
     # no duplicated blocks
-    if (df.shape[0] != df.drop_duplicates().shape[0]):
+    elif df.shape[0] != df.drop_duplicates().shape[0]:
         msg = 'Some blocks are duplicated'
-        return False, msg
-
     # no overlaps between blocks
-    if not (df['startCpG'][1:].values - df['endCpG'][:df.shape[0] - 1].values  >= 0).all():
+    elif not (df['startCpG'][1:].values - df['endCpG'][:df.shape[0] - 1].values  >= 0).all():
         msg = 'Some blocks overlap'
+    if msg:
         return False, msg
-
     return True, ''
 
 
@@ -75,7 +66,7 @@ def load_blocks_file(blocks_path, anno=False, nrows=None):
         elif len(peek_df.columns) < len(names):  # no annotations columns
             names = COORDS_COLS5
 
-        # load 
+        # load
         # dtypes = {'chr':str, 'start', 'end', 'startCpG', 'endCpG'}
         dtypes = {'startCpG':'Int64', 'endCpG':'Int64'}
         df = pd.read_csv(blocks_path, sep='\t', usecols=range(len(names)), dtype=dtypes,
@@ -131,8 +122,8 @@ def reduce_data(beta_path, df, is_nice):
         start = df['startCpG'].values[0]
         end = df['endCpG'].values[df.shape[0] - 1]
         return fast_method(load_beta_data(beta_path, (start, end)), df)
-    else:
-        return slow_method(load_beta_data(beta_path), df)
+
+    return slow_method(load_beta_data(beta_path), df)
 
 
 def collapse_process(beta_path, df, is_nice, lbeta=False, out_dir=None, bedGraph=False):
@@ -207,12 +198,13 @@ def main():
     params = [(b, df, is_nice, args.lbeta, args.out_dir, args.bedGraph)
               for b in files]
     if args.debug:
-        arr = [collapse_process(*k) for k in params]
+        _ = [collapse_process(*k) for k in params]
     else:
         p = Pool(args.threads)
-        arr = p.starmap(collapse_process, params)
+        p.starmap(collapse_process, params)
     p.close()
     p.join()
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
