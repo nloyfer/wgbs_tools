@@ -1,11 +1,11 @@
 #!/usr/bin/python3
 import argparse
+import os.path as op
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from utils_wgbs import load_beta_data, validate_file_list, add_GR_args, eprint
 from genomic_region import GenomicRegion
-import os.path as op
 
 
 def comp2(a, b, cov_thresh, bins, ax):
@@ -15,7 +15,9 @@ def comp2(a, b, cov_thresh, bins, ax):
     def table2vec(table):
         table = table[high_cov]
         return table[:, 0] / table[:, 1]
-    ax.hist2d(table2vec(a), table2vec(b), bins=bins, cmap=plt.cm.jet, norm=LogNorm())
+    ax.hist2d(table2vec(b), table2vec(a), bins=bins, cmap=plt.cm.jet, norm=LogNorm())
+    ax.set_ylim(0, 1)
+    ax.set_xlim(0, 1)
 
 
 def compare_all_paires(args):
