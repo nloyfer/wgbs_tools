@@ -73,7 +73,7 @@ def get_table(blocks_df, gf, min_cov, threads=8, verbose=False, group=True):
         eprint(f'[wt table] reducing to {blocks_df.shape[0]:,} blocks')
     betas = drop_dup_keep_order(gf['full_path'])
     p = Pool(threads)
-    params = [(b, blocks_df, is_nice, min_cov, verbose) for b in betas]
+    params = [(b, blocks_df, is_nice, min_cov) for b in betas]
     arr = p.starmap(cwrap, params)
     p.close()
     p.join()
