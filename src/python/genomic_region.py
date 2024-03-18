@@ -1,11 +1,9 @@
 import re
 import subprocess
-import sys
 import os
+import os.path as op
 from pathlib import Path
 import numpy as np
-import pandas as pd
-import os.path as op
 from utils_wgbs import IllegalArgumentError, GenomeRefPaths, eprint
 
 
@@ -19,8 +17,7 @@ def get_genome_name(gname):
         path = Path(op.realpath(__file__))
         refdir = op.join(op.join(path.parent.parent.parent, 'references'), 'default')
         return os.readlink(refdir)
-    else:
-        return gname
+    return gname
 
 
 class GenomicRegion:
@@ -61,7 +58,7 @@ class GenomicRegion:
     def add_anno(self):
         if self.args is None or self.is_whole() or 'no_anno' not in self.args:
             return
-        elif self.args.no_anno:
+        if self.args.no_anno:
             return
         anno_path = self.genome.annotations
         if anno_path is None:

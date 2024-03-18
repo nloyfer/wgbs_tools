@@ -58,7 +58,7 @@ class MFParams:
                 val = True
             elif val == 'False':
                 val = False
-            elif key == 'targets' and val != None:
+            elif key == 'targets' and val is not None:
                 if ' ' in val:
                     val = val.split()
                 else:
@@ -91,7 +91,7 @@ class MFParams:
             raise IllegalArgumentError('chunk_size must be larger than 1')
 
         def validate_range(key, val, low, high):
-            if not (high >= val >= low):
+            if not high >= val >= low:
                 eprint(f'Invalid value for {key} ({val}): must be in [{low}, {high}]')
                 raise IllegalArgumentError()
 
@@ -107,7 +107,7 @@ class MFParams:
 
         # validate hyper hypo:
         if self.only_hyper and self.only_hypo:
-            eprint(f'at most one of (only_hyper, only_hypo) can be specified')
+            eprint('at most one of (only_hyper, only_hypo) can be specified')
             raise IllegalArgumentError()
 
         # validate sort_by column
@@ -131,7 +131,7 @@ class MFParams:
         # validate betas
         if (self.betas is None and self.beta_list_file is None) or \
            (self.betas is not None and self.beta_list_file is not None):
-            eprint(f'[wt fm] Exactly one of the following must be specified: betas, beta_list_file')
+            eprint('[wt fm] Exactly one of the following must be specified: betas, beta_list_file')
             raise IllegalArgumentError()
 
         if self.beta_list_file:
@@ -195,10 +195,8 @@ def parse_args():
             help='two-sample t-test p-value threshold. DMRs with larger p-value are dropped')
     parser.add_argument('--sort_by',
             help='sort output markers by this column.')
-    parser.add_argument('--repro', action='store_true')  # todo: remove!
     parser.add_argument('--chunk_size', type=int, help='Number of blocks to load on each step')
     parser.add_argument('--verbose', '-v', action='store_true')
     add_multi_thread_args(parser)
     args = parser.parse_args()
     return args
-

@@ -1,19 +1,16 @@
 #!/usr/bin/python3 -u
 
-import os
 import os.path as op
-import sys
-import numpy as np
 from math import ceil
-import pandas as pd
 from difflib import get_close_matches
-
+import warnings
+import numpy as np
+import pandas as pd
 from beta_to_blocks import load_blocks_file
-from beta_to_table import get_table, groups_load_wrap
+from beta_to_table import get_table
 from dmb import load_gfile_helper, match_prefix_to_bin
-from utils_wgbs import validate_single_file, add_multi_thread_args, \
-        validate_file_list, eprint, drop_dup_keep_order, IllegalArgumentError,\
-        bed2reg, mkdirp
+from utils_wgbs import validate_single_file, validate_file_list, \
+        eprint, IllegalArgumentError, bed2reg, mkdirp
 from fm_load_params import MFParams, parse_args
 
 
@@ -39,7 +36,7 @@ def get_validate_targets(subset, groups):
         if group not in groups:
             # Invalid group. suggest the closest alternative and abort.
             eprint(f'Invalid group: {group}')
-            close = [c for c in get_close_matches(group, groups)]
+            close = get_close_matches(group, groups)
             if close:
                 eprint(f'Did you mean {close[0]}?')
             eprint('All possible groups:', groups)
@@ -51,12 +48,11 @@ def set_bg_tg_names(gf, targets, background):
     r = {}
     for group in targets:
         tg_names = gf[gf['group'] == group]['fname'].values
-        # bg_names = drop_dup_keep_order(gf[gf['group'] != group]['fname'])
         bg_names = gf[gf['group'].isin(background)]['fname'].unique()
 
         # remove from bg_names samples shared with tg_names
         bg_names = [s for s in bg_names if s not in tg_names]
-        assert(len(bg_names) + len(tg_names) <= len(set(gf['fname'])))
+        assert len(bg_names) + len(tg_names) <= len(set(gf['fname']))
         assert len(bg_names)
         assert len(tg_names)
         r[group] = tg_names, bg_names
@@ -76,6 +72,7 @@ class MarkerFinder:
         self.inds_dict = {}
         self.chunk_count = 0
         self.nr_chunks = 1
+        self.group = None
 
         # validate output dir:
         mkdirp(args.out_dir)
@@ -217,10 +214,10 @@ class MarkerFinder:
                 r = ttest_ind(tf[self.tg_names], tf[self.bg_names], axis=1, nan_policy='omit')
             tf['ttest'] = r.pvalue
             tf = tf[tf['ttest'] <= self.args.pval].reset_index(drop=True)
-        except ModuleNotFoundError as e:
-            eprint(f'[wt fm] WARNING: scipy is not installed. T-test is not performed.')
-        except Exception as e:
-            eprint(f'[wt fm] WARNING: Eception occured while computing T-test. T-test is not performed.')
+        except ModuleNotFoundError:
+            eprint('[wt fm] WARNING: scipy is not installed. T-test is not performed.')
+        except Exception:
+            eprint('[wt fm] WARNING: Eception occured while computing T-test. T-test is not performed.')
         return tf
 
     def switch_context(self, tfM=None):
@@ -248,7 +245,6 @@ class MarkerFinder:
         tfX['delta_maxmin'] = tfX[self.bg_names].min(axis=1) - tfX[self.tg_names].max(axis=1)
 
         # Compute means for target and background
-        import warnings
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
             tfX['tg_mean'] = np.nanmean(tfX[self.tg_names], axis=1)
