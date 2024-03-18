@@ -156,38 +156,6 @@ class MarkerFinder:
 
         return df
 
-    def repro_load_data_chunk(self, blocks_df):
-        import tempfile
-        import shutil
-        import subprocess
-        from utils_wgbs import beta2vec, load_beta_data, main_script
-
-        # create temp dir for binary files
-        tmp_bins = op.join(self.args.out_dir, 'tmp_bins.')
-        tmp_bins += next(tempfile._get_candidate_names())
-        mkdirp(tmp_bins)
-
-        # dump current chunk of blocks there
-        tb = op.join(tmp_bins, 'blocks.bed')
-        blocks_df.to_csv(tb, sep='\t', index=None, header=None)
-        blocks_df = blocks_df.copy()
-
-        # generate binary files
-        cmd = f' {main_script} beta_to_blocks -b {tb} -o {tmp_bins} -f '
-        cmd += ' '.join(self.gf['full_path'].tolist())
-        subprocess.check_call(cmd, shell=True, stderr=subprocess.PIPE)
-
-        # load them to blocks_df:
-        for beta in os.listdir(tmp_bins):
-            if not beta.endswith('.bin'):
-                continue
-            v = beta2vec(load_beta_data(op.join(tmp_bins, beta)), min_cov=self.args.min_cov)
-            blocks_df[beta[:-4]] = v
-
-        # cleanup
-        shutil.rmtree(tmp_bins)
-        return blocks_df
-
     def load_data_chunk(self, blocks_df):
         # load methylation data from beta files collapsed to the blocks in blocks_df
         if self.verbose:
@@ -196,9 +164,6 @@ class MarkerFinder:
             eprint(f'{self.chunk_count}/{self.nr_chunks} ) ' \
                    f'loading data for {blocks_df.shape[0]:,} blocks over' \
                    f' {nr_samples} samples...')
-
-        if self.args.repro:
-            return self.repro_load_data_chunk(blocks_df)
 
         return get_table(blocks_df=blocks_df.copy(),
                          gf=self.gf,
@@ -230,10 +195,6 @@ class MarkerFinder:
         tfM = self.find_M_markers(tf)
         tfU = self.find_U_markers(tf)
         tf = pd.concat([tfU, tfM]).reset_index(drop=True)
-
-        # if self.args.repro and self.args.top:
-            # tf = tf.sort_values(by='delta_maxmin', ascending=False, kind='stable')
-            # tf = tf.head(self.args.top)
 
         # T-test
         tf = self.ttest(tf)
@@ -282,8 +243,6 @@ class MarkerFinder:
     def find_X_markers(self, tf):
 
         tfX = tf.copy()
-        if self.args.repro:
-            tfX = tfX.fillna(.5)
 
         # Compute maxmin
         tfX['delta_maxmin'] = tfX[self.bg_names].min(axis=1) - tfX[self.tg_names].max(axis=1)
@@ -306,24 +265,12 @@ class MarkerFinder:
             return tfX
 
         # Compute quantiles for target and background
-        if self.args.repro:
-            from scipy.stats.mstats import mquantiles  # quantile interpolation as in matlab
-            tfX['tg_quant'] = mquantiles(tfX[self.tg_names],
-                                         1 - self.args.tg_quant, axis=1,
-                                         alphap=.5, betap=.5)
-            tfX['bg_quant'] = mquantiles(tfX[self.bg_names],
-                                         self.args.bg_quant, axis=1,
-                                         alphap=.5, betap=.5)
-        else:
-            tfX['tg_quant'] = np.nanquantile(tfX[self.tg_names], 1 - self.args.tg_quant, axis=1)
-            tfX['bg_quant'] = np.nanquantile(tfX[self.bg_names], self.args.bg_quant, axis=1)
+        tfX['tg_quant'] = np.nanquantile(tfX[self.tg_names], 1 - self.args.tg_quant, axis=1)
+        tfX['bg_quant'] = np.nanquantile(tfX[self.bg_names], self.args.bg_quant, axis=1)
         tfX['delta_quants'] = tfX['bg_quant'] - tfX['tg_quant']
 
         # filter by quantile thresholds
-        if self.args.repro:
-            keep_uqt = (tfX['tg_quant'] < self.args.unmeth_quant_thresh)
-        else:
-            keep_uqt = (tfX['tg_quant'] <= self.args.unmeth_quant_thresh)
+        keep_uqt = (tfX['tg_quant'] <= self.args.unmeth_quant_thresh)
         keep_mqt = (tfX['bg_quant'] >= self.args.meth_quant_thresh)
         keep_delta_quants = (tfX['delta_quants'] >= self.args.delta_quants)
         tfX = tfX.loc[keep_uqt & keep_mqt & keep_delta_quants, :].reset_index(drop=True)
