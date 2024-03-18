@@ -1,7 +1,7 @@
 #!/usr/bin/python3 -u
 
-import numpy as np
 import os.path as op
+import numpy as np
 import pandas as pd
 from utils_wgbs import eprint, IllegalArgumentError
 
@@ -38,7 +38,8 @@ def load_gfile_helper(groups_file):
     return gf
 
 
-def match_prefix_to_bin(prefixes, bins, suff=None):
+def match_prefix_to_bin(prefixes, bins, suff=None, first=False):
+    first = True
     full_paths = []
     missing_binaries = []
     included = []
@@ -51,7 +52,7 @@ def match_prefix_to_bin(prefixes, bins, suff=None):
         # make sure there is exactly one such bin file
         if not results:
             missing_binaries.append(prefix)
-        elif len(results) > 1:
+        elif len(results) > 1 and not first:
             eprint(f'Found multiple matches for prefix {prefix}:')
             eprint(results, sep='\n')
             raise IllegalArgumentError('Invalid binary files or group file')
@@ -77,5 +78,3 @@ def match_prefix_to_bin(prefixes, bins, suff=None):
             eprint(*excluded_bins, sep='\n')
 
     return full_paths
-
-

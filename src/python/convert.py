@@ -3,17 +3,16 @@
 import argparse
 import os
 import tempfile
+from multiprocessing import Pool
+import sys
+import subprocess
+import pandas as pd
+import numpy as np
 from utils_wgbs import add_GR_args, eprint, GenomeRefPaths, delete_or_skip, \
                        load_dict_section, add_multi_thread_args, IllegalArgumentError, \
                        read_shell, check_executable, COORDS_COLS3, COORDS_COLS5, \
                        add_loci_tool, validate_local_exe
 from genomic_region import GenomicRegion
-import pandas as pd
-import numpy as np
-from multiprocessing import Pool
-import sys
-import subprocess
-from io import StringIO
 
 
 def parse_args():
@@ -79,12 +78,12 @@ def load_bed(bed_path, nrows=None):
         df = pd.read_csv(bed_path, sep='\t', header=None, nrows=nrows, comment='#')
         df.columns = COORDS_COLS3 + list(df.columns)[3:]
         if not (str(df.iloc[0, 1]).isdigit() and str(df.iloc[0, 2]).isdigit()):
-            eprint(f'[wt convert] Header line detected. Ignoring first line of input')
+            eprint('[wt convert] Header line detected. Ignoring first line of input')
             df = df.iloc[1: , :].reset_index(drop=True)
             df = df.astype({'start': int, 'end': int})
         return df
-    except pd.errors.EmptyDataError as e:
-        eprint(f'[wt convert] ERROR: empty bed file')
+    except pd.errors.EmptyDataError:
+        eprint('[wt convert] ERROR: empty bed file')
         raise IllegalArgumentError('Invalid bed file')
 
 # TODO: in some cases it differs from the slow implementations
@@ -101,7 +100,7 @@ def bedtools_conversion(bed_file, genome, drop_empty, add_anno, debug):
     cmd += "awk -v OFS='\t' '{print $1,$2,$2+1,$3}' | "
     cmd += " sort -k1,1 -k2,2n -u | "       # sort is required for cases of overlapping blocks
     cmd += f"bedtools intersect -sorted -b - -a {tmp_name} -loj | "
-    cmd += f"bedtools groupby -g 1,2,3 -c 7,7 -o first,last | "
+    cmd += "bedtools groupby -g 1,2,3 -c 7,7 -o first,last | "
     cmd += " awk -v OFS='\t' '{print $1,$2,$3,$4,$5+1;}' "
     cmd += "| sed 's/\.\t1/NA\tNA/g'"       # replace missing values with (NA)s
     if debug:
@@ -110,7 +109,7 @@ def bedtools_conversion(bed_file, genome, drop_empty, add_anno, debug):
     if not debug:
         os.unlink(tmp_name)
 
-    # if there are missing values, the CpG columns' type 
+    # if there are missing values, the CpG columns' type
     # will be float or object. Change it to Int64
     if rf.empty:
         raise IllegalArgumentError('[wt convert] Error: failed with bedtools wrapping')
@@ -134,10 +133,10 @@ def slow_conversion(df, genome):
     df = df.iloc[:, :3]
     startCpGs = []
     endCpGs = []
-    for ind, row in df.iterrows():
+    for _, row in df.iterrows():
         try:
             sites = GenomicRegion(region='{}:{}-{}'.format(*row), genome_name=genome).sites
-        except IllegalArgumentError as e:
+        except IllegalArgumentError:
             sites = (np.nan, np.nan)
         startCpGs.append(sites[0])
         endCpGs.append(sites[1])
@@ -263,12 +262,12 @@ def get_anno(df, genome, bed_file):
         cmd = 'gunzip -c' if bed_file.endswith('gz') else 'cat'
         cmd += f' {bed_file} | cut -f1-3 | sort -k1,1 -k2,2n -u | '
         cmd += f'bedtools intersect -a - -b {anno_path} -wao | '
-        cmd += f'bedtools merge -i - -c 7,8 -o distinct,distinct'
+        cmd += 'bedtools merge -i - -c 7,8 -o distinct,distinct'
         names = COORDS_COLS3 + ['type', 'gene']
         rf = read_shell(cmd, names=names)
         return df.merge(rf, how='left', on=COORDS_COLS3)
     except Exception as e:
-        eprint(f'[wt convert] WARNING: No annotations added.')
+        eprint('[wt convert] WARNING: No annotations added.')
         eprint(cmd)
         eprint(e)
         return df
@@ -311,4 +310,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

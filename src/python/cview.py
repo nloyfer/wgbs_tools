@@ -1,14 +1,12 @@
 #!/usr/bin/python3 -u
 
 import argparse
+import subprocess
 from utils_wgbs import MAX_PAT_LEN, pat_sampler, validate_single_file, \
     add_GR_args, cview_tool, collapse_pat_script, \
     cview_extend_blocks_script, validate_local_exe
-# from utils_wgbs import eprint
 from genomic_region import GenomicRegion
 from beta_to_blocks import load_blocks_file
-import subprocess
-import os.path as op
 
 
 def subprocess_wrap_sigpipe(cmd):
@@ -43,7 +41,7 @@ def view_gr(pat, args, get_cmd=False):
     cmd += f' | {cview_tool} --sites "{s}\t{e}" ' + view_flags
     cmd += add_subsample_cmd(args) # sub-sample reads
     if not gr.is_whole() and (('no_sort' not in args) or (not args.no_sort)):
-        cmd += f' | sort -k2,2n -k3,3'
+        cmd += ' | sort -k2,2n -k3,3'
         if args.shuffle:
             cmd += 'R'
     cmd += f' | {collapse_pat_script} - '
