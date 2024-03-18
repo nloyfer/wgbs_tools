@@ -1,14 +1,14 @@
 #!/usr/bin/python3 -u
 
-import os
 import tempfile
+import os
 import os.path as op
-import numpy as np
-import pandas as pd
 import sys
 from multiprocessing import Pool
 import argparse
 import subprocess
+import numpy as np
+import pandas as pd
 from utils_wgbs import IllegalArgumentError, eprint, segment_tool, add_GR_args, \
                        validate_file_list, validate_single_file, \
                        add_multi_thread_args, GenomeRefPaths, validate_local_exe, \
@@ -25,7 +25,7 @@ DEF_CHUNK = 60000
 def is_block_file_nice(df):
 
     # no duplicated blocks
-    if (df.shape[0] != df.drop_duplicates().shape[0]):
+    if df.shape[0] != df.drop_duplicates().shape[0]:
         msg = 'Some blocks are duplicated'
         return False, msg
 
@@ -63,7 +63,7 @@ class SegmentByChunks:
     def __init__(self, args, betas):
         self.betas = betas
         max_cpg = min(args.max_cpg, args.max_bp // 2)
-        assert (max_cpg > 1)
+        assert max_cpg > 1
         self.genome = GenomeRefPaths(args.genome)
         self.param_dict = {'betas': betas,
                           'pcount': args.pcount,
@@ -106,7 +106,7 @@ class SegmentByChunks:
             if df.shape[0] > 2*1e4:
                 msg = '[wt segment] WARNING: bed file contains many regions.\n' \
                       '                      Segmentation will take a long time.\n' \
-                      f'                      Consider running w/o -L flag and intersect the results\n'
+                      '                      Consider running w/o -L flag and intersect the results\n'
                 eprint(msg)
 
         else:   # No bed file provided
@@ -121,13 +121,12 @@ class SegmentByChunks:
             else:
                 df = pd.DataFrame(columns=['startCpG', 'endCpG'], data=[gr.sites])
 
-        # build a DataFrame of chunks, with a "tag"/label field, 
+        # build a DataFrame of chunks, with a "tag"/label field,
         # so we know which chunks to merge later on.
-        rf = pd.DataFrame()
         tags = []
         starts = []
         ends = []
-        for ind, row in df.iterrows():
+        for _, row in df.iterrows():
             start, end = row
             bords = list(range(start, end, step)) + [end]
             tags += [f'{start}-{end}'] * (len(bords) -1)
@@ -145,7 +144,7 @@ class SegmentByChunks:
         p.close()
         p.join()
 
-        # merge chunks from the same "tag" group 
+        # merge chunks from the same "tag" group
         # (i.e. the same chromosome, or the same region of the provided bed file)
         df = pd.DataFrame()
         for tag in set(tags):
@@ -222,7 +221,7 @@ def stitch_2_dfs(b1, b2, params):
 
         # find the overlaps
         if is_2_overlap(b1, patch) and is_2_overlap(patch, b2):
-            # successful stitch with patches 
+            # successful stitch with patches
             return merge2(merge2(b1, patch), b2)
         else:
             # failed stitch - increase patch sizes

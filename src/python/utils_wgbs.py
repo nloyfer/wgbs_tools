@@ -1,20 +1,19 @@
 import subprocess
 import os
 import os.path as op
-import numpy as np
-import pandas as pd
 from io import StringIO
 import multiprocessing
 import sys
 from pathlib import Path
 import shutil
+import numpy as np
+import pandas as pd
 
 
-path = Path(op.realpath(__file__))
-DIR = str(path.parent)
-# DIR = op.dirname(os.path.realpath(__file__)) + '/'
+current_file_path = Path(op.realpath(__file__))
+DIR = str(current_file_path.parent)
 
-SRC_DIR = op.join(path.parent.parent.parent, 'src/')
+SRC_DIR = op.join(current_file_path.parent.parent.parent, 'src/')
 pat_sampler = SRC_DIR + 'pat_sampler/pat_sampler'
 pat2beta_tool = SRC_DIR + 'pat2beta/stdin2beta'
 mask_pat_tool = SRC_DIR + 'pat2beta/mask_pat'
@@ -27,6 +26,7 @@ view_lbeta_script = SRC_DIR + 'view_lbeta.sh'
 homog_tool = SRC_DIR + 'homog/homog'
 add_loci_tool = SRC_DIR + 'cpg2bed/add_loci'
 plot_marker_heatmap_script = SRC_DIR + 'R/plot_marker_heatmap.R'
+plot_tree_script = SRC_DIR + 'R/plot_circle.R'
 
 match_maker_tool = SRC_DIR + 'pipeline_wgbs/match_maker'
 patter_tool = SRC_DIR + 'pipeline_wgbs/patter'
@@ -80,8 +80,7 @@ class GenomeRefPaths:
             else:
                 if validate:
                     raise IllegalArgumentError('Invalid reference path: ' + path)
-                else:
-                    path = None
+                path = None
         return path
 
     def build_dir(self):
@@ -141,7 +140,7 @@ def check_samtools_version(major=1, minor=15, verbose=False):
         if cmajor != major:
             return cmajor > major
         return cminor >= minor
-    except:
+    except Exception:
         # failed to run samtools --version
         pass
     return False
@@ -253,7 +252,7 @@ def add_multi_thread_args(parser):
             def_cpus = int(os.environ[cpu_env])
         else:
             def_cpus = multiprocessing.cpu_count()
-    except:
+    except Exception:
         def_cpus = 8
     parser.add_argument('-@', '--threads', type=int, default=def_cpus,
                         help='Number of threads to use (default: all available CPUs)')
@@ -290,7 +289,7 @@ def trim_to_uint8(data, lbeta = False):
 
 
 def beta_sanity_check(beta_path, genome):
-    # sanity test: make sure beta file has the correct number of sites 
+    # sanity test: make sure beta file has the correct number of sites
     # (fits current genome)
     nr_sites_in_beta = op.getsize(beta_path) // 2
     if beta_path.endswith('.lbeta'):
@@ -330,9 +329,9 @@ def load_beta_data(beta_path, sites=None, genome=None):
 
 
 def load_borders(bpath, gr, genome):
-    if bpath == False:
+    if bpath is False:
         return np.array([])
-    elif bpath == True:
+    if bpath is True:
         bpath = GenomeRefPaths(genome).blocks
         if bpath is None:
             eprint(f'[wt blocks] default blocks path not found: {bpath}')

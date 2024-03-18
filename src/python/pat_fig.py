@@ -1,17 +1,14 @@
 #!/usr/bin/python3 -u
 
-import os
-import sys
 import os.path as op
 import argparse
-import subprocess
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from pat_vis import PatVis, int2str, str2int
+from pat_vis import PatVis
 from vis import pat_args
 from utils_wgbs import add_GR_args, eprint, validate_file_list, \
-        drop_dup_keep_order
+        drop_dup_keep_order, IllegalArgumentError
 
 NR_CHARS_PER_FNAME = 50
 
@@ -122,7 +119,7 @@ def validate_args(args):
     def enforce_positive(var, name):
         if var <= 0:
             eprint(f'[wt vis] Invalid {name} flag: must be positive')
-            exit()
+            raise IllegalArgumentError()
     enforce_positive(args.col_wrap, 'col_wrap')
     enforce_positive(args.space_rows, 'space_rows')
     enforce_positive(args.space_cols, 'space_cols')
@@ -134,7 +131,7 @@ def validate_args(args):
     if not args.outpath.endswith(fig_suffs):
         eprint(f'[wt vis] Invalid output flag: {args.outpath}.')
         eprint(f'         Must end with {fig_suffs}.')
-        exit()
+        raise IllegalArgumentError()
 
 
 def pad(table, height=None, width=None):
@@ -144,10 +141,10 @@ def pad(table, height=None, width=None):
         width = table.shape[1]
     if height < table.shape[0]:
         eprint(f'[ wt vis] Error: unable to pad table with shape {table.shape}, height {height}')
-        exit()
+        raise IllegalArgumentError()
     if width < table.shape[1]:
         eprint(f'[ wt vis] Error: unable to pad table with shape {table.shape}, width {width}')
-        exit()
+        raise IllegalArgumentError()
     padz = np.zeros((height, width), dtype=int)
     padz[:table.shape[0], :table.shape[1]] = table
     return padz
@@ -158,7 +155,7 @@ def load_names_table(tpath):
         return {}
     try:
         return pd.read_csv(tpath, names=['old', 'new'], header=None).set_index('old').to_dict()['new']
-    except:
+    except Exception:
         eprint(f'[wt pat_fig] failed loading names table {tpath}. using original file names')
         return {}
 
@@ -223,4 +220,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

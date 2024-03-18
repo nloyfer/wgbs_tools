@@ -3,7 +3,6 @@
 import argparse
 import os.path as op
 import os
-import subprocess
 from pathlib import Path
 from utils_wgbs import eprint, IllegalArgumentError
 
@@ -21,7 +20,7 @@ def print_genomes():
     for genome in genomes:
         if genome == 'default':
             continue
-        elif genome == dgenome:
+        if genome == dgenome:
             genome += ' (default)'
         print(genome)
 
