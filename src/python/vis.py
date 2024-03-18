@@ -55,7 +55,7 @@ def beta_args(parser):
     parser.add_argument('--plot', action='store_true', help='beta vis: plot results in a heatmap.')
 
 
-def parse_args():  # todo: seperate args parsing for beta and pat
+def parse_args():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('input_files', nargs='+', help='A pat.gz file or one or more beta files')
     parser.add_argument('-t', '--title', help='A text to be printed before the results.')
@@ -80,7 +80,7 @@ def main():
 
     parser = parse_args()
     args = parser.parse_args()
-    if args.uxm and not (0.5 <= args.uxm <= 1):
+    if args.uxm and not 0.5 <= args.uxm <= 1:
         parser.error("uxm value must be between 0.5 and 1")
     if args.sub_sample is not None and not 1 >= args.sub_sample >= 0:
         parser.error('[wt vis] sub-sampling rate must be within [0.0, 1.0]')

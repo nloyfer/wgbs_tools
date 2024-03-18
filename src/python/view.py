@@ -1,11 +1,11 @@
 #!/usr/bin/python3 -u
 
 import argparse
-import numpy as np
 import os.path as op
+import numpy as np
 from utils_wgbs import load_beta_data, validate_single_file, \
     IllegalArgumentError, catch_BrokenPipeError, view_beta_script, \
-    view_lbeta_script, eprint, beta_sanity_check #, check_executable
+    view_lbeta_script, beta_sanity_check
 from genomic_region import GenomicRegion
 from cview import cview, subprocess_wrap_sigpipe, add_view_flags
 
@@ -28,7 +28,7 @@ from cview import cview, subprocess_wrap_sigpipe, add_view_flags
 def view_other_bin(bin_path, args):
     # view bin files. Minimal support. Works very slow for whole genome.
     gr = GenomicRegion(args)
-    data = load_beta_data(bin_path, gr=gr.sites)
+    data = load_beta_data(bin_path, gr.sites)
     np.savetxt('/dev/stdout', data, fmt='%s', delimiter='\t')
 
 
