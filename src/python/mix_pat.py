@@ -1,10 +1,10 @@
 #!/usr/bin/python3 -u
 
 import argparse
-import numpy as np
-import pandas as pd
 import os.path as op
 from multiprocessing import Pool
+import numpy as np
+import pandas as pd
 from utils_wgbs import validate_file_list, IllegalArgumentError, delete_or_skip, \
         eprint, validate_dir, add_multi_thread_args, pretty_name
 from genomic_region import GenomicRegion
@@ -37,15 +37,15 @@ class Mixer:
             if op.dirname(prefix):
                 validate_dir(op.dirname(prefix))
             return prefix
-        else:
-            validate_dir(outdir)
-            # compose output path:
 
-            pats_bnames = [pretty_name(f) for f in self.pats]
-            res = '_'.join([str(x) for t in zip(pats_bnames, self.dest_rates) for x in t])
-            region = '' if self.gr.sites is None else f'_{self.gr.region_str}'
-            res += '_cov_{:.2f}{}'.format(self.dest_cov, region)
-            res = op.join(outdir, res)
+        validate_dir(outdir)
+        # compose output path:
+
+        pats_bnames = [pretty_name(f) for f in self.pats]
+        res = '_'.join([str(x) for t in zip(pats_bnames, self.dest_rates) for x in t])
+        region = '' if self.gr.sites is None else f'_{self.gr.region_str}'
+        res += '_cov_{:.2f}{}'.format(self.dest_cov, region)
+        res = op.join(outdir, res)
         return res
 
     def print_rates(self):
@@ -123,7 +123,7 @@ def mult_mix(args):
     m.print_rates()
     p = Pool(args.threads)
     params = [(i, m) for i in range(args.reps)]
-    arr = p.starmap(single_mix, params)
+    p.starmap(single_mix, params)
     p.close()
     p.join()
 
@@ -179,7 +179,6 @@ def main():
     args = parse_args()
     validate_file_list(args.pat_files, 'pat.gz', 2)
     mult_mix(args)
-    return
 
 
 if __name__ == '__main__':

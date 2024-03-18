@@ -22,7 +22,7 @@ class Bed:
     def __init__(self):
         self.suff = 'bed'
         self.tabix_flags = ' -p bed '
-        # incase current tabix version does not recognize 
+        # incase current tabix version does not recognize
         # the "-p bed" flag (https://github.com/nloyfer/wgbs_tools/issues/2):
         self.tabix_fallback_flags = ' -s 1 -b 2 -e 3 '
         self.sort_flags = '-k4,4n'
@@ -166,4 +166,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

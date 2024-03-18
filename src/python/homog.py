@@ -1,13 +1,12 @@
 #!/usr/bin/python3 -u
 
 import argparse
-import os
-import numpy as np
 import os.path as op
-import pandas as pd
 import sys
 import subprocess
 from io import StringIO
+import numpy as np
+import pandas as pd
 from beta_to_blocks import load_blocks_file, is_block_file_nice
 from utils_wgbs import IllegalArgumentError, homog_tool, main_script, \
         splitextgz, validate_file_list, COORDS_COLS5, validate_local_exe, \
@@ -75,7 +74,7 @@ def homog_process(pat, blocks, args, outdir, prefix):
         th2 = round((l - 1) / l, 3)
         rate_cmd += f'0,{th1},{th2},1 '
 
-    # for a long marker file (>10K marker), 
+    # for a long marker file (>10K marker),
     # parse the whole pat file instead of running "cview -L BED"
     view_full = blocks.shape[0] > 1e4
 
@@ -117,7 +116,7 @@ def main():
         if not len(th) == 2: # and th[0].is_number():
             raise IllegalArgumentError('Invalid thresholds')
         th = float(th[0]), float(th[1])
-        if not (1 > th[1] > th[0] > 0):
+        if not 1 > th[1] > th[0] > 0:
             raise IllegalArgumentError('Invalid thresholds')
     elif args.rlen == 2:
         raise IllegalArgumentError('for rlen==2, --thresholds must be specified')

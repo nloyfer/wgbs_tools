@@ -4,9 +4,7 @@ import argparse
 import subprocess
 import os.path as op
 from multiprocessing import Pool
-import multiprocessing
 import numpy as np
-import os
 from utils_wgbs import validate_single_file, pat2beta_tool, \
         delete_or_skip, splitextgz, IllegalArgumentError, \
         GenomeRefPaths, trim_to_uint8, add_multi_thread_args, \

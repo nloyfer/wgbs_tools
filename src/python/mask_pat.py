@@ -2,12 +2,10 @@
 
 import argparse
 import subprocess
-import os.path as op
-import numpy as np
 from genomic_region import GenomicRegion
 from utils_wgbs import validate_single_file, mask_pat_tool, \
         delete_or_skip, main_script, collapse_pat_script, \
-        GenomeRefPaths, add_GR_args, eprint
+        add_GR_args
 
 
 def mask_pat(pat_path, sites_to_hide, prefix, args):
@@ -18,7 +16,6 @@ def mask_pat(pat_path, sites_to_hide, prefix, args):
     if not delete_or_skip(pat_out, args.force):
         return
 
-    # nr_sites = GenomeRefPaths(args.genome).get_nr_sites()
     cmd = f'{main_script} cview {pat_path} '
     if args.bed_file:
         cmd += f' -L {args.bed_file}'
@@ -30,7 +27,6 @@ def mask_pat(pat_path, sites_to_hide, prefix, args):
     cmd += f' | {collapse_pat_script} -'
     cmd += f' | bgzip -@ 4 > {pat_out}'
     cmd += f' && {main_script} index {pat_out}'
-    # eprint(cmd)
     subprocess.check_call(cmd, shell=True)
     return pat_out
 

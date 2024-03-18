@@ -2,11 +2,9 @@
 
 import argparse
 import subprocess
-import numpy as np
 import os.path as op
-import sys
-import os
 from pathlib import Path
+import numpy as np
 from index import Indxer
 from utils_wgbs import validate_file_list, splitextgz, delete_or_skip, \
         trim_to_uint8, load_beta_data, collapse_pat_script, \
@@ -108,7 +106,7 @@ class MergePats:
         # merge pat files chrom by chrom when we merge whole-genome (much faster because it saves the sorting process lots of time)
         sorted_chroms = GenomeRefPaths(self.args.genome).get_chroms()
 
-        # dump merged pat chromosome by chromosome, 
+        # dump merged pat chromosome by chromosome,
         # so that the unix sort will run on each chromosome separately
         safe_remove(self.outpath)
         Path(self.outpath).touch()

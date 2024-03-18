@@ -2,12 +2,12 @@
 import argparse
 import re
 import shutil
-import pandas as pd
-import os.path as op
 import os
+import os.path as op
 import subprocess
 from multiprocessing import Pool
 from pathlib import Path
+import pandas as pd
 from utils_wgbs import validate_single_file, eprint, IllegalArgumentError, \
         add_multi_thread_args, check_executable
 from set_default_ref import set_def_ref
@@ -266,11 +266,11 @@ def chromosome_order(c):
         c = c[3:]
     if c.isdigit():
         return int(c)
-    elif c == 'X':
+    if c == 'X':
         return 10000
-    elif c == 'Y':
+    if c == 'Y':
         return 10001
-    elif c in ('M', 'MT'):
+    if c in ('M', 'MT'):
         return 10002
     return 10003
 
