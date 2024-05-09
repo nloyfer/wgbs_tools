@@ -228,6 +228,20 @@ wgbstools pat_fig -o pat_fig.pdf *pat.gz -r chr3:119528405-119528783 --top 15 --
 <!--![alt text](docs/img/pat_fig example.png "pat_fig example" =100x100)-->
 <img src="../docs/img/pat_fig example.png" />  
 
+```bash
+wgbstools pat_fig -o pat_fig.pdf *pat.gz -r chr3:119528405-119528783 --top 15 --title "Example figure - pat_fig.pdf: --black_white"
+```
+
+<!--![alt text](docs/img/pat_fig example.png "pat_fig example" =100x100)-->
+<img src="../docs/img/pat_fig black_white.png" />  
+
+```bash
+wgbstools pat_fig -o pat_fig.pdf *pat.gz -r chr3:119528405-119528783 --top 15 --title "Example figure - pat_fig.pdf: --meth_color 'red' --unmeth_color 'green'"
+```
+
+<!--![alt text](docs/img/pat_fig example.png "pat_fig example" =100x100)-->
+<img src="../docs/img/pat fig red-green.png" />  
+
 `pat_fig` can be configured with many different arguments. See `pat_fig --help` for detailed information.
 
 ### Segmentation
