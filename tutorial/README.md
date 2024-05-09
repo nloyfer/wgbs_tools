@@ -1,14 +1,14 @@
 # wgbstools tutorial
 ## Introduction and contents
-wgbstools is an extensive computational suite tailored for bisulfite sequencing data. It allows fast access, ultra-compact representation of high-throughput data, and informative visualizations, as well as machine learning and statistical analysis, from fragment-level to locus-specific representations.
-In this tutorial, we'll work through the main features, including:
+wgbstools is an extensive computational suite tailored for bisulfite sequencing data. It allows fast access, ultra-compact representation of high-throughput data, and informative visualizations, as well as machine learning and statistical analysis, allowing both single CpG views and fragment-level / locus-specific representations.
+In this tutorial some of the main features are explained, including:
 1. [Installation and configuration](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#installation-and-configuration)
-2. [Data conversion](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#format-conversion) - Convert genomic loci to CpG indices, generate `.pat` & `.beta` files from `.bam` file, view files as plain text.
-3. [Visualizations](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#visualization) - Methylation patterns, heatmaps, segmentation, use of flags (strict, strip, min_len), exporting to pdf
-5. [Segmentation](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#segmentation) (Optional) - Segment a given region into homogenously methylated blocks.
+2. [Data conversion](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#format-conversion) - Convert genomic loci to CpG indices, generate `.pat` & `.beta` files from `.bam` file, view files as plain text
+3. [Visualizations](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#visualization) - Methylation patterns, heatmaps, segmentation, use of flags (`--strict`, `--strip`, `--min_len`), exporting to pdf
+5. [Segmentation](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#segmentation) - Optimized segmentation of a given region into homogenously methylated blocks (of variable length)
 6. [Averaging methylation over segments](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#average-methylation-over-blocks)
-7. [Counting homogenously methylated fragments](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#counting-homogenously-methylated-fragments)
-8. [Differentially Methylated Regions](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#differentially-methylated-regions) - Find markers to differentiate between sample groups.
+7. [Fragment-level counts](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#counting-homogenously-methylated-fragments) of methylated, unmethylated, and mixed fragments within a region
+8. [Differentially methylated regions](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#differentially-methylated-regions) - Find markers to differentiate between different groups of cell types
 9. [Bimodal and ASM analysis](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#bimodal-and-asm-analysis) - Analyze bimodality and identify allele-specific methylation.
 10. **TODO** - beta_cov
 11. **TODO** - add_cpg_counts - ask Yoni
