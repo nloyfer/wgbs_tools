@@ -138,7 +138,15 @@ See [`view`](https://github.com/rsegel/wgbs_tools/blob/master/docs/view.md) and 
 ## Visualization
 wgbstools provides many different options for visualization of our data. Let's take a look at some of the main features:
 
-#### Heatmap visualization of `.beta` files:
+#### Visualization of `.beta` files:
+The default visualization of `.beta` files displays the methylation level of each CpG site from 0 (=0-9% methylated) to 9 (=90-100% methylated) and colors them from green to red:
+```bash
+wgbstools vis *.beta -r chr3:119528843-119529245
+```
+<!--![alt text](docs/img/colon.beta.png "beta vis example")-->
+<img src="../docs/img/beta vis no heatmap.png" width="450" height="600" />
+
+Alternatively, we can use the `--heatmap` flag:
 ```bash
 wgbstools vis *.beta -r chr3:119528843-119529245 --heatmap
 ```
@@ -147,10 +155,17 @@ wgbstools vis *.beta -r chr3:119528843-119529245 --heatmap
 
 #### Visualization of methylation patterns (`pat` files):
 ```bash
-wgbstools vis Sigmoid_Colon_STL003.pat.gz -r chr3:119528843-119529245
+wgbstools vis Sigmoid_Colon_STL003.small.pat.gz -r chr3:119528843-119529245
 ```
 <!--![alt text](docs/img/colon.pat.png "pat vis example" =100x100)-->
-<img src="../docs/img/colon.pat.png" width="500" height="400" />
+<img src="../docs/img/pat vis.png" width="500" height="400" />
+
+Alternatively, we can use the `--text` flag:
+```bash
+wgbstools vis Sigmoid_Colon_STL003.small.pat.gz -r chr3:119528843-119529245 --text
+```
+<!--![alt text](docs/img/colon.pat.png "pat vis example" =100x100)-->
+<img src="../docs/img/pat text vis.png" width="500" height="400" />
 
 #### Segmented visualization
 Both `.pat` and `.bam` file visualizations can use segmentation of the genomic region. The segmentation requires a bgzipped and indexed wgbstools .bed file, see [`.bed`](https://github.com/rsegel/wgbs_tools/blob/master/docs/bed_format.md) for full documentation. In this example we'll use the existing `wgbs_segments.bed.gz`:
