@@ -132,7 +132,7 @@ chr3	119528216	119528218	5	5
 chr3	119528224	119528226	5	5
 chr3	119528241	119528243	4	4
 ```
-Notice that we made use of a region flag `-r` to only view reads\values that overlap the specified genomic region. This feature (along with `-s` for CpG sites) utilizes *tabix* and the \.csi index to achieve efficient random access without reading the whole file in the case of \.pat files, and the fixed file size to access values in O(1) in the case of \.beta files.  
+Notice that we made use of a region flag `-r` to only view reads/values that overlap the specified genomic region. This feature (along with `-s` for CpG sites) utilizes *tabix* and the \.csi index to achieve efficient random access without reading the whole file in the case of \.pat files, and the fixed file size to access values in O(1) in the case of \.beta files.  
 See [`view`](https://github.com/rsegel/wgbs_tools/blob/master/docs/view.md) and `wgbstools view --help` for more options and information.
 
 ## Visualization
