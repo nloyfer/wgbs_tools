@@ -198,27 +198,28 @@ When visualizing `.pat` files, we can customize exactly which reads will be visu
 - `--strip` - vis will remove starting and trailing dots (CpG sites with no data).
 - `--min_len MIN_LEN` - vis will only display reads of MIN_LEN length at least.  
 If more than one flag is used, `--strict` will run first, then `--strip`, and finally `--min_len`.
-```bash
-wgbstools vis *Lung*pat.gz -s 5394807-5394815
-```
-<!--![alt text](docs/img/pat vis no flags.png "pat vis no flags" =100x100)-->
-<img src="../docs/img/pat vis no flags.png"/>
 
 ```bash
-wgbstools vis *Lung*pat.gz -s 5394807-5394815 --strict
-wgbstools vis *Lung*pat.gz -s 5394807-5394815 --strict --strip
+wgbstools vis *Pancreas*pat.gz -s 5394780-5394785
 ```
-|<img src="../docs/img/pat vis strict.png" width="484" align="middle"/> | <img src="../docs/img/pat vis strict strip.png" width="500" align="middle"/>|
+<!--![alt text](tutorial/images/panc vis no flags.png "panc vis no flags" =100x100)-->
+<img src="../tutorial/images/panc vis no flags.png"/>
+
+```bash
+wgbstools vis *Pancreas*pat.gz -s 5394780-5394785 --strict
+wgbstools vis *Pancreas*pat.gz -s 5394780-5394785 --strict --strip
+```
+|<img src="../tutorial/images/panc vis strict.png" width="484" align="middle"/> | <img src="../tutorial/images/panc vis strict strip.png" width="500" align="middle"/>|
 |:-:|:-:|
 |`wgbstools vis --strict`|`wgbstools vis --strict --strip`|
 
 ```bash
-wgbstools vis *Lung*pat.gz -s 5394807-5394815 --strict --min_len 5
-wgbstools vis *Lung*pat.gz -s 5394807-5394815 --strict --strip --min_len 5
+wgbstools vis *Pancreas*pat.gz -s 5394780-5394785 --strict --min_len 3
+wgbstools vis *Pancreas*pat.gz -s 5394780-5394785 --strict --strip --min_len 3
 ```
-|<img src="../docs/img/pat vis strict min.png" width="500" align="middle"/>|<img src="../docs/img/pat vis strict strip min.png" width="500" align="middle"/>|
+|<img src="../tutorial/images/panc vis strict min len.png" width="500" align="middle"/>|<img src="../tutorial/images/panc vis strict strip min len.png" width="500" align="middle"/>|
 |:-:|:-:|
-|`wgbstools vis --strict --min_len 5`|`wgbstools vis --strict --strip --min_len 5`|
+|`wgbstools vis --strict --min_len 3`|`wgbstools vis --strict --strip --min_len 3`|
 
 #### Export to PDF
 `.pat` visualizations can also be exported to \.pdf using the `pat_fig` command:
