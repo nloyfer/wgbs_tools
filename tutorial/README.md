@@ -401,9 +401,6 @@ for target in `tail +2 bams/groups.csv| cut -f2 -d,`;
 ## Bimodal and ASM analysis
 
 Bimodal regions are those where CpG methylation is distributed from two differently behaving sources. One common example of this, in samples with pure cell types, is allele-specific methylation (ASM). Allele specific methylation is the phenomenon whereby one allele is highly methylated and the other is lowly methylated. This occurs in sequence-dependent ASM, meQTLs, and imprinting control regions, as well as some other phenomenon. wgbstools provides tools for bimodal and ASM analysis.
-- **TODO** phrasing - my version of the description follows, TBD which to use:
-
-Bimodal regions are genomic regions where reads from two different sources tend to have different methylation patterns. A common example of this, especially within a pure sample of a single cell type, is allele specific methylation (ASM) - a phenomenon where two alleles display bimodal methylation. ASM can be sequence dependent, imprinted depending on parental origin of the allele, or related to other phenomena. wgbstools provides tools for identifying bimodal regions and for ASM analysis.
 
 We begin by creating pat files for our bam:
 ```bash
