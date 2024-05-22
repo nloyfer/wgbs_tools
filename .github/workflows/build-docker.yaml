@@ -1,12 +1,119 @@
+name: Build wgbs_tool docker image
+
 on:
   workflow_dispatch:
+    inputs:
+      UXM_deconv-branch:
+        type: string
+        default: main
+        required: false
 
+      image-tag:
+        description: "Docker image tag. If omitted will use branch name and github short sha"
+        required: false
+        type: string
+
+
+permissions:
+  id-token: write # Required for assuming an AWS role
+  contents: read # Required for actions/checkout
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ROLE: arn:aws:iam::337532070941:role/github-actions-ecr
+  GCP_WORKLOAD_IDENTITY_PROVIDER: projects/55428976747/locations/global/workloadIdentityPools/devops-pool/providers/devops-pool-provider
+  GCP_SERVICE_ACCOUNT: gcr-push-sa@ultima-data-307918.iam.gserviceaccount.com
+  GAR_REPO: us-central1-docker.pkg.dev/ultima-data-307918/ultimagen
+  UXM_DECONV_RELATIVE_PATH: UXM_deconv
+  WGBS_TOOL_RELATIVE_PATH: wgbs_tools
+  IMAGE_NAME: wgbs_tools
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
-
+    runs-on: ubuntu-latest
     steps:
-      - name: DUMMY
-        run: |
-          echo DUMMY
+    - name: Checkout wgbs_tools
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        path: ${{ env.WGBS_TOOL_RELATIVE_PATH }}
+
+    - name: Checkout UXM_deconv
+      uses: actions/checkout@v4
+      with:
+        repository: nloyfer/UXM_deconv
+        submodules: recursive
+        path: ${{ env.UXM_DECONV_RELATIVE_PATH }}
+        ref: ${{ inputs.UXM_deconv-branch }}
+
+
+    - name: Set image tag
+      run: |
+        image_tag_base="$(echo ${{ inputs.image-tag || github.ref_name}} | sed 's/[^a-zA-Z0-9.]/-/g')"
+
+        git_sha="${{ github.sha }}"
+
+        cd ${{ env.UXM_DECONV_RELATIVE_PATH }}
+        uxm_deconv_sha=$(git log -1 '--format=format:%H')
+
+        image_tag="${image_tag_base}_${git_sha::6}_uxm_deconv_${uxm_deconv_sha::6}" 
+        
+        echo IMAGE_TAG=${image_tag} >> ${GITHUB_ENV}
+
+    - name: Add UXM_deconv to file copied in the image
+      run: |
+        uxm_deconv_dir=${{ env.WGBS_TOOL_RELATIVE_PATH }}/src/uxm_deconv
+        mkdir -p ${uxm_deconv_dir}
+        cp -r ${{ env.UXM_DECONV_RELATIVE_PATH }}/src/. ${uxm_deconv_dir}
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ env.AWS_ROLE }}
+        aws-region: ${{ env.AWS_REGION }}
+        mask-aws-account-id: false
+  
+    - name: Login to Amazon ECR
+      id: ecr-login
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Authenticate to Google Cloud
+      id: auth
+      uses: google-github-actions/auth@v2
+      with:
+        token_format: access_token
+        workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+        service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+
+    - name: Login to GAR
+      id: gar-login
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.GAR_REPO }}
+        username: oauth2accesstoken
+        password: ${{ steps.auth.outputs.access_token }}
+
+    - name: Set docker destinations
+      run: |
+        set -e
+
+        image_tag=${{ env.IMAGE_TAG }}
+
+        docker_destinations="${{ steps.ecr-login.outputs.registry }}/${{ env.IMAGE_NAME }}:${image_tag},"
+        docker_destinations+="${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}:${image_tag}"
+
+        echo "DOCKER_DESTINATIONS=${docker_destinations}" >> ${GITHUB_ENV}
+
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build and push
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ env.WGBS_TOOL_RELATIVE_PATH }}
+        push: true
+        tags: ${{ env.DOCKER_DESTINATIONS }}
+        provenance: false
+        cache-from: type=gha
+        cache-to: type=gha,mode=max

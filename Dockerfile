@@ -32,11 +32,10 @@ RUN apt-get update ; \
         bedtools \
         wget \
         unzip \
+        r-base \
     ; \
     rm -rf /var/lib/apt/lists/*
 
-# Create user and switch to it
-RUN groupadd -g 1002 appuser && useradd -u 1002 -g appuser -m appuser
 WORKDIR /home/appuser
 
 # Use the previously built virtualenv
@@ -45,11 +44,10 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 COPY --from=build /opt/venv /opt/venv
 
 COPY --from=build /opt/wgbstools /opt/wgbstools
-RUN mkdir -p /opt/wgbstools/references && chown appuser /opt/wgbstools/references
+RUN mkdir -p /opt/wgbstools/references
 
 RUN ln -s /opt/wgbstools/src/python/wgbs_tools.py /usr/local/bin/wgbstools
-
-USER appuser
+RUN [ -f /opt/wgbstools/src/uxm_deconv/uxm.py ] && ln -s /opt/wgbstools/src/uxm_deconv/uxm.py /usr/local/bin/uxm || echo "uxm missing"
 
 # App
 ENTRYPOINT /bin/bash
