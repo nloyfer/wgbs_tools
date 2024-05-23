@@ -13,7 +13,7 @@ def load_uxm(binpath, blocks_df, um, min_cov):
     cond = covs > min_cov
     r = np.divide(data[:, um_ind_dict[um]], covs, where=cond)
     r[~cond] = np.nan
-    return r.astype(np.float)
+    return r.astype(float)
 
 #######################################################
 #                                                     #
