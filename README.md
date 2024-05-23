@@ -77,6 +77,6 @@ To deconvolve tissues or blood samples, see our [UXM](https://github.com/nloyfer
 
 ### References
 If you are using *wgbstools*, please cite:
-<br>[Loyfer\*, Magenheim\*, Peretz\* *et al.* (2023)](www.nature.com/articles/s41586-022-05580-6) ‘A DNA methylation atlas of normal human cell types’, *Nature* ,2023.
+<br>[Loyfer *et al.* (2024)](https://www.biorxiv.org/content/10.1101/2024.05.08.593132v1) ‘wgbstools: A computational suite for DNA methylation sequencing data representation, visualization, and analysis’, *bioRxiv* ,2024.
 <br>[GEO [GSE186458](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE186458) | Genome browser sessions: [hg19](https://genome-euro.ucsc.edu/s/Tomkap/Atlas_hg19) | [hg38](https://genome-euro.ucsc.edu/s/Tomkap/Atlas_hg38)]
 
