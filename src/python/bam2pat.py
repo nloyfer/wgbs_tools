@@ -158,7 +158,7 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, mapq
     else:
         in_flags = f'-f {in_flags}'
 
-    view_cmd = f'samtools view {bam} {region} -q {mapq} -F {ex_flags} {in_flags} '
+    view_cmd = f'samtools view {bam} {region} -q {mapq} -F {ex_flags} {in_flags} -T {genome.genome_path}'
     if whitelist:
         view_cmd += f' -M -L {whitelist} '
     elif blacklist:
@@ -205,7 +205,7 @@ def validate_bam(bam):
 def is_bam_sorted(bam):
 
     # check if bam is sorted by coordinate:
-    peek_cmd = f'samtools view -H {bam} | head -1'
+    peek_cmd = f'samtools view -H {bam}| head -1'
     hd_line = subprocess.check_output(peek_cmd, shell=True).decode()
     if hd_line.startswith('@HD') and 'coordinate' not in hd_line:
         eprint(f'[wt bam2pat] WARNING: based on the @HD, bam file is not sorted: {bam}')
@@ -223,8 +223,8 @@ def is_bam_sorted(bam):
     return True
 
 
-def is_pair_end(bam):
-    first_line = subprocess.check_output(f'samtools view {bam} | head -1', shell=True)
+def is_pair_end(bam, genome):
+    first_line = subprocess.check_output(f'samtools view {bam} -T {genome.genome_path} | head -1', shell=True)
     first_line = first_line.decode()
     if len(first_line) == 0:
         raise EmptyBamError('Empty bam file')
@@ -264,7 +264,7 @@ class Bam2Pat:
         """ Parse each chromosome file in a different process,
             and concatenate outputs to pat files """
 
-        self.PE = is_pair_end(self.bam_path)
+        self.PE = is_pair_end(self.bam_path, self.gr.genome)
         blist, wlist = self.set_lists()
         # build temp dir:
         name = pretty_name(self.bam_path)
