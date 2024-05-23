@@ -127,14 +127,15 @@ class BamMethylData:
             and concatenate outputs to pat and unq files """
         print(datetime.datetime.now().isoformat() + ': *** starting processing of each chromosome')
         name = op.join(self.out_dir, pretty_name(self.bam_path))
+        is_PE = is_pair_end(self.bam_path, self.gr.genome)
         if self.gr.region_str is None:
             final_path = name + f'.{self.args.suffix}' + BAM_SUFF
             params = []
             for c in set_regions(self.bam_path, self.gr):
                 out_path_name = name + '_' + c
                 params.append((self.bam_path, out_path_name, c, self.gr.genome,
-                        is_pair_end(self.bam_path), self.args.exclude_flags,
-                        self.args.mapq, self.args.debug, self.args.verbose, self.args.min_cpg,
+                        is_PE, self.args.exclude_flags, self.args.mapq,
+                        self.args.debug, self.args.verbose, self.args.min_cpg,
                         self.args.clip, self.args.bed_file, self.extended_bed_path,
                         self.args.add_pat, self.args.include_flags, self.args.drop_singles))
             p = Pool(self.args.threads)
@@ -146,7 +147,7 @@ class BamMethylData:
             final_path = name + f'.{region_str_for_name}.{self.args.suffix}{BAM_SUFF}'
             out_path_name = name + '_' + '1'
             res = [proc_chr(self.bam_path, out_path_name, self.gr.region_str, self.gr.genome,
-                            is_pair_end(self.bam_path), self.args.exclude_flags, self.args.mapq,
+                            is_PE, self.args.exclude_flags, self.args.mapq,
                             self.args.debug, self.args.verbose, self.args.min_cpg, self.args.clip,
                             self.args.bed_file, self.extended_bed_path, self.args.add_pat,
                             self.args.include_flags, self.args.drop_singles)]
