@@ -66,6 +66,7 @@ public:
     reads_stats readsStats;
     int line_i = 0;
     clock_t tick = clock();
+    bool is_long = false;
     bool is_paired_end = false;
     bool is_nanopore = false;
     bool np_dot = false; // Nanopore: Does MM field starts with "C+m." or "C+m?"?
@@ -76,9 +77,9 @@ public:
     mbias_ss mbias_OT[2];
     mbias_ss mbias_OB[2];
 
-    patter(std::string refpath, std::string rgn, std::string mb, int mc, int clip, bool is_np, float np_th):
+    patter(std::string refpath, std::string rgn, std::string mb, int mc, int clip, bool is_np, float np_th, bool is_lng):
             ref_path(refpath), region(rgn), mbias_path(mb), min_cpg(mc), 
-            clip_size(clip), is_nanopore(is_np), np_thresh(np_th) {}
+            clip_size(clip), is_nanopore(is_np), np_thresh(np_th), is_long(is_lng) {}
     ~patter() {delete[] conv;}
     void load_genome_ref();
     std::vector<long> fasta_index();

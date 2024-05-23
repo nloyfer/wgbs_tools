@@ -31,11 +31,12 @@ int main(int argc, char **argv) {
             np_thresh = std::stof(np_thresh_str);
         }
         if (argc < 3) {
-            throw std::invalid_argument("Usage: patter CPG_DICT REGION [--mbias MBIAS_PATH] [--clip CLIP] [--nanopore] [--np_thresh NP_THRESH]");
+            throw std::invalid_argument("Usage: patter CPG_DICT REGION [--mbias MBIAS_PATH] [--clip CLIP] [--nanopore] [--np_thresh NP_THRESH] [--long]");
         }
         std::string mbias_path = input.getCmdOption("--mbias");
         bool is_np = input.cmdOptionExists("--nanopore");
-        patter p(argv[1], argv[2], mbias_path, min_cpg, clip, is_np, np_thresh);
+        bool is_long = input.cmdOptionExists("--long");
+        patter p(argv[1], argv[2], mbias_path, min_cpg, clip, is_np, np_thresh, is_long);
         p.parse_reads_from_stdin();
 
     }

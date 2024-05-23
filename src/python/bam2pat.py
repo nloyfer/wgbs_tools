@@ -90,7 +90,7 @@ def tmpdir_cleanup(tmp_dir):
         shutil.rmtree(tmp_dir)
 
 
-def gen_pat_part(out_path, debug, temp_dir):
+def gen_pat_part(out_path, debug, temp_dir, long):
     try:
         # if out_path is empty or missing, return None
         if not op.isfile(out_path):
@@ -104,7 +104,10 @@ def gen_pat_part(out_path, debug, temp_dir):
         cmd = f'sort {out_path} -k2,2n -k3,3 '
         if temp_dir:
             cmd += f' -T {temp_dir} '
-        cmd += " | uniq -c | awk -v OFS='\t' '{print $2,$3,$4,$1}'"
+        if long:
+            cmd += " | awk -v OFS='\t' '{print $1,$2,$3,1,$4}'"
+        else:
+            cmd += " | uniq -c | awk -v OFS='\t' '{print $2,$3,$4,$1}'"
         cmd += f' | bgzip -f > {pat_path}'
         subprocess_wrap(cmd, debug)
 
@@ -145,7 +148,7 @@ def is_region_empty(view_cmd, region, verbose):
 
 def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, mapq, debug,
              blueprint, clip, temp_dir, blacklist, whitelist, min_cpg, mbias, nanopore,
-             np_thresh, verbose):
+             np_thresh, verbose, long):
     """ Convert a temp single chromosome file, extracted from a bam file, into pat """
 
     # Run patter tool on a single chromosome (or region). out_path will have the following fields:
@@ -181,6 +184,8 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, mapq
         patter_cmd += f' --mbias {out_path}.mb'
     if nanopore:
         patter_cmd += f' --nanopore --np_thresh {np_thresh} '
+    if long:
+        patter_cmd += ' --long '
 
     if blueprint:
         patter_cmd, match_cmd = blueprint_legacy(genome, region, paired_end)
@@ -189,7 +194,7 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, mapq
         print(cmd)
     subprocess_wrap(cmd, debug)
 
-    return gen_pat_part(out_path, debug, temp_dir)
+    return gen_pat_part(out_path, debug, temp_dir, long)
 
 
 def validate_bam(bam):
@@ -283,7 +288,8 @@ class Bam2Pat:
                        self.args.include_flags,
                        self.args.mapq, self.args.debug, self.args.blueprint, self.args.clip,
                        self.args.temp_dir, blist, wlist, self.args.min_cpg,
-                       self.args.mbias, self.args.nanopore, self.args.np_thresh, self.verbose)
+                       self.args.mbias, self.args.nanopore, self.args.np_thresh,
+                       self.verbose, self.args.long)
                 params.append(par)
 
             if len(cur_regions) == 1 and self.args.threads == 1:
@@ -416,6 +422,8 @@ def add_args(parser):
     parser.add_argument('--verbose', '-v', action='store_true')
     parser.add_argument('--clip', type=int, default=0,
                         help='Clip for each read the first and last CLIP characters [0]')
+    parser.add_argument('--long', action='store_true',
+                        help='Use long format for pat file (add read name to each line)')
     add_multi_thread_args(parser)
 
     return parser

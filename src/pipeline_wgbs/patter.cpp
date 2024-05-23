@@ -254,7 +254,12 @@ void patter::proc2lines(std::vector <std::string> &tokens1,
             return;
         }
         // print to stdout
-        std::cout << res[0] + TAB + res[1] + TAB + res[2] + "\n";
+        if (is_long) {
+            res.push_back(tokens1[0]);
+            std::cout << res[0] + TAB + res[1] + TAB + res[2] + TAB + res[3] + "\n";
+        } else {
+            std::cout << res[0] + TAB + res[1] + TAB + res[2] + "\n";
+        }
     }
     catch (std::exception &e) {
         std::string msg = "[ " + chr + " ] Exception while merging. lines ";
