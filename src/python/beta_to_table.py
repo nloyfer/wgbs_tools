@@ -57,12 +57,14 @@ def groups_load_wrap(groups_file, betas):
 
 
 def cwrap(beta_path, blocks_df, is_nice, min_cov):
-    if beta_path.endswith('.beta'):
+    if beta_path.endswith(('.beta', '.lbeta')):
         r = collapse_process(beta_path, blocks_df, is_nice)
         if r is None:
             return
         name = op.splitext(op.basename(beta_path))[0]
         return {name: beta2vec(r, min_cov)}
+    else:
+        eprint(f'[wt table] WARNING: {beta_path} is not a beta/lbeta file')
 
     return {op.basename(beta_path)[:-4]: load_uxm(beta_path, blocks_df, 'U', min_cov)}
 
