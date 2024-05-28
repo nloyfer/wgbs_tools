@@ -2,20 +2,20 @@
 ## Introduction and contents
 wgbstools is an extensive computational suite tailored for bisulfite sequencing data. It allows fast access, ultra-compact representation of high-throughput data, and informative visualizations, as well as machine learning and statistical analysis, allowing both single CpG views and fragment-level / locus-specific representations.
 In this tutorial some of the main features are explained, including:
-1. [Installation and configuration](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#installation-and-configuration)
-2. [Data conversion](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#format-conversion) - Convert genomic loci to CpG indices, generate `.pat` & `.beta` files from `.bam` file, view files as plain text
-3. [Visualizations](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#visualization) - Methylation patterns, heatmaps, segmentation, use of flags (`--strict`, `--strip`, `--min_len`), exporting to pdf
-5. [Segmentation](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#segmentation) - Optimized segmentation of a given region into homogenously methylated blocks (of variable length)
-6. [Averaging methylation over segments](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#average-methylation-over-blocks)
-7. [Fragment-level counts](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#counting-homogenously-methylated-fragments) of methylated, unmethylated, and mixed fragments within a region
-8. [Differentially methylated regions](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#differentially-methylated-regions) - Find markers to differentiate between different groups of cell types
-9. [Bimodal and ASM analysis](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#bimodal-and-asm-analysis) - Analyze bimodality and identify allele-specific methylation.
+1. [Installation and configuration](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#installation-and-configuration)
+2. [Data conversion](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#format-conversion) - Convert genomic loci to CpG indices, generate `.pat` & `.beta` files from `.bam` file, view files as plain text
+3. [Visualizations](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#visualization) - Methylation patterns, heatmaps, segmentation, use of flags (`--strict`, `--strip`, `--min_len`), exporting to pdf
+5. [Segmentation](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#segmentation) - Optimized segmentation of a given region into homogeneously methylated blocks (of variable length)
+6. [Averaging methylation over segments](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#average-methylation-over-blocks)
+7. [Fragment-level counts](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#counting-homogenously-methylated-fragments) of methylated, unmethylated, and mixed fragments within a region
+8. [Differentially methylated regions](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#differentially-methylated-regions) - Find markers to differentiate between different groups of cell types
+9. [Bimodal and ASM analysis](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#bimodal-and-asm-analysis) - Analyze bimodality and identify allele-specific methylation.
 10. **TODO** - beta_cov
 11. **TODO** - add_cpg_counts - ask Yoni
 
 
 ## Installation and configuration
-First, install `wgbstools` and [initialize](https://github.com/rsegel/wgbs_tools/blob/master/docs/init_genome_ref_wgbs.md "Alternative ref genome") `hg19` as the reference genome:
+First, install `wgbstools` and [initialize](https://github.com/nloyfer/wgbs_tools/blob/master/docs/init_genome_ref_wgbs.md "Alternative ref genome") `hg19` as the reference genome:
 ```bash
 git clone https://github.com/nloyfer/wgbs_tools.git
 cd wgbs_tools
@@ -40,7 +40,7 @@ export PATH=${PATH}:$PWD
 
 ## All set. Let's begin
 ### Data and region
-For this short tutorial, we will use the following publicly available samples from the [Roadmap Epigenomic Project](https://www.nature.com/articles/nature14248). The fastq files were downloaded from [GEO](https://www.ncbi.nlm.nih.gov//geo/query/acc.cgi?acc=GSE16256), mapped to hg19 using [bwa-meth](https://github.com/brentp/bwa-meth), and sliced to to the region `chr3:119,527,929-119,531,943` during format conversion (see next section).
+For this short tutorial, we will use the following publicly available samples from the [Roadmap Epigenomic Project](https://www.nature.com/articles/nature14248). The fastq files were downloaded from [GEO](https://www.ncbi.nlm.nih.gov//geo/query/acc.cgi?acc=GSE16256), mapped to hg19 using [bwa-meth](https://github.com/brentp/bwa-meth), and sliced to the region `chr3:119,527,929-119,531,943` during format conversion (see next section).
 
 | SRX  | Tissue  |  Donor |
 |---|---|---|
@@ -98,7 +98,7 @@ Sigmoid_Colon_STL003.small.beta
 Sigmoid_Colon_STL003.small.pat.gz
 Sigmoid_Colon_STL003.small.pat.gz.csi
 ```
-Once we have `.beta` and `.pat` files, we can use wgbstools [`view`](https://github.com/rsegel/wgbs_tools/blob/master/docs/view.md) to view them:
+Once we have `.beta` and `.pat` files, we can use wgbstools [`view`](https://github.com/nloyfer/wgbs_tools/blob/master/docs/view.md) to view them:
 ```bash
 $ wgbstools view -r chr3:119527929-119528309 Pancreas_STL002.small.pat.gz
 chr3	5394764	CCCC	4
@@ -133,10 +133,10 @@ chr3	119528224	119528226	5	5
 chr3	119528241	119528243	4	4
 ```
 Notice that we made use of a region flag `-r` to only view reads/values that overlap the specified genomic region. This feature (along with `-s` for CpG sites) utilizes *tabix* and the \.csi index to achieve efficient random access without reading the whole file in the case of \.pat files, and the fixed file size to access values in O(1) in the case of \.beta files.  
-See [`view`](https://github.com/rsegel/wgbs_tools/blob/master/docs/view.md) and `wgbstools view --help` for more options and information.
+See [`view`](https://github.com/nloyfer/wgbs_tools/blob/master/docs/view.md) and `wgbstools view --help` for more options and information.
 
 ## Visualization
-wgbstools provides many different options for visualization of our data. Let's take a look at some of the main features:
+wgbstools provides many different options for the visualization of our data. Let's take a look at some of the main features:
 
 #### Visualization of `.beta` files:
 The default visualization of `.beta` files displays the methylation level of each CpG site from 0 (=0-9% methylated) to 9 (=90-100% methylated) and colors them from green to red:
@@ -168,7 +168,7 @@ wgbstools vis Sigmoid_Colon_STL003.small.pat.gz -r chr3:119528843-119529245 --te
 <img src="../docs/img/pat text vis.png" width="500" height="400" />
 
 #### Segmented visualization
-Both `.pat` and `.bam` file visualizations can use segmentation of the genomic region. The segmentation requires a bgzipped and indexed wgbstools .bed file, see [`.bed`](https://github.com/rsegel/wgbs_tools/blob/master/docs/bed_format.md) for full documentation. In this example we'll use the existing `wgbs_segments.bed.gz`:
+Both `.pat` and `.bam` file visualizations can use segmentation of the genomic region. The segmentation requires a bgzipped and indexed wgbstools .bed file, see [`.bed`](https://github.com/nloyfer/wgbs_tools/blob/master/docs/bed_format.md) for full documentation. In this example we'll use the existing `wgbs_segments.bed.gz`:
 
 ```bash
 $ zcat wgbs_segments.bed.gz
@@ -246,7 +246,7 @@ wgbstools pat_fig -o pat_fig.pdf *pat.gz -r chr3:119528405-119528783 --top 15 --
 `pat_fig` can be configured with many different arguments. See `pat_fig --help` for detailed information.
 
 ### Segmentation
-wgbstools allows us to segment our region into homogenously methylated blocks:
+wgbstools allows us to segment our region into homogeneously methylated blocks:
 ```bash
 $ wgbstools segment --betas *beta --min_cpg 3 --max_bp 2000 -r $region -o blocks.small.bed
 [wt segment] found 9 blocks
@@ -263,10 +263,10 @@ chr3	119529584	119530116	5394837	5394844
 chr3	119530396	119530598	5394846	5394856
 chr3	119531385	119531943	5394858	5394867
 ```
-The segmentation algorithm finds a partition of the genome that optimizes some homogeneity score, i.e, the CpG sites in each block tend to have a similar methylation status. Many of the blocks are typically singletons (covering a single CpG site), but they are dropped when the `--min_cpg MIN_CPG` flag is specified.
+The segmentation algorithm finds a partition of the genome that optimizes some homogeneity score, i.e., the CpG sites in each block tend to have a similar methylation status. Many of the blocks are typically singletons (covering a single CpG site), but they are dropped when the `--min_cpg MIN_CPG` flag is specified.
 
 In this example, the `segment` command segmented the region chr3:119,527,929-119,531,943 to 18 blocks, 9 of them cover at least 3 CpG sites.  
-The output `.bed` file has 5 columns: chr, start, end, startCpG, endCpG (non inclusive). For example, the first block is chr3:119,527,929-119,528,187, 258bp, 5 CpG sites.
+The output `.bed` file has 5 columns: chr, start, end, startCpG, endCpG (non-inclusive). For example, the first block is chr3:119,527,929-119,528,187, 258bp, 5 CpG sites.
 
 Let's take a look at the segments (remember that we need to index the `.bed` file to use it with `vis`):
 ```bash
@@ -279,8 +279,8 @@ $ wgbstools vis -r chr3:119527929-119531943 -b blocks.small.bed.gz *beta --heatm
 - **TODO** - add reference to atlas segmentation
 
 ### Average methylation over blocks
-⚠️ Requires segmentation in the form of a wgbstools `.bed` file. See [`.bed`.](https://github.com/rsegel/wgbs_tools/blob/master/docs/bed_format.md) or use output from [`wgbstools segment`](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#segmentation)⚠️  
-Given segmentation of a genomic region into blocks, we can calculate the average methylation level of each block in each of our beta files:
+⚠️ Requires segmentation in the form of a wgbstools `.bed` file. See [`.bed`.](https://github.com/nloyfer/wgbs_tools/blob/master/docs/bed_format.md) or use output from [`wgbstools segment`](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#segmentation)⚠️  
+Given a segmentation of a genomic region into blocks, we can calculate the average methylation level of each block in each of our beta files:
 ```zsh
 $ wgbstools beta_to_table blocks.small.bed.gz --betas *beta | column -t
 chr   start      end        startCpG  endCpG   Lung_STL002.small  Pancreas_STL002.small  Sigmoid_Colon_STL003.small
@@ -294,10 +294,10 @@ chr3  119529584  119530116  5394837   5394844  0.96               0.97          
 chr3  119530396  119530598  5394846   5394856  0.94               0.91                   0.95
 chr3  119531385  119531943  5394858   5394867  0.87               0.87                   0.96
 ```
-It is also possible to calculate the average methylation of each block for groups of beta files with the `-g group_file.csv` flag. See [DMR](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#differentially-methylated-regions) section for an example of a group file.
+It is also possible to calculate the average methylation of each block for groups of beta files with the `-g group_file.csv` flag. See [DMR](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#differentially-methylated-regions) section for an example of a group file.
 
 ### Counting homogenously methylated fragments
-⚠️ Requires segmentation in the form of a wgbstools `.bed` file. See [`.bed`.](https://github.com/rsegel/wgbs_tools/blob/master/docs/bed_format.md) or use output from [`wgbstools segment`](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#segmentation)⚠️  
+⚠️ Requires segmentation in the form of a wgbstools `.bed` file. See [`.bed`.](https://github.com/nloyfer/wgbs_tools/blob/master/docs/bed_format.md) or use output from [`wgbstools segment`](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#segmentation)⚠️  
 Using the `homog` command, we can analyze methylation patterns by block in different `.pat` files. The command generates a compressed `.bed` file for each sample, counting the number of reads by methylation status (**M**ethylated, mi**X**ed, **U**nmethylated) in each block:
 ```zsh
 $ wgbstools homog *pat.gz -b blocks.small.bed -o homog_out --thresholds 0.25,0.75
@@ -320,12 +320,12 @@ chr3	119531385	119531943	5394858	5394867	2	24	75
 In this example, we chose the threshold for a read to be classified as M to be 75% methylation and U to be 25%. The last three columns in the output are the number of U | X | M reads.
 
 ### Differentially Methylated Regions
-⚠️ Requires segmentation in the form of a wgbstools `.bed` file. See [`.bed`.](https://github.com/rsegel/wgbs_tools/blob/master/docs/bed_format.md) or use output from [`wgbstools segment`](https://github.com/rsegel/wgbs_tools/tree/master/tutorial#segmentation)⚠️  
+⚠️ Requires segmentation in the form of a wgbstools `.bed` file. See [`.bed`.](https://github.com/nloyfer/wgbs_tools/blob/master/docs/bed_format.md) or use output from [`wgbstools segment`](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#segmentation)⚠️  
 We can use the `wgbstools find_markers` command to find DMRs for two or more groups of samples, e.g. case and control, different tissues, etc.
 This command takes as input:
 - beta files: a set of beta files to find the DMRs for.
 - group file: a `csv` table or text file defining which beta files belong to each group.
-- blocks file: a [wgbstools \.bed](https://github.com/rsegel/wgbs_tools/blob/master/docs/bed_format.md ".bed format") file.
+- blocks file: a [wgbstools \.bed](https://github.com/nloyfer/wgbs_tools/blob/master/docs/bed_format.md ".bed format") file.
 
 For each group defined in the `group_file`, `find_markers` will find all regions\blocks within the supplied blocks file that differentiate between the samples from each group when compared to samples from all other groups.
 Other than these required arguments, there are plenty of configuration arguments. See `find_markers --help` for more information.
@@ -349,7 +349,7 @@ Lung_STL002.small,lung
 Pancreas_STL002.small,pancreas
 Sigmoid_Colon_STL003.small,colon
 ```
-And find DMRs for the colon, the pancreas and the lung samples as follows:
+And find DMRs for the colon, the pancreas, and the lung samples as follows:
 ```bash
 $ wgbstools find_markers --blocks_path blocks.small.bed.gz --groups_file bams/groups.csv --betas *beta --delta_quants .3 --pval 1
 dumped parameter file to ./params.txt
@@ -379,8 +379,8 @@ chr3    119528246       119528388       5394777 5394784 lung    chr3:119528246-1
 #chr    start   end     startCpG        endCpG  target  region  lenCpG  bp      tg_mean bg_mean delta_means     delta_quants   delta_maxmin     ttest   direction
 
 ```
-The 10th-11th columns are the target and background methylation average for this block.
-When there is more than one sample in a group, these values show the average across all samples in the group (e.g. for the first block, chr3:119528384-119528418, 0.21 is the average of the two "non colon" group of samples). See [`supplemental/find_markers_config.txt`](../supplemental/find_markers_config.txt) for more information.
+The 10th-11th columns are the target and background methylation averages for this block.
+When there is more than one sample in a group, these values show the average across all samples in the group (e.g. for the first block, chr3:119528384-119528418, 0.21 is the average of the two "non-colon" group of samples). See [`supplemental/find_markers_config.txt`](../supplemental/find_markers_config.txt) for more information.
 The 12th is the difference between them (multiplied by 100). 
 The `ttest` column is the p-value for a T-test. By default, DMRs with p-value>0.05 are filtered out (`--pval 0.05` flag).
 
@@ -400,7 +400,7 @@ for target in `tail +2 bams/groups.csv| cut -f2 -d,`;
 
 ## Bimodal and ASM analysis
 
-Bimodal regions are those where CpG methylation is distributed from two differently behaving sources. One common example of this, in samples with pure cell types, is allele-specific methylation (ASM). Allele specific methylation is the phenomenon whereby one allele is highly methylated and the other is lowly methylated. This occurs in sequence-dependent ASM, meQTLs, and imprinting control regions, as well as some other phenomenon. wgbstools provides tools for bimodal and ASM analysis.
+Bimodal regions are those where CpG methylation is distributed from two differently behaving sources. One common example of this, in samples with pure cell types, is allele-specific methylation (ASM). Allele-specific methylation is the phenomenon whereby one allele is highly methylated and the other is lowly methylated. This occurs in sequence-dependent ASM, meQTLs, and imprinting control regions, as well as some other phenomena. wgbstools provides tools for bimodal and ASM analysis.
 
 We begin by creating pat files for our bam:
 ```bash
@@ -415,7 +415,7 @@ wgbstools vis -r $region Left_Ventricle_STL001.IGF2.pat.gz
 <!--![alt text](images/vis_bimodal.png "vis bimodal region")-->
 <img src="images/vis_bimodal.png" width="361" height="584" />
 
-This region is inside of the well known ICR of IGF2. We can see that most of the reads seem to be either mostly methylated or mostly unmethylated, i.e. bimodal, suggesting allele-specific methylation.
+This region is inside of the well-known ICR of IGF2. We can see that most of the reads seem to be either mostly methylated or mostly unmethylated, i.e. bimodal, suggesting allele-specific methylation.
 
 #### Bimodal analysis
 We can get counts for the number of reads above 65% methylation, below 35% methylation, and in between, as well as visualization like so:
@@ -426,7 +426,7 @@ wgbstools vis -r $region Left_Ventricle_STL001.IGF2.pat.gz --uxm 0.65
 <!--![alt text](images/wgbstools_vis_uxm.png "vis bimodal region with reads classified")-->
 <img src="images/wgbstools_vis_uxm.png" width="429" height="575" />
 
-We can see that out of ~280 reads we have 51.2% below 35% methylation, 47.3% above 65% methylation, and 1.4% with methlyation levels between 35-65%.
+We can see that out of ~280 reads we have 51.2% below 35% methylation, 47.3% above 65% methylation, and 1.4% with methylation levels between 35-65%.
 
 We can conduct a statistical test to verify that this region is indeed bimodal. We will test whether the hypothesis that all reads are generated from a single distribution is more likely than the hypothesis that there are two distinct distributions (with differing probabilities for each CpG to be methylated) from which each read is generated.
 
