@@ -10,8 +10,7 @@ In this tutorial some of the main features are explained, including:
 7. [Fragment-level counts](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#counting-homogenously-methylated-fragments) of methylated, unmethylated, and mixed fragments within a region
 8. [Differentially methylated regions](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#differentially-methylated-regions) - Find markers to differentiate between different groups of cell types
 9. [Bimodal and ASM analysis](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#bimodal-and-asm-analysis) - Analyze bimodality and identify allele-specific methylation.
-10. **TODO** - beta_cov
-11. **TODO** - add_cpg_counts - ask Yoni
+
 
 
 ## Installation and configuration
@@ -276,7 +275,7 @@ $ wgbstools vis -r chr3:119527929-119531943 -b blocks.small.bed.gz *beta --heatm
 <!--![alt text](images/wt_vis_beta_2.png "beta vis example")-->
 <img src="images/wt_vis_beta_2.png" width="1050" height="110" />
 
-- **TODO** - add reference to atlas segmentation
+The whole-genome segmentation published in Loyfer et al. can be found in [GSE186458](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE186458) (GSE186458_blocks.s205.bed.gz).
 
 ### Average methylation over blocks
 ⚠️ Requires segmentation in the form of a wgbstools `.bed` file. See [`.bed`.](https://github.com/nloyfer/wgbs_tools/blob/master/docs/bed_format.md) or use output from [`wgbstools segment`](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#segmentation)⚠️  
@@ -438,7 +437,6 @@ pvalue: 0.000e+00
 ```
 
 We can see that the log-likelihood of the two-distribution/two-allele model is much higher than the single-allele model and the p-value is ~0.
-**TODO** - explain the printed results.
 
 #### ASM analysis
 
