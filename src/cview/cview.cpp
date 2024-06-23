@@ -175,7 +175,7 @@ void Cview::parse() {
             if (proc_line(line2tokens(line))) { break; }
             line_i++;
         }
-        if (verbose) fprintf(stderr, "finished %s reads\n", addCommas(line_i));
+        if (verbose) fprintf(stderr, "finished %s reads\n", addCommas(line_i).c_str());
     }
     catch (std::exception &e) {
         std::cerr << "failed in cview" << std::endl;
