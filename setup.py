@@ -40,7 +40,6 @@ def compile_single(cmd, name, verbose):
 
 modules = {
         'stdin2beta'    : 'g++ -std=c++11 src/pat2beta/stdin2beta.cpp -o src/pat2beta/stdin2beta',
-        # 'mask_pat'      : 'g++ -std=c++11 src/pat2beta/mask_pat.cpp -o src/pat2beta/mask_pat',
         'mask_pat'      : 'g++ -std=c++11 -c -o src/pat2beta/mask_pat.o src/pat2beta/mask_pat.cpp && '\
                           'g++ -std=c++11 -c -o src/pipeline_wgbs/patter_utils.o src/pipeline_wgbs/patter_utils.cpp && '\
                           'g++ -std=c++11 -o src/pat2beta/mask_pat src/pat2beta/mask_pat.o src/pipeline_wgbs/patter_utils.o',
