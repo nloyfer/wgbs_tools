@@ -95,8 +95,10 @@ int proc_line(std::vector<std::string> tokens, std::set<int> &sites_to_hide) {
     }
     tokens[2] = pattern;
     // strip pat and ignore this read if it's all dots
-    if (strip_pat(tokens[2]) < 0) { return 0; }
+    int pos = strip_pat(tokens[2]);
+    if (pos < 0) { return 0; }
 
+    tokens[1] = std::to_string(pos + std::stoi(tokens[1]));
     output_vec(tokens);
     return 0;
 }
