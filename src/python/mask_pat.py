@@ -27,7 +27,10 @@ def mask_pat(pat_path, sites_to_hide, prefix, args):
             cmd += f' -r {gr.region_str}'
     cmd += f' | {mask_pat_tool} {args.sites_to_hide} '
     cmd += f' | {collapse_pat_script} -'
-    cmd += f' | sort -k2,2n -k3,3'
+    tmp_dir = op.dirname(pat_out)
+    if not tmp_dir.strip():
+        tmp_dir = '.'
+    cmd += f' | sort -k2,2n -k3,3 -T {tmp_dir} -S 4G'
     cmd += f' | bgzip -@ 4 > {pat_out}'
     cmd += f' && {main_script} index {pat_out}'
     subprocess.check_call(cmd, shell=True)
