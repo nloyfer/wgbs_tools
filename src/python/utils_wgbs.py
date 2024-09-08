@@ -186,6 +186,7 @@ def drop_dup_keep_order(lst):
 def validate_dir(directory):
     if not op.isdir(directory):
         raise IllegalArgumentError(f'Invalid directory:\n{directory}')
+    return directory
 
 
 def color_text(txt, cdict, scheme=16):
