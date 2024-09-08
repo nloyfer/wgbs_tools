@@ -39,7 +39,7 @@ def trim_uxm_to_uint8(data, nr_bits):
 
 def ctool_wrap(pat, name, blocks_path, rates_cmd, view_full, verbose=False):
     if view_full:
-        cmd = f'zcat {pat}'
+        cmd = f'gunzip -c {pat}'
     else:
         cmd = f'{main_script} cview {pat} -L {blocks_path}'
     cmd += f' | {homog_tool} -b {blocks_path} -n {name} {rates_cmd}'
