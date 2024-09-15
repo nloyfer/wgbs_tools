@@ -88,7 +88,7 @@ def em_pat_matrix(pat_matrix, should_print=True):
         l_p_t = np.log2(p_t)
         p_alleles = np.array([0.5, 0.5])
         l_p_alleles = np.log2(p_alleles)
-        ll = np.infty * -1
+        ll = np.inf * -1
 
         ll_alleles = np.zeros([2, num_reads])
         ll_delta = 100
