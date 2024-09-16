@@ -42,13 +42,7 @@ def subprocess_wrap(cmd, debug):
     if debug:
         eprint(cmd)
         return
-    os.system(cmd)
-    # p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    # output, error = p.communicate()
-    # if p.returncode or not output:
-        # eprint(cmd)
-        # eprint("Failed with subprocess %d\n%s\n%s" % (p.returncode, output.decode(), error.decode()))
-        # raise IllegalArgumentError('Failed')
+    subprocess.check_call(cmd, shell=True, executable='/bin/bash')
 
 
 def set_regions(bam_path, gr, tmp_dir=None):

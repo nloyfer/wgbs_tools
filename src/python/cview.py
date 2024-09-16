@@ -11,7 +11,7 @@ from beta_to_blocks import load_blocks_file
 
 def subprocess_wrap_sigpipe(cmd):
     try:
-        subprocess.check_call(cmd, shell=True)
+        subprocess.check_call(cmd, shell=True, executable='/bin/bash')
     except subprocess.CalledProcessError as e:
         if e.returncode != 141:   # e.g. if the output is piped to head
             raise e
