@@ -65,7 +65,7 @@ def proc_chr(input_path, out_path_name, region, genome, paired_end, ex_flags, ma
     if add_pat:
         cmd += ' --pat'
     cmd += f' --min_cpg {min_cpg}'
-    cmd += f' | cat <(samtools view -H {input_path}) - | samtools view -hb - > {unsorted_bam}'
+    cmd += f' | cat <( samtools view -H {input_path} ) - | samtools view -hb - > {unsorted_bam}'
 
     sort_cmd = f'samtools sort -o {out_path} -T {out_directory} {unsorted_bam}'  # TODO: use temp directory, as in bam2pat
 
@@ -74,8 +74,6 @@ def proc_chr(input_path, out_path_name, region, genome, paired_end, ex_flags, ma
     safe_remove(unsorted_bam)
     return out_path
 
-def get_header_command(input_path):
-    return f'samtools view -H {input_path}'
 
 class BamMethylData:
     def __init__(self, args, bam_path):
@@ -115,12 +113,6 @@ class BamMethylData:
         # validate output dir:
         if not (op.isdir(self.out_dir)):
             raise IllegalArgumentError(f'Invalid output dir: {self.out_dir}')
-
-    def intermediate_bam_file_view(self, name):
-        return f'<(samtools view {name})'
-
-    def process_substitute(self, cmd):
-        return f'<({cmd})'
 
     def start_threads(self):
         """ Parse each chromosome file in a different process,
