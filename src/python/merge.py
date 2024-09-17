@@ -28,7 +28,7 @@ def validate_labels(labels, pats, required=False):
 
 
 def extract_view_flags(args):
-    v = ''
+    v = f' --genome {args.genome}'
     if args.strict:
         v += ' --strict'
     if args.strip:
