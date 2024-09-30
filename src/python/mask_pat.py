@@ -18,6 +18,10 @@ def mask_pat(pat_path, sites_to_hide, prefix, args):
     if not delete_or_skip(pat_out, args.force):
         return
 
+    tmp_dir = op.dirname(pat_out)
+    if not tmp_dir.strip():
+        tmp_dir = '.'
+
     cmd = f'{main_script} cview {pat_path} '
     if args.bed_file:
         cmd += f' -L {args.bed_file}'
@@ -26,13 +30,11 @@ def mask_pat(pat_path, sites_to_hide, prefix, args):
         if not gr.is_whole():
             cmd += f' -r {gr.region_str}'
     cmd += f' | {mask_pat_tool} {args.sites_to_hide} '
-    cmd += f' | {collapse_pat_script} -'
-    tmp_dir = op.dirname(pat_out)
-    if not tmp_dir.strip():
-        tmp_dir = '.'
     cmd += f' | sort -k2,2n -k3,3 -T {tmp_dir} -S 4G'
+    cmd += f' | {collapse_pat_script} -'
     cmd += f' | bgzip -@ 4 > {pat_out}'
     cmd += f' && {main_script} index {pat_out}'
+    # eprint(cmd)
     subprocess.check_call(cmd, shell=True)
     if args.beta or args.lbeta:
         eprint(f'generate {"l" if args.lbeta else ""}beta file')
