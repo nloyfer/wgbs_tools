@@ -103,7 +103,8 @@ class MergePats:
             raise IllegalArgumentError(f'[wt merge] Error: failed to create file {self.outpath}')
 
     def merge_by_chrom(self, view_flags):
-        # merge pat files chrom by chrom when we merge whole-genome (much faster because it saves the sorting process lots of time)
+        # merge pat files chrom by chrom when we merge whole-genome 
+        # (much faster because it saves the sorting process lots of time)
         sorted_chroms = GenomeRefPaths(self.args.genome).get_chroms()
 
         # dump merged pat chromosome by chromosome,
