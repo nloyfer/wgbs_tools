@@ -90,7 +90,8 @@ def betas2csv(args):
     # set reference sites, as the intersection of the user input (--ref)
     # and the "full" reference, supplied by wgbstools (ilmn2cpg_dict)
     df = read_reference(args)
-    indices = np.array(df['cpg'])
+    df = df.dropna(how='any')
+    indices = np.array(df['cpg']).astype(int)
 
     p = Pool(args.threads)
     params = [(b, indices, args.cov_thresh) for b in args.input_files]
