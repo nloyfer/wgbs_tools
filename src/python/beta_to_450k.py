@@ -134,7 +134,7 @@ def main():
     Output: a csv file with up to ~480K (or 850K) rows, for the Illumina array sites,
             and with columns corresponding to the beta files.
             all values are in range [0, 1], or NA.
-            Only works for hg19 and hg38
+            Only works for hg19 and hg38.
     """
     args = parse_args()
     if args.EPIC and args.ref:
