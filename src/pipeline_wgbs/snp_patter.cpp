@@ -246,25 +246,25 @@ void snp_patter::proc_sam_in_stream(std::istream& in){
             char snp_let = proc2lines(tokens1, tokens2);
             if (snp_let == snp_let1){
                 std::cout << read1 << "\n" << read2 << "\n";
+                readsStats.nr_pairs++;
             }
-            readsStats.nr_pairs++;
             tokens1.clear();
         } else {
             char snp_let = proc1line(tokens1);
-            tokens1 = tokens2;
-            read1 = read2;
             if (snp_let == snp_let1){
                 std::cout << read1 << "\n";
             }
+            tokens1 = tokens2;
+            read1 = read2;
         }
     }
     if (! tokens1.empty()) {
         char snp_let = proc1line(tokens1);
-        tokens1 = tokens2;
-        read1 = read2;
         if (snp_let == snp_let1){
             std::cout << read1 << "\n";
         }
+        tokens1 = tokens2;
+        read1 = read2;
     }
 
     print_stats_msg();
