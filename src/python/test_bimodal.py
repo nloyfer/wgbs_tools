@@ -206,8 +206,8 @@ def test_multiple_regions(tabixed_bed_file, pat_file, num_threads, out_file, is_
     peek_df = pd.read_csv(tabixed_bed_file, sep='\t', nrows=1, header=None, comment='#')
     names = COORDS_COLS5
     if len(peek_df.columns) < len(names):
-        msg = f'Invalid blocks file: {blocks_path}. less than {len(names)} columns.\n'
-        msg += f'Run wgbstools convert -L {blocks_path} -o OUTPUT_REGION_FILE to add the CpG columns'
+        msg = f'Invalid blocks file: {tabixed_bed_file}. less than {len(names)} columns.\n'
+        msg += f'Run wgbstools convert -L {tabixed_bed_file} -o OUTPUT_REGION_FILE to add the CpG columns'
         raise IllegalArgumentError(msg)
 
     chroms = GenomeRefPaths().get_chroms()
