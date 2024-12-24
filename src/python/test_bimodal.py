@@ -192,16 +192,19 @@ def read_blocks_and_test(tabixed_bed_file, cur_region, pat_file, is_strict, min_
     return p_val_list
 
 
-def choose_blocks_by_fdr_bh(pvals, blocks, alpha=0.05):
+def choose_blocks_by_fdr_bh(pvals, blocks, alpha=0.05, return_all=False):
     rejected_list, corrected_p_vals, _, _ = multipletests(pvals, alpha=alpha, method='fdr_bh')
     if not rejected_list[0]:
         return [], []
     # keep only the first "index" values (the significant ones)
-    index = np.argmax(1 - rejected_list)
-    return blocks[:index], corrected_p_vals[:index]
+    if not return_all:
+        index = np.argmax(1 - rejected_list)
+        return blocks[:index], corrected_p_vals[:index]
+    else:
+        return blocks, corrected_p_vals
 
 
-def test_multiple_regions(tabixed_bed_file, pat_file, num_threads, out_file, is_strict, min_len, verbose):
+def test_multiple_regions(tabixed_bed_file, pat_file, num_threads, out_file, is_strict, min_len, verbose, print_all):
 
     peek_df = pd.read_csv(tabixed_bed_file, sep='\t', nrows=1, header=None, comment='#')
     names = COORDS_COLS5
@@ -225,7 +228,7 @@ def test_multiple_regions(tabixed_bed_file, pat_file, num_threads, out_file, is_
         return
     region_p_val_list = sorted(region_p_val_list, key=lambda elem: elem[1])
     [block_lines, p_vals] = zip(*region_p_val_list)
-    accepted_blocks, corrected_p_vals = choose_blocks_by_fdr_bh(p_vals, block_lines)
+    accepted_blocks, corrected_p_vals = choose_blocks_by_fdr_bh(p_vals, block_lines, print_all)
     with open(out_file, "w") if out_file != "-" else sys.stdout as f_out:
         for accepted_block, corrected_p_val in zip(accepted_blocks, corrected_p_vals):
             f_out.write(f"{accepted_block}\t{corrected_p_val:,.1e}\n")
@@ -242,6 +245,7 @@ def add_args():
                         help='Only use reads covering at least MIN_LEN CpG sites [1]')
     parser.add_argument('--out_file', '-o', default="-", help="Output file name in which to write results")
     parser.add_argument('--verbose', '-v', action='store_true')
+    parser.add_argument('--print_all_regions', action='store_true', help="Print all regions and not only the significant ones.")
     return parser
 
 
@@ -259,7 +263,7 @@ def main():
 
     if args.bed_file is not None:
         test_multiple_regions(args.bed_file, args.pat, args.threads, args.out_file, args.strict, args.min_len,
-                              args.verbose)
+                              args.verbose, args.print_all_regions)
     else:
         gr = GenomicRegion(args)
         test_single_region(args.pat, gr.chrom, gr.sites, args.strict, args.min_len)
