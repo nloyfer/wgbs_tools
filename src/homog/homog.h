@@ -26,6 +26,7 @@ class Homog {
 
 
     bool debug;
+    bool inclusive;
     std::string blocks_path;
     std::string name;
     std::string sname;
@@ -48,7 +49,7 @@ class Homog {
 
     int proc_line(std::vector <std::string> tokens);
 
-    void update_block(int ind, std::string pat, int count);
+    void update_block(int ind, std::string pat, std::string orig_pattern, int count);
 
     int32_t* init_array(int len);
 
@@ -57,7 +58,7 @@ class Homog {
 public:
     Homog(std::string blocks_path, std::vector<float> range,
             int m_order, bool deb, std::string name,
-            std::string chrom);
+            std::string chrom, bool inclusive);
 
     ~Homog();
 

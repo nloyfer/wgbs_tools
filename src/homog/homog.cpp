@@ -8,12 +8,14 @@ int32_t *Homog::init_array(int len) {
 }
 
 Homog::Homog(std::string in_blocks_path, std::vector<float> in_range,
-             int in_min_cpgs, bool deb, std::string in_name, std::string in_chrom) {
+             int in_min_cpgs, bool deb, std::string in_name, 
+             std::string in_chrom, bool incl) {
     min_cpgs = in_min_cpgs;
     blocks_path = in_blocks_path;
     range = in_range;
     chrom = in_chrom;
     debug = deb;
+    inclusive = incl;
     name = in_name;
     sname = "[ homog " + name + " ] ";
 
@@ -173,12 +175,13 @@ void Homog::update_m2(int block_ind, std::string pat, int count) {
     counts[block_ind * nr_bins + bin_ind] += count;
 }
 
-void Homog::update_block(int block_ind, std::string pat, int32_t count) {
+void Homog::update_block(int block_ind, std::string pat, std::string orig_pat, int32_t count) {
+
+    std::string work_pat = inclusive ? orig_pat : pat;
 
     // skip reads with less then min_cpgs sites
-    if (pat.length() >= min_cpgs) {
-        update_m2(block_ind, pat, count);
-    }
+    if (work_pat.length() < min_cpgs) { return; }
+    update_m2(block_ind, work_pat, count);
 }
 
 int Homog::proc_line(std::vector <std::string> tokens) {
@@ -218,6 +221,7 @@ int Homog::proc_line(std::vector <std::string> tokens) {
     // read starts before current block, but continues to the block (and possibly beyond) - clip beginning of read
     //      CTCTCT
     //         |-----|
+    std::string orig_pat = pattern;
     if (read_start < borders_starts[cur_block_ind]) {
         pattern = pattern.substr(borders_starts[cur_block_ind] - read_start);
         read_start = borders_starts[cur_block_ind];
@@ -230,7 +234,7 @@ int Homog::proc_line(std::vector <std::string> tokens) {
     while ((!pattern.empty()) && (tmp_block_ind < nr_blocks)) {
         if ((read_start >= borders_starts[tmp_block_ind]) && (read_start < borders_ends[tmp_block_ind])) {
             int head_size = std::min(borders_ends[tmp_block_ind] - read_start, (int) pattern.length());
-            update_block(tmp_block_ind, pattern.substr(0, head_size), (int32_t) count);
+            update_block(tmp_block_ind, pattern.substr(0, head_size), orig_pat, (int32_t) count);
             pattern = pattern.substr(head_size);
             read_start += head_size;
             tmp_block_ind++;
@@ -331,10 +335,11 @@ int main(int argc, char *argv[]) {
     int min_cpgs = std::stoi(input.getOptionWithDefault("-l", DEFAULT_LEN));
     std::string chrom = input.getCmdOption("--chrom");
     bool debug = input.cmdOptionExists("-d");
+    bool inclusive = input.cmdOptionExists("--inclusive");
 
     try {
         std::vector<float> range = parse_range(range_str);
-        Homog(blocks_path, range, min_cpgs, debug, name, chrom).parse();
+        Homog(blocks_path, range, min_cpgs, debug, name, chrom, inclusive).parse();
     }
     catch (std::exception &e) {
         std::cerr << e.what() << std::endl;
