@@ -9,7 +9,7 @@ import shutil
 import re
 from multiprocessing import Pool
 
-from bam2pat import Bam2Pat, add_args, parse_bam2pat_args, extend_region
+from bam2pat import Bam2Pat, add_args, parse_bam2pat_args, extend_region, validate_bam
 from utils_wgbs import IllegalArgumentError, match_maker_tool, eprint, \
     add_multi_thread_args, mult_safe_remove, GenomeRefPaths, validate_single_file, \
     delete_or_skip, allele_split_tool, add_no_beta_arg, validate_local_exe, add_no_pat_arg
@@ -93,29 +93,6 @@ def proc_chr(bam, out_path, name, snp_pos, snp_let1, snp_let2, ex_flags, mapq, d
             bam2patargs_list += ["--no_beta"]
         args = parser.parse_args(bam2patargs_list)
         Bam2Pat(args, bam_file_out)
-
-
-def validate_bam(bam):
-
-    # validate bam path:
-    eprint('[wt bam2pat] bam:', bam)
-    if not (op.isfile(bam) and bam.endswith('.bam')):
-        eprint(f'[wt bam2pat] Invalid bam: {bam}')
-        return False
-
-    # check if bam is sorted by coordinate:
-    peek_cmd = f'samtools view -H {bam} | head -1'
-    if 'coordinate' not in subprocess.check_output(peek_cmd, shell=True).decode():
-        eprint('bam file must be sorted by coordinate')
-        return False
-
-    # check if bam is indexed:
-    if not (op.isfile(bam + '.bai')):
-        eprint('[wt bam2pat] bai file was not found! Generating...')
-        if subprocess.call(['samtools', 'index', bam]):
-            eprint(f'[wt bam2pat] Failed indexing bam: {bam}')
-            return False
-    return True
 
 
 def is_pair_end(bam):

@@ -40,7 +40,12 @@ def load_full_ref(args, genome):
     if (not args.EPIC) and (not args.ref):
         df = df[df['array'] == 450].reset_index(drop=True)
 
-    return df[['ilmn', 'cpg']]
+    df = df[['ilmn', 'cpg']]
+    # If hg38, filter unmapped CpGs
+    if genome.genome == 'hg38':
+        df = df.dropna(how='any')
+        df['cpg'] = df['cpg'].astype(int)
+    return df
 
 
 def read_reference(args):
@@ -129,7 +134,7 @@ def main():
     Output: a csv file with up to ~480K (or 850K) rows, for the Illumina array sites,
             and with columns corresponding to the beta files.
             all values are in range [0, 1], or NA.
-            Only works for hg19.
+            Only works for hg19 and hg38.
     """
     args = parse_args()
     if args.EPIC and args.ref:
