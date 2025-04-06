@@ -83,7 +83,7 @@ def view_bed(pat, args):
 
     # validate blocks file. If it's long, and starts with "chr1", use gunzip instead of tabix.
     df = load_blocks_file(bpath, nrows=1e6)
-    if df.shape[0] == 1e6 and df.iloc[0, 0] in ('1', 'chr1'):
+    if df.shape[0] >= 1e6 and df.iloc[0, 0] in ('1', 'chr1'):
         tabix_cmd = f'gunzip -c {pat} '
     else:
         # extended blocks:
