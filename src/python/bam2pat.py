@@ -140,7 +140,7 @@ def is_region_empty(view_cmd, region, verbose):
     return False
 
 
-def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, mapq, debug,
+def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, rg, mapq, debug,
              blueprint, clip, temp_dir, blacklist, whitelist, min_cpg, mbias, nanopore,
              np_thresh, verbose, long):
     """ Convert a temp single chromosome file, extracted from a bam file, into pat """
@@ -156,6 +156,8 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, mapq
         in_flags = f'-f {in_flags}'
 
     view_cmd = f'samtools view {bam} {region} -q {mapq} -F {ex_flags} {in_flags} -T {genome.genome_path}'
+    if rg:
+        view_cmd += f' -r {rg} '
     if whitelist:
         view_cmd += f' -M -L {whitelist} '
     elif blacklist:
@@ -279,7 +281,7 @@ class Bam2Pat:
                 out_path = f'{tmp_prefix}.{c}.out'
                 par = (self.bam_path, out_path, c, self.gr.genome,
                        self.PE, self.args.exclude_flags,
-                       self.args.include_flags,
+                       self.args.include_flags, self.args.read_group,
                        self.args.mapq, self.args.debug, self.args.blueprint, self.args.clip,
                        self.args.temp_dir, blist, wlist, self.args.min_cpg,
                        self.args.mbias, self.args.nanopore, self.args.np_thresh,
@@ -356,6 +358,8 @@ class Bam2Pat:
 
         # Concatenate chromosome files
         pat_path = op.join(self.out_dir, name) + PAT_SUFF
+        if self.args.read_group:
+            pat_path = pat_path[:-len(PAT_SUFF)] + f'.{self.args.read_group}' + PAT_SUFF
         os.system('cat ' + ' '.join(pat_parts) + ' > ' + pat_path)
 
         if not op.isfile(pat_path):
@@ -402,6 +406,8 @@ def add_samtools_view_flags(parser):
     parser.add_argument('-q', '--mapq', type=int,
                         help=f'Minimal mapping quality (samtools view parameter) [{MAPQ}]',
                         default=MAPQ)
+    parser.add_argument('-rg', '--read_group',
+                        help=f'filter reads by read group (RG filed. passed to samtools as -r)')
 
 
 def add_args(parser):
