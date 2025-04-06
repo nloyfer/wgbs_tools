@@ -127,7 +127,7 @@ def merge_betas(betas, opath, lbeta=False):
     :param opath: merged beta file
     """
     validate_file_list(betas)
-    data = load_beta_data(betas[0]).astype(np.int)
+    data = load_beta_data(betas[0]).astype(int)
     for b in betas[1:]:
         data += load_beta_data(b)
 
