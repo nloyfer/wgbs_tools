@@ -28,11 +28,12 @@ def get_validate_targets(subset, groups):
     # validate group in subset appears in the in groups file
 
     # if subset is None, return the whole set
-    if not subset:
+    if not subset or subset[0] in ('NA', 'None'):
         return groups
 
     # validate all instances in "subset" do belong to "groups"
-    for group in subset:
+    flat_subset = [item for sublist in subset for item in sublist.split('+')]
+    for group in flat_subset:
         if group not in groups:
             # Invalid group. suggest the closest alternative and abort.
             eprint(f'Invalid group: {group}')
@@ -177,7 +178,7 @@ class MarkerFinder:
 
     def find_group_markers(self):
         if self.df.empty:
-            return self.df
+            return pd.DataFrame()
 
         # load context
         self.tg_names, self.bg_names = self.inds_dict[self.group]
@@ -258,7 +259,7 @@ class MarkerFinder:
         tfX = tfX.loc[keep_umt & keep_mmt & keep_delta_mean, :].reset_index(drop=True)
 
         if tfX.empty:
-            return tfX
+            return pd.DataFrame()
 
         # Compute quantiles for target and background
         tfX['tg_quant'] = np.nanquantile(tfX[self.tg_names], 1 - self.args.tg_quant, axis=1)
@@ -271,9 +272,6 @@ class MarkerFinder:
         keep_delta_quants = (tfX['delta_quants'] >= self.args.delta_quants)
         tfX = tfX.loc[keep_uqt & keep_mqt & keep_delta_quants, :].reset_index(drop=True)
 
-        if tfX.empty:
-            return tfX
-
         return tfX
 
     def find_U_markers(self, tf):
@@ -283,7 +281,7 @@ class MarkerFinder:
 
         tfU = self.find_X_markers(tf)
         if tfU.empty:
-            return tfU
+            return pd.DataFrame()
 
         tfU['direction'] = 'U'
         return tfU
@@ -298,7 +296,7 @@ class MarkerFinder:
         self.switch_context(tfM)
 
         if tfM.empty:
-            return tfM
+            return pd.DataFrame()
 
         tfM['direction'] = 'M'
         return tfM
@@ -311,6 +309,8 @@ class MarkerFinder:
 
     def dump_results(self, tf):
         eprint(f'Number of markers found: {tf.shape[0]:,}')
+        if tf.empty:
+            return
         if self.args.sort_by:
             tf.sort_values(by=self.args.sort_by, ascending=False, inplace=True)
         if self.args.top:
