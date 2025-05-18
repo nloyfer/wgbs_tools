@@ -199,6 +199,8 @@ class MarkerFinder:
         return tf
 
     def ttest(self, tf):
+        if tf.empty:
+            return pd.DataFrame()
         try:
             tf['ttest'] = np.nan
             # if n=1 for both bg and tg samples, break
@@ -218,7 +220,7 @@ class MarkerFinder:
         except ModuleNotFoundError:
             eprint('[wt fm] WARNING: scipy is not installed. T-test is not performed.')
         except Exception:
-            eprint('[wt fm] WARNING: Eception occured while computing T-test. T-test is not performed.')
+            eprint('[wt fm] WARNING: Exception occured while computing T-test. T-test is not performed.')
         return tf
 
     def switch_context(self, tfM=None):
