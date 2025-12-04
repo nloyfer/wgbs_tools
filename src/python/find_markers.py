@@ -196,6 +196,8 @@ class MarkerFinder:
 
         # T-test
         tf = self.ttest(tf)
+        tf = self.mw_test(tf)
+        tf = self.m_value_ttest(tf)
         return tf
 
     def ttest(self, tf):
@@ -216,11 +218,101 @@ class MarkerFinder:
             else:
                 r = ttest_ind(tf[self.tg_names], tf[self.bg_names], axis=1, nan_policy='omit')
             tf['ttest'] = r.pvalue
-            tf = tf[tf['ttest'] <= self.args.pval].reset_index(drop=True)
+            if self.args.test_type == "t":
+                tf = tf[tf['ttest'] <= self.args.pval].reset_index(drop=True)
         except ModuleNotFoundError:
             eprint('[wt fm] WARNING: scipy is not installed. T-test is not performed.')
         except Exception:
             eprint('[wt fm] WARNING: Exception occured while computing T-test. T-test is not performed.')
+        return tf
+
+    def mw_test(self, tf):
+        """
+        Runs the Mann-Whitney U test on every row in the dataframe.
+        This is the non-parametric equivalent to the independent t-test.
+        """
+        if tf.empty:
+            return pd.DataFrame()
+
+        try:
+            tf['mw_test'] = np.nan
+
+            # if n=1 for both bg and tg samples, usually insufficient for a rank test
+            if len(self.tg_names) == len(self.bg_names) == 1:
+                return tf
+
+            from scipy.stats import mannwhitneyu
+
+            r = mannwhitneyu(
+                tf[self.tg_names],
+                tf[self.bg_names],
+                axis=1,
+                nan_policy='omit',
+                alternative='two-sided'
+            )
+
+            tf['mw_test'] = r.pvalue
+
+            # Filter based on p-value
+            if self.args.test_type == "mw":
+                tf = tf[tf['mw_test'] <= self.args.pval].reset_index(drop=True)
+
+        except ModuleNotFoundError:
+            self.eprint('[wt fm] WARNING: scipy is not installed. MW-test is not performed.')
+        except Exception as e:
+            self.eprint(f'[wt fm] WARNING: Exception occured while computing MW-test: {e}')
+
+        return tf
+
+    def m_value_ttest(self, tf):
+        """
+        Converts Beta values to M-values and runs Welch's T-test.
+        M = log2(Beta / (1 - Beta))
+        """
+        if tf.empty:
+            return pd.DataFrame()
+
+        try:
+            tf['mvalue_ttest'] = np.nan
+
+            if len(self.tg_names) == len(self.bg_names) == 1:
+                # Impossible to run t-test with N=1 vs N=1
+                return tf
+
+            from scipy.stats import ttest_ind, ttest_1samp
+
+            # Epsilon 0.0001 used to clamp values between [0.0001, 0.9999]
+            tg_data = tf[self.tg_names].clip(0.0001, 0.9999)
+            bg_data = tf[self.bg_names].clip(0.0001, 0.9999)
+
+            # Formula: M = log2(Beta / (1 - Beta))
+            tg_m = np.log2(tg_data / (1 - tg_data))
+            bg_m = np.log2(bg_data / (1 - bg_data))
+
+            if len(self.tg_names) == 1:
+                r = ttest_1samp(bg_m, tg_m.values, axis=1, nan_policy='omit')
+            elif len(self.bg_names) == 1:
+                r = ttest_1samp(tg_m, bg_m.values, axis=1, nan_policy='omit')
+            else:
+                r = ttest_ind(
+                    tg_m,
+                    bg_m,
+                    axis=1,
+                    equal_var=False,
+                    nan_policy='omit'
+                )
+
+            tf['mvalue_ttest'] = r.pvalue
+
+            # Filter based on p-value
+            if self.args.test_type == "m_t":
+                tf = tf[tf['mvalue_ttest'] <= self.args.pval].reset_index(drop=True)
+
+        except ModuleNotFoundError:
+            self.eprint('[wt fm] WARNING: scipy is not installed. T-test is not performed.')
+        except Exception as e:
+            self.eprint(f'[wt fm] WARNING: Exception occured while computing T-test: {e}')
+
         return tf
 
     def switch_context(self, tfM=None):
@@ -324,7 +416,7 @@ class MarkerFinder:
         cols_to_dump = ['chr', 'start', 'end', 'startCpG', 'endCpG',
                         'target', 'region', 'lenCpG', 'bp', 'tg_mean',
                         'bg_mean', 'delta_means', 'delta_quants', 'delta_maxmin',
-                        'ttest', 'direction']
+                        'ttest', 'mw_test', 'mvalue_ttest', 'direction']
         if 'anno' in list(tf.columns) and 'gene' in list(tf.columns):
             cols_to_dump += ['anno', 'gene']
         if not tf.empty:
