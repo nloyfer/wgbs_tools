@@ -199,7 +199,7 @@ def parse_args():
     parser.add_argument('--pval', type=float,
             help='p-value threshold. DMRs with larger p-value are dropped')
     parser.add_argument('--test_type',
-                        help='The statistical test used for p-value calculation filtering. Options are {t, mw}. Use "t"'
+                        help='The statistical test used for p-value calculation filtering. Options are {t, mw, m_t}. Use "t"'
                              ' for a two-sample t-test, "mw" for a Mann–Whitney U test, or "m_t" for a t-test using'
                              ' M-values. [t]')
     parser.add_argument('--sort_by',
