@@ -117,6 +117,11 @@ class MFParams:
                 eprint(f'sort_by argument must be in: {", ".join(sort_by_ops)}')
                 raise IllegalArgumentError()
 
+        test_ops = ('t', 'mw', 'm_t')
+        if self.test_type not in test_ops:
+            eprint(f'test_type argument must be in: {", ".join(test_ops)}')
+            raise IllegalArgumentError()
+
         # validate input files
         for key in ('blocks_path', 'groups_file'):
             val = getattr(self, key)
@@ -192,7 +197,11 @@ def parse_args():
             help='rate of samples with insufficient coverage allowed in background samples')
 
     parser.add_argument('--pval', type=float,
-            help='two-sample t-test p-value threshold. DMRs with larger p-value are dropped')
+            help='p-value threshold. DMRs with larger p-value are dropped')
+    parser.add_argument('--test_type',
+                        help='The statistical test used for p-value calculation filtering. Options are {t, mw, m_t}. Use "t"'
+                             ' for a two-sample t-test, "mw" for a Mann–Whitney U test, or "m_t" for a t-test using'
+                             ' M-values. [t]')
     parser.add_argument('--sort_by',
             help='sort output markers by this column.')
     parser.add_argument('--chunk_size', type=int, help='Number of blocks to load on each step')
