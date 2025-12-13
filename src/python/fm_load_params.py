@@ -166,11 +166,11 @@ def parse_args():
     parser.add_argument('--min_cpg', type=int)
     parser.add_argument('--max_cpg', type=int)
     parser.add_argument('--delta_means', type=float,
-            help='Filter markers by beta values delta_means. range: [0.0, 1.0]')
+            help='Filter markers by beta values delta_means. range: [0.0, 1.0]. Default [0.3].')
     parser.add_argument('--delta_quants', type=float,
-            help='Filter markers by beta values delta_quants. range: [0.0, 1.0]')
+            help='Filter markers by beta values delta_quants. range: [0.0, 1.0]. Default [0.0]')
     parser.add_argument('-c', '--min_cov', type=int,
-            help='Minimal number of binary observations in block coverage to be considered')
+            help='Minimal number of binary observations in block coverage to be considered. [5]')
     parser.add_argument('--only_hyper', action='store_true',
             help='Only consider hyper-methylated markers')
     parser.add_argument('--only_hypo', action='store_true',
@@ -178,8 +178,8 @@ def parse_args():
     parser.add_argument('--top', type=int,
                         help='Output only the top TOP markers, under the constraints. [All]')
     parser.add_argument('--header', action='store_true', help='add header to output files')
-    parser.add_argument('--tg_quant', type=float, help='quantile of target samples to ignore')
-    parser.add_argument('--bg_quant', type=float, help='quantile of background samples to ignore')
+    parser.add_argument('--tg_quant', type=float, help='quantile of target samples to ignore. [0.25]')
+    parser.add_argument('--bg_quant', type=float, help='quantile of background samples to ignore. [0.025]')
 
     parser.add_argument('--unmeth_mean_thresh', type=float,
             help='average beta value for the unmethylated group')
@@ -192,12 +192,12 @@ def parse_args():
             help='quantlie beta value for the methylated group')
 
     parser.add_argument('--na_rate_tg', type=float,
-            help='rate of samples with insufficient coverage allowed in target samples')
+            help='rate of samples with insufficient coverage allowed in target samples. [.334]')
     parser.add_argument('--na_rate_bg', type=float,
-            help='rate of samples with insufficient coverage allowed in background samples')
+            help='rate of samples with insufficient coverage allowed in background samples. [.334]')
 
     parser.add_argument('--pval', type=float,
-            help='p-value threshold. DMRs with larger p-value are dropped')
+            help='p-value threshold. DMRs with larger p-value are dropped. [0.05]')
     parser.add_argument('--test_type',
                         help='The statistical test used for p-value calculation filtering. Options are {t, mw, m_t}. Use "t"'
                              ' for a two-sample t-test, "mw" for a Mann–Whitney U test, or "m_t" for a t-test using'
