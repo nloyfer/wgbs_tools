@@ -83,7 +83,7 @@ def parse_args():
     parser.add_argument('pat_paths', help='pat[.gz] files', nargs='+')
     parser.add_argument('-f', '--force', action='store_true', help='Overwrite existing file if existed')
     parser.add_argument('-o', '--out_dir', help='Output directory for the beta file. [.]', default='.')
-    parser.add_argument('--genome', help='Genome reference name. Default is hg19.', default='hg19')
+    parser.add_argument('--genome', help='Genome reference name.', default='default')
     add_multi_thread_args(parser)
     return parser.parse_args()
 
