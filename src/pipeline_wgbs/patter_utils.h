@@ -52,6 +52,7 @@ std::vector <std::string> pack_pat(std::string chrom,
 std::vector <std::string> merge_PE(std::vector<std::string> l1, 
                                 std::vector<std::string> l2);
 
+bool is_pass_ds_test(std::vector <std::string> tokens);
 
 /***************************************************
  *                                                 *

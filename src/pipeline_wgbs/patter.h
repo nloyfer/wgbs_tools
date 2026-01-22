@@ -22,6 +22,7 @@
 #include <stdexcept>
 
 #include "patter_utils.h"
+//#include <htslib/sam.h>
 
 struct reads_stats {
     int nr_pairs = 0;
@@ -69,7 +70,12 @@ public:
     bool is_long = false;
     bool is_paired_end = false;
     bool is_nanopore = false;
-    bool np_dot = false; // Nanopore: Does MM field starts with "C+m." or "C+m?"?
+    // Nanopore fields
+    bool np_dot = false;      // Does MM field starts with "C+m." or "C+m?"?
+    std::vector<int> MM_vals;
+    std::vector<int> ML_vals;
+    std::vector<int> MM_vals_h;
+    std::vector<int> ML_vals_h;
     float np_thresh = 0.667;
     std::vector <std::string> dummy_tokens;
     void first_line(std::string &line);
@@ -85,33 +91,28 @@ public:
     std::vector<long> fasta_index();
 
     int compareSeqToRef(std::string &seq, int start_locus, int samflag, std::string &meth_pattern);
-    int np_call_meth(std::string &seq, int start_locus, int samflag, std::string &meth_pattern);
-    int np_call_meth(std::string &seq, std::vector<std::string> &np_fields, 
-                     int start_locus, int samflag, std::string &meth_pattern);
-    void parse_np_fields(std::vector<std::string> &np_fields, 
-                                 std::vector<int> &MM_vals, 
-                                 std::vector<int> &ML_vals);
-    std::string parse_ONT(std::vector <std::string> tokens);
     void print_stats_msg();
     void dump_mbias();
     void print_progress();
     int locus2CpGIndex(int locus);
     std::vector<std::string> samLineToPatVec(std::vector<std::string> tokens);
-    std::vector<std::string> np_samLineToPatVec(std::vector<std::string> tokens);
     void proc2lines(std::vector<std::string> &tokens1, std::vector<std::string> &tokens2);
     void proc1line(std::vector <std::string> &tokens1);
     void parse_reads_from_stdin();
 
     void initialize_patter(std::string &line_str);
+    std::string make_meth_mask(std::string &work_seq);
+    std::vector <std::string> np_samLineToPatVec(std::vector <std::string> tokens);
+    void parse_np_fields(std::vector<std::string> &tokens);
+    void parse_np_fields_by_mod(std::vector<std::string> &tokens, std::string mod_char);
 
 };
 
-std::vector<std::string> get_np_fields(std::vector <std::string> &tokens);
-std::vector <std::string> make_pat_vec(std::string chrom, int start_site, 
-                                       std::string meth_pattern);
-std::string parse_ONT(std::vector <std::string> tokens);
-void parse_np_fields(std::vector<std::string> &np_fields, 
-                    std::vector<int> &MM_vals, 
-                    std::vector<int> &ML_vals);
+
+// ont methods
+bool get_np_tags(std::vector <std::string> &tokens, std::string &MM_str, std::string &ML_str);
+void subset_to_Cm_section(std::string &MM_str, std::string &ML_str, bool &np_dot, std::string mod_char);
+std::string trim_from_first_comma(std::string &str);
+std::string int_vec_to_str(std::vector<int> &vec);
 
 #endif //FAST_PAT_PATTER_H

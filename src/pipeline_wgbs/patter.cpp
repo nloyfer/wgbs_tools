@@ -4,10 +4,6 @@
 
 #include "patter.h"
 
-
-// TODO: smarter threshold. 
-// See https://github.com/nanoporetech/modkit/blob/master/filtering.md
-
 /***************************************************************
  *                                                             *
  *               Load FASTA                                    *
@@ -97,6 +93,15 @@ int patter::locus2CpGIndex(int locus) {
 }
 
 
+bool is_cpg(std::string &seq, int j, ReadOrient ro) {
+    /** check if a given sequence is a CpG site */
+    if (ro.shift == 0) {
+        return (j < seq.size() - 1) && ((seq[j] == 'C') || (seq[j] == 'T')) && (seq[j + 1] == 'G');
+    } else {
+        return (j > 0) && ((seq[j] == 'G') || (seq[j] == 'A')) && (seq[j - 1] == 'C');
+    }
+}
+
 int patter::compareSeqToRef(std::string &seq,
                             int start_locus,
                             int samflag,
@@ -140,16 +145,22 @@ int patter::compareSeqToRef(std::string &seq,
             j = i + ro.shift;  // add a 1-pos shift for bottom strands
             char s = seq[j];
             cur_status = UNKNOWN;
-            if (s == ro.unmeth_seq_chr) {
-                cur_status = UNMETH;
-                if (!skip_mbias) {
-                    mb[mbias_ind].unmeth[mj]++;
-                }
-            } 
-            else if (s == ro.ref_chr) {
-                cur_status = METH;
-                if (!skip_mbias) {
-                    mb[mbias_ind].meth[mj]++;
+            // check if this is a CpG site. If not, skip it.
+            if (!is_cpg(seq, j, ro)) {
+                cur_status = UNKNOWN;
+            }
+            else {
+                if (s == ro.unmeth_seq_chr) {
+                    cur_status = UNMETH;
+                    if (!skip_mbias) {
+                        mb[mbias_ind].unmeth[mj]++;
+                    }
+                } 
+                else if (s == ro.ref_chr) {
+                    cur_status = METH;
+                    if (!skip_mbias) {
+                        mb[mbias_ind].meth[mj]++;
+                    }
                 }
             }
 
@@ -248,9 +259,15 @@ void patter::proc2lines(std::vector <std::string> &tokens1,
         // Merge 2 complementary lines to a single output. 
         std::vector <std::string> res = merge_PE(samLineToPatVec(tokens1), 
                                                  samLineToPatVec(tokens2));
+
         if (res.empty()) { return; } 
         if ((res[2]).length() < min_cpg) {
             readsStats.nr_short++;
+            return;
+        }
+        // filter out ds-CH filter
+        if (! (is_pass_ds_test(tokens1) && (is_pass_ds_test(tokens2)) {
+            readsStats.nr_invalid++;
             return;
         }
         // print to stdout

@@ -334,3 +334,59 @@ std::vector <std::string> merge_PE(std::vector<std::string> l1,
     return l1;
 }
 
+/***************************************************
+ *                                                 *
+ *            filter by methylated CpH             *
+ *                                                 *
+ **************************************************/
+
+bool is_pass_ds_test(std::vector <std::string> tokens) {
+    // check if the read is a double stranded read
+    // return true iff there are >= 3 non-methylated CpH's in a row
+
+    if (tokens.empty()) { return true; }
+    if (tokens.size() < 12) { return false; }
+
+    // look for the XM:Z: tag at the beginning of each token
+    std::string tag = "XM:Z:";
+    int xm_z_index = -1;
+    for (int i = 11; i < tokens.size(); i++) {
+        if (tokens[i].substr(0, 5) == tag) {
+            xm_z_index = i;
+            break;
+        }
+    }
+    // not XM:Z: tag found for this read
+    if (xm_z_index == -1) { return false; }
+
+    // check if the tag is methylated
+    // remove first 5 chars from the tag (XM:Z:)
+    std::string xmz = tokens[xm_z_index].substr(5);
+    int mecth_CH_count = 0;
+    int total_CH_count = 0;
+    for (int i = 0; i < xmz.length(); i++) {
+        char c = xmz[i];
+        if ((c == 'H') || (c == 'X')) {
+            mecth_CH_count++;
+            total_CH_count++;
+        } else if ((c == 'h') || (c == 'x')) {
+            total_CH_count++;
+        }
+        // restart counter if non-methylated C's is seen
+        if ((c == 'h') || (c == 'x') || (c == 'z')) {
+            mecth_CH_count = 0;
+            total_CH_count++;
+        }
+        // if we have 3 non-methylated C's in a row, return false
+        if (mecth_CH_count > 2) {
+            return false;
+        }
+    }
+    if (total_CH_count < 3) {
+        // not enough CpH's seen in the read
+        return false;
+    }
+
+    return true;
+}
+
