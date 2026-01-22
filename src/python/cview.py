@@ -74,6 +74,8 @@ def set_view_flags(args):
         view_flags += ' --strict'
     if args.min_len > 1:
         view_flags += f' --min_cpgs {args.min_len}'
+    if args.no_gaps:
+        view_flags += ' --no_gaps'
     return view_flags
 
 
@@ -122,6 +124,8 @@ def add_view_flags(parser, sub_sample=True, out_path=True, bed_file=True, long_r
                         help='pat: Remove trailing dots (from beginning/end of reads).')
     parser.add_argument('--min_len', type=int, default=1,
                         help='pat: Display only reads covering at least MIN_LEN CpG sites [1]')
+    parser.add_argument('--no_gaps', action='store_true',
+                        help='pat: Remove reads with gaps (dots) in them.')
     parser.add_argument('--shuffle', action='store_true',
                         help='pat: Shuffle reads order, while keeping the startCpG order '
                              '(sort -k2,2n -k3,3R)')

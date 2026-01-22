@@ -30,6 +30,7 @@ class Cview {
     int min_cpgs = 0;
     bool strip;
     bool strict;
+    bool no_gaps;
     std::string blocks_path;
     std::string sites;
     bool verbose;
@@ -39,9 +40,9 @@ class Cview {
 
 public:
     Cview(std::string bpath, std::string in_sites, bool in_strict, 
-            bool in_strip, int in_min_cpgs, bool ver):
+            bool in_strip, bool in_no_gaps, int in_min_cpgs, bool ver):
         blocks_path(bpath), sites(in_sites), strict(in_strict), 
-        strip(in_strip), min_cpgs(in_min_cpgs), verbose(ver) {}
+        strip(in_strip), no_gaps(in_no_gaps), min_cpgs(in_min_cpgs), verbose(ver) {}
 
     ~Cview() {}
 

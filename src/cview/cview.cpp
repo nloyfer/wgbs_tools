@@ -1,5 +1,9 @@
 #include "cview.h"
 
+bool does_read_contain_dots(std::vector <std::string> &tokens) {
+    // return true iff the read contains dots (unknown methylation).
+    return (tokens[2].find('.') != std::string::npos);
+}
 
 void Cview::pass_read(std::vector <std::string> &tokens) {
     /** print a vector to stdout, tab separated */
@@ -8,6 +12,7 @@ void Cview::pass_read(std::vector <std::string> &tokens) {
         if (tokens.empty()) { return; }
     }
     if (min_cpgs > tokens[2].length()) { return; }
+    if (no_gaps && does_read_contain_dots(tokens)) { return; }
     output_vec(tokens);
 }
 
@@ -85,7 +90,7 @@ int Cview::proc_line(std::vector <std::string> tokens) {
     /**
      * Given one line of the form "chr1 1245345 CCT 3", 
      * print it iff it overlaps the input blocks.
-     * Apply the filters --strict, --strip and --min_cpg if requested
+     * Apply the filters --strict, --strip, --no_gaps, and --min_cpg if requested
      */
     if (tokens.size() < 4) {
         throw std::invalid_argument("Invalid site in input file. too few columns");
@@ -194,9 +199,10 @@ int main(int argc, char *argv[]) {
     bool verbose = input.cmdOptionExists("-v");
     bool strict = input.cmdOptionExists("--strict");
     bool strip = input.cmdOptionExists("--strip");
+    bool no_gaps = input.cmdOptionExists("--no_gaps");
 
     try {
-        Cview(blocks_path, sites, strict, strip, min_cpgs, verbose).parse();
+        Cview(blocks_path, sites, strict, strip, no_gaps, min_cpgs, verbose).parse();
     }
     catch (std::exception &e) {
         std::cerr << e.what() << std::endl;
