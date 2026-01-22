@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from pat_vis import PatVis
 from vis import pat_args
 from utils_wgbs import add_GR_args, eprint, validate_file_list, \
-        drop_dup_keep_order, IllegalArgumentError
+        drop_dup_keep_order, IllegalArgumentError, pretty_name
 
 NR_CHARS_PER_FNAME = 50
 
@@ -169,6 +169,11 @@ def main():
 
     # load name table (old name : new name)
     dnames = load_names_table(args.name_table)
+    if dnames:
+        pats = [p for p in pats if pretty_name(p) in dnames.keys()]
+        if not pats:
+            eprint(f'[wt pat_fig] ERROR: no pat files found in {args.name_table}')
+            return
 
     tables = []
 
