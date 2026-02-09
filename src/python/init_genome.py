@@ -278,7 +278,7 @@ def chromosome_order(c):
 def is_valid_chrome(chrome):
     # A chromosome is valid if it has the form "chrX",
     # where X is digit(s) or (X,Y,M)
-    return bool(re.match(r'^(chr)?([\d]+|[XYM]|(MT))$', chrome))
+    return bool(re.match(r'^(chr)?([\d]+|[XYM]|(MT)|Lambda_NEB|Lambda|pUC19|pETM)$', chrome))
 
 
 def parse_args():
