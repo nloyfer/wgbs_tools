@@ -10,7 +10,7 @@ import pandas as pd
 from beta_to_blocks import load_blocks_file, is_block_file_nice
 from utils_wgbs import IllegalArgumentError, homog_tool, main_script, \
         splitextgz, validate_file_list, COORDS_COLS5, validate_local_exe, \
-        mkdirp, delete_or_skip
+        mkdirp, delete_or_skip, pretty_name
 
 
 def homog_log(*args, **kwargs):
@@ -37,15 +37,18 @@ def trim_uxm_to_uint8(data, nr_bits):
     return res
 
 
-def ctool_wrap(pat, name, blocks_path, rates_cmd, view_full, verbose=False):
+def ctool_wrap(pat, name, blocks_path, rates_cmd, view_full, inclusive, verbose=False):
     if view_full:
         cmd = f'gunzip -c {pat}'
     else:
         cmd = f'{main_script} cview {pat} -L {blocks_path}'
     cmd += f' | {homog_tool} -b {blocks_path} -n {name} {rates_cmd}'
+    if inclusive:
+        cmd += ' --inclusive'
     se = None if verbose else subprocess.PIPE
     txt = subprocess.check_output(cmd, shell=True, stderr=se).decode()
-    # homog_log(cmd)
+    if verbose:
+        homog_log(cmd)
     names = list('UXM')
     df = pd.read_csv(StringIO(txt), sep='\t', header=None, names=names)
     if df.values.sum() == 0:
@@ -53,8 +56,9 @@ def ctool_wrap(pat, name, blocks_path, rates_cmd, view_full, verbose=False):
     return df
 
 
-def homog_process(pat, blocks, args, outdir, prefix):
-    name = splitextgz(op.basename(pat))[0]
+def homog_process(pat, blocks, args, outdir, prefix, nodump=False):
+    # generate output path:
+    name = pretty_name(pat)
     if prefix is None:
         prefix = op.join(outdir, name)
     opath = prefix + '.uxm'
@@ -78,10 +82,12 @@ def homog_process(pat, blocks, args, outdir, prefix):
     # parse the whole pat file instead of running "cview -L BED"
     view_full = blocks.shape[0] > 1e4
 
-    df = ctool_wrap(pat, name, args.blocks_file, rate_cmd, view_full, args.verbose)
+    df = ctool_wrap(pat, name, args.blocks_file, rate_cmd, view_full, args.inclusive, args.verbose)
     df = pd.concat([blocks.reset_index(drop=True), df], axis=1)
     df = blocks.merge(df, how='left', on=COORDS_COLS5)
 
+    if nodump:
+        return df
     if args.binary:
         trim_uxm_to_uint8(df[list('UXM')].values, args.nr_bits).tofile(opath)
     else:
@@ -148,6 +154,7 @@ def parse_args():
     output_parser.add_argument('-o', '--out_dir', help='output directory. Default is "."')
     output_parser.add_argument('-p', '--prefix', help='output prefix')
     parser.add_argument('--force', '-f', action='store_true', help='Overwrite files if exist')
+    parser.add_argument('--inclusive', action='store_true', help='consider the whole read. Opposite of "strict"')
     parser.add_argument('--verbose', '-v', action='store_true')
     parser.add_argument('--binary', action='store_true', help='Output binary files (uint8)')
     parser.add_argument('--genome', help='Genome reference name.')

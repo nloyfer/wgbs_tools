@@ -28,11 +28,12 @@ def get_validate_targets(subset, groups):
     # validate group in subset appears in the in groups file
 
     # if subset is None, return the whole set
-    if not subset:
+    if not subset or subset[0] in ('NA', 'None'):
         return groups
 
     # validate all instances in "subset" do belong to "groups"
-    for group in subset:
+    flat_subset = [item for sublist in subset for item in sublist.split('+')]
+    for group in flat_subset:
         if group not in groups:
             # Invalid group. suggest the closest alternative and abort.
             eprint(f'Invalid group: {group}')
@@ -177,7 +178,7 @@ class MarkerFinder:
 
     def find_group_markers(self):
         if self.df.empty:
-            return self.df
+            return pd.DataFrame()
 
         # load context
         self.tg_names, self.bg_names = self.inds_dict[self.group]
@@ -195,9 +196,13 @@ class MarkerFinder:
 
         # T-test
         tf = self.ttest(tf)
+        tf = self.mw_test(tf)
+        tf = self.m_value_ttest(tf)
         return tf
 
     def ttest(self, tf):
+        if tf.empty:
+            return pd.DataFrame()
         try:
             tf['ttest'] = np.nan
             # if n=1 for both bg and tg samples, break
@@ -213,11 +218,101 @@ class MarkerFinder:
             else:
                 r = ttest_ind(tf[self.tg_names], tf[self.bg_names], axis=1, nan_policy='omit')
             tf['ttest'] = r.pvalue
-            tf = tf[tf['ttest'] <= self.args.pval].reset_index(drop=True)
+            if self.args.test_type == "t":
+                tf = tf[tf['ttest'] <= self.args.pval].reset_index(drop=True)
         except ModuleNotFoundError:
             eprint('[wt fm] WARNING: scipy is not installed. T-test is not performed.')
         except Exception:
-            eprint('[wt fm] WARNING: Eception occured while computing T-test. T-test is not performed.')
+            eprint('[wt fm] WARNING: Exception occured while computing T-test. T-test is not performed.')
+        return tf
+
+    def mw_test(self, tf):
+        """
+        Runs the Mann-Whitney U test on every row in the dataframe.
+        This is the non-parametric equivalent to the independent t-test.
+        """
+        if tf.empty:
+            return pd.DataFrame()
+
+        try:
+            tf['mw_test'] = np.nan
+
+            # if n=1 for both bg and tg samples, usually insufficient for a rank test
+            if len(self.tg_names) == len(self.bg_names) == 1:
+                return tf
+
+            from scipy.stats import mannwhitneyu
+
+            r = mannwhitneyu(
+                tf[self.tg_names],
+                tf[self.bg_names],
+                axis=1,
+                nan_policy='omit',
+                alternative='two-sided'
+            )
+
+            tf['mw_test'] = r.pvalue
+
+            # Filter based on p-value
+            if self.args.test_type == "mw":
+                tf = tf[tf['mw_test'] <= self.args.pval].reset_index(drop=True)
+
+        except ModuleNotFoundError:
+            self.eprint('[wt fm] WARNING: scipy is not installed. MW-test is not performed.')
+        except Exception as e:
+            self.eprint(f'[wt fm] WARNING: Exception occured while computing MW-test: {e}')
+
+        return tf
+
+    def m_value_ttest(self, tf):
+        """
+        Converts Beta values to M-values and runs Welch's T-test.
+        M = log2(Beta / (1 - Beta))
+        """
+        if tf.empty:
+            return pd.DataFrame()
+
+        try:
+            tf['mvalue_ttest'] = np.nan
+
+            if len(self.tg_names) == len(self.bg_names) == 1:
+                # Impossible to run t-test with N=1 vs N=1
+                return tf
+
+            from scipy.stats import ttest_ind, ttest_1samp
+
+            # Epsilon 0.0001 used to clamp values between [0.0001, 0.9999]
+            tg_data = tf[self.tg_names].clip(0.0001, 0.9999)
+            bg_data = tf[self.bg_names].clip(0.0001, 0.9999)
+
+            # Formula: M = log2(Beta / (1 - Beta))
+            tg_m = np.log2(tg_data / (1 - tg_data))
+            bg_m = np.log2(bg_data / (1 - bg_data))
+
+            if len(self.tg_names) == 1:
+                r = ttest_1samp(bg_m, tg_m.values, axis=1, nan_policy='omit')
+            elif len(self.bg_names) == 1:
+                r = ttest_1samp(tg_m, bg_m.values, axis=1, nan_policy='omit')
+            else:
+                r = ttest_ind(
+                    tg_m,
+                    bg_m,
+                    axis=1,
+                    equal_var=False,
+                    nan_policy='omit'
+                )
+
+            tf['mvalue_ttest'] = r.pvalue
+
+            # Filter based on p-value
+            if self.args.test_type == "m_t":
+                tf = tf[tf['mvalue_ttest'] <= self.args.pval].reset_index(drop=True)
+
+        except ModuleNotFoundError:
+            self.eprint('[wt fm] WARNING: scipy is not installed. T-test is not performed.')
+        except Exception as e:
+            self.eprint(f'[wt fm] WARNING: Exception occured while computing T-test: {e}')
+
         return tf
 
     def switch_context(self, tfM=None):
@@ -258,7 +353,7 @@ class MarkerFinder:
         tfX = tfX.loc[keep_umt & keep_mmt & keep_delta_mean, :].reset_index(drop=True)
 
         if tfX.empty:
-            return tfX
+            return pd.DataFrame()
 
         # Compute quantiles for target and background
         tfX['tg_quant'] = np.nanquantile(tfX[self.tg_names], 1 - self.args.tg_quant, axis=1)
@@ -271,9 +366,6 @@ class MarkerFinder:
         keep_delta_quants = (tfX['delta_quants'] >= self.args.delta_quants)
         tfX = tfX.loc[keep_uqt & keep_mqt & keep_delta_quants, :].reset_index(drop=True)
 
-        if tfX.empty:
-            return tfX
-
         return tfX
 
     def find_U_markers(self, tf):
@@ -283,7 +375,7 @@ class MarkerFinder:
 
         tfU = self.find_X_markers(tf)
         if tfU.empty:
-            return tfU
+            return pd.DataFrame()
 
         tfU['direction'] = 'U'
         return tfU
@@ -298,7 +390,7 @@ class MarkerFinder:
         self.switch_context(tfM)
 
         if tfM.empty:
-            return tfM
+            return pd.DataFrame()
 
         tfM['direction'] = 'M'
         return tfM
@@ -311,6 +403,8 @@ class MarkerFinder:
 
     def dump_results(self, tf):
         eprint(f'Number of markers found: {tf.shape[0]:,}')
+        if tf.empty:
+            return
         if self.args.sort_by:
             tf.sort_values(by=self.args.sort_by, ascending=False, inplace=True)
         if self.args.top:
@@ -322,7 +416,7 @@ class MarkerFinder:
         cols_to_dump = ['chr', 'start', 'end', 'startCpG', 'endCpG',
                         'target', 'region', 'lenCpG', 'bp', 'tg_mean',
                         'bg_mean', 'delta_means', 'delta_quants', 'delta_maxmin',
-                        'ttest', 'direction']
+                        'ttest', 'mw_test', 'mvalue_ttest', 'direction']
         if 'anno' in list(tf.columns) and 'gene' in list(tf.columns):
             cols_to_dump += ['anno', 'gene']
         if not tf.empty:

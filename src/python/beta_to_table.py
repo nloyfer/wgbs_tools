@@ -11,7 +11,7 @@ from dmb import load_gfile_helper, match_prefix_to_bin, load_uxm
 from beta_to_blocks import collapse_process, load_blocks_file, is_block_file_nice
 from utils_wgbs import validate_single_file, validate_file_list, eprint, \
     IllegalArgumentError, beta2vec, add_multi_thread_args, \
-    drop_dup_keep_order
+    drop_dup_keep_order, pretty_name
 
 
 def parse_args():
@@ -45,7 +45,7 @@ def groups_load_wrap(groups_file, betas):
         # otherwise generate dummy group file for all binary files in input_dir
         # first drop duplicated files, while keeping original order
         betas = drop_dup_keep_order(betas.copy())
-        fnames = [op.splitext(op.basename(b))[0] for b in betas]
+        fnames = [pretty_name(b) for b in betas]
         gf = pd.DataFrame(columns=['fname'], data=fnames)
         gf['group'] = gf['fname']
 

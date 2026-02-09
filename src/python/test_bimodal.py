@@ -228,7 +228,7 @@ def test_multiple_regions(tabixed_bed_file, pat_file, num_threads, out_file, is_
         return
     region_p_val_list = sorted(region_p_val_list, key=lambda elem: elem[1])
     [block_lines, p_vals] = zip(*region_p_val_list)
-    accepted_blocks, corrected_p_vals = choose_blocks_by_fdr_bh(p_vals, block_lines, print_all)
+    accepted_blocks, corrected_p_vals = choose_blocks_by_fdr_bh(p_vals, block_lines, return_all=print_all)
     with open(out_file, "w") if out_file != "-" else sys.stdout as f_out:
         for accepted_block, corrected_p_val in zip(accepted_blocks, corrected_p_vals):
             f_out.write(f"{accepted_block}\t{corrected_p_val:,.1e}\n")

@@ -52,7 +52,7 @@ char snp_patter::compareSeqToRef(std::string &seq,
     }
     if (allowed_letters1.find(snp_val) != allowed_letters1.end()){
         snp_letter = snp_let1;
-    } else if (allowed_letters2.find(snp_val) != allowed_letters1.end()) {
+    } else if (allowed_letters2.find(snp_val) != allowed_letters2.end()) {
         snp_letter = snp_let2;
     }
     return snp_letter;

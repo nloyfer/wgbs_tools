@@ -27,5 +27,6 @@ header:False
 verbose:False
 chunk_size:150000
 pval:0.05
+test_type:t
 sort_by:None
 delta_maxmin:-1
