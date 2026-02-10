@@ -142,7 +142,7 @@ def is_region_empty(view_cmd, region, verbose):
 
 def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, rg, mapq, debug,
              blueprint, clip, temp_dir, blacklist, whitelist, min_cpg, mbias, nanopore,
-             np_thresh, verbose, long, samtools_extra_args=None):
+             np_thresh, verbose, long, d_tag, samtools_extra_args=None):
     """ Convert a temp single chromosome file, extracted from a bam file, into pat """
 
     # Run patter tool on a single chromosome (or region). out_path will have the following fields:
@@ -160,6 +160,8 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, rg, 
         view_cmd += f' -r {rg} '
     if whitelist:
         view_cmd += f' -M -L {whitelist} '
+    if d_tag:
+        view_cmd += f' -d {d_tag} '
     elif blacklist:
         if not check_executable('bedtools'):
             eprint('[wt bam2pat] blacklist flag only works if bedtools is installed')
@@ -285,7 +287,7 @@ class Bam2Pat:
                        self.args.mapq, self.args.debug, self.args.blueprint, self.args.clip,
                        self.args.temp_dir, blist, wlist, self.args.min_cpg,
                        self.args.mbias, self.args.nanopore, self.args.np_thresh,
-                       self.verbose, self.args.long, self.args.samtools_extra_args)
+                       self.verbose, self.args.long, self.args.d_tag, self.args.samtools_extra_args)
                 params.append(par)
 
             if len(cur_regions) == 1 and self.args.threads == 1:
@@ -408,6 +410,11 @@ def add_samtools_view_flags(parser):
                         default=MAPQ)
     parser.add_argument('-rg', '--read_group',
                         help=f'filter reads by read group (RG filed. passed to samtools as -r)')
+    parser.add_argument('--d_tag',
+                        help=f'filter reads by a custom tag (passed to samtools as -d)')
+    parser.add_argument('--samtools_extra_args', 
+                        help='Extra arguments to samtools view')
+    
 
 
 def add_args(parser):
@@ -424,7 +431,6 @@ def add_args(parser):
                         help='Clip for each read the first and last CLIP characters [0]')
     parser.add_argument('--long', action='store_true',
                         help='Use long format for pat file (add read name to each line)')
-    parser.add_argument('--samtools_extra_args', help='Extra arguments to samtools view, e.g. filter to sepcific tags')
     add_multi_thread_args(parser)
 
     return parser
