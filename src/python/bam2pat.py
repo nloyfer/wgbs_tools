@@ -140,8 +140,8 @@ def is_region_empty(view_cmd, region, verbose):
     return False
 
 
-def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, rg, mapq, debug,
-             blueprint, clip, temp_dir, blacklist, whitelist, min_cpg, mbias, nanopore,
+def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, top_only, bottom_only,
+             rg, mapq, debug, blueprint, clip, temp_dir, blacklist, whitelist, min_cpg, mbias, nanopore,
              np_thresh, verbose, long):
     """ Convert a temp single chromosome file, extracted from a bam file, into pat """
 
@@ -155,7 +155,18 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, rg, 
     else:
         in_flags = f'-f {in_flags}'
 
-    view_cmd = f'samtools view {bam} {region} -q {mapq} -F {ex_flags} {in_flags} -T {genome.genome_path}'
+    if top_only:
+        if paired_end:
+            in_flags += " | awk '($2 == 147 || $2 == 99)' "
+        else:
+            in_flags += " | awk '($2 == 0)'"
+    if bottom_only:
+        if paired_end:
+            in_flags += " | awk '($2 == 83 || $2 == 163)' "
+        else:
+            in_flags += " | awk '($2 == 16)'"
+
+    view_cmd = f'samtools view {bam} {region} -q {mapq} -F {ex_flags} -T {genome.genome_path} {in_flags} '
     if rg:
         view_cmd += f' -r {rg} '
     if whitelist:
@@ -280,8 +291,8 @@ class Bam2Pat:
             for c in cur_regions:
                 out_path = f'{tmp_prefix}.{c}.out'
                 par = (self.bam_path, out_path, c, self.gr.genome,
-                       self.PE, self.args.exclude_flags,
-                       self.args.include_flags, self.args.read_group,
+                       self.PE, self.args.exclude_flags, self.args.include_flags, 
+                       self.args.top_strand, self.args.bottom_strand, self.args.read_group,
                        self.args.mapq, self.args.debug, self.args.blueprint, self.args.clip,
                        self.args.temp_dir, blist, wlist, self.args.min_cpg,
                        self.args.mbias, self.args.nanopore, self.args.np_thresh,
@@ -408,6 +419,10 @@ def add_samtools_view_flags(parser):
                         default=MAPQ)
     parser.add_argument('-rg', '--read_group',
                         help=f'filter reads by read group (RG filed. passed to samtools as -r)')
+    parser.add_argument('--top_strand', action='store_true',
+                        help='Consider only top strand reads')
+    parser.add_argument('--bottom_strand', action='store_true',
+                        help='Consider only bottom strand reads')
 
 
 def add_args(parser):
