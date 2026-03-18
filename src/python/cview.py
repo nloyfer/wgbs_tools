@@ -63,7 +63,7 @@ def add_subsample_cmd(args):
     while ss > th:
         rep *= 2
         ss /= 2
-    cmd = f' | {pat_sampler} {ss} {rep}'
+    cmd = f' | {pat_sampler} {ss:.6f} {rep} '
     return cmd
 
 def set_view_flags(args):
