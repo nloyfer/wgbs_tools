@@ -269,7 +269,7 @@ def add_no_pat_arg(parser):
 
 def beta2vec(data, min_cov=1, na=np.nan):
     cond = data[:, 1] >= min_cov
-    vec = np.divide(data[:, 0], data[:, 1], where=cond)  # normalize to range [0, 1)
+    vec = np.divide(data[:, 0], data[:, 1], where=cond, out=None)  # normalize to range [0, 1)
     vec[~cond] = na
     return vec
 
