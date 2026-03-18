@@ -16,7 +16,7 @@ from cview import view_gr
 FULL_CIRCLE = '\u25CF'
 DASH = '\u2014'
 BORDER = '|'
-str2int = {c: i for i, c in enumerate([''] + list(' .CTUXMctga'))}
+str2int = {c: i for i, c in enumerate([''] + list(' .CTUXMctgaH'))}
 int2str = {v: k for k, v in str2int.items()}
 
 num2color_dict = {
@@ -25,6 +25,7 @@ num2color_dict = {
     'X': '01;33',   # yellow
     'M': '01;31',   # red
     'U': '01;32',   # green
+    'H': '01;33',   # yellow
     'c': '01;106',  # blue
     't': '01;90',   # black
     'g': '01;91',   # red
@@ -49,7 +50,7 @@ def table2text(table):
             nline += ch
             # add strikethrough to the borders
             if (len(line) - 1 > i > 0) and (ch == BORDER) \
-                and (set((line[i - 1], line[i + 1])) <= set('CT.')):
+                and (set((line[i - 1], line[i + 1])) <= set('HCT.')):
                 nline += '\u0336'
         lines.append(nline)
     return '\n'.join(lines)
@@ -99,7 +100,9 @@ class PatVis:
         if not res:
             return
         if res['score'] != 'NA':
-            to_print = f'Methylation average: {res["score"]}%'
+            to_print = f'Methylation average: {res["score"][0]}%'
+            if self.args.hmc:
+                to_print += f' | Hydroxymethylation average: {res["score"][1]}%'
             if self.uxm:
                 u_thresh = round(self.uxm * 100, 2)
                 m_thresh = round((1 - self.uxm) * 100, 2)
@@ -124,7 +127,7 @@ class PatVis:
             nd = num2color_dict2 if self.args.yebl else num2color_dict
             txt = color_text(txt, nd)
         if not self.args.text:
-            txt = re.sub('[CTUXM]', FULL_CIRCLE, txt)               # letters -> circles
+            txt = re.sub('[CTUXMH]', FULL_CIRCLE, txt)               # letters -> circles
             txt = re.sub('\.', DASH, txt)                           # dots -> dashes
             for x, X in zip('acgt', 'ACGT'):
                 txt = re.sub(x, X, txt)
@@ -222,17 +225,25 @@ class PatVis:
                    'text': res,
                    'table': table,
                    'int_table': int_table,
-                   'score': calc_score(df),
+                   'score': calc_score(df, hmc=self.args.hmc),
                    'uxm': self.uxm_counts}
         return fullres
 
 
-def calc_score(df):
+def calc_score(df, hmc=False):
     # count C's and T's for the score:
     nm = (df['pat'].str.count('C') * df['count']).sum()
-    ntotal = nm + (df['pat'].str.count('T') * df['count']).sum()
-    score = int(100 * nm / ntotal) if ntotal else 'NA'
-    return score
+    nh = (df['pat'].str.count('H') * df['count']).sum()
+    nu = (df['pat'].str.count('T') * df['count']).sum()
+    ntotal = nm + nu + nh
+    if not hmc:
+        nm += nh
+    # ntotal = nm + (df['pat'].str.count('T') * df['count']).sum()
+    mscore = int(100 * nm / ntotal) if ntotal else 'NA'
+    if mscore == 'NA':
+        return 'NA'
+    hscore = int(100 * nh / ntotal) if ntotal else 'NA'
+    return mscore, hscore
 
 
 def main(args):
