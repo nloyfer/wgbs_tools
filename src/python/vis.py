@@ -17,6 +17,8 @@ def pat_args(parser):
                  '         if it is repeating itself. [10]')
     parser.add_argument('--min_len', type=int, default=1,
             help='Pat vis: Display only reads covering at least MIN_LEN CpG sites [1]')
+    parser.add_argument('--no_gaps', action='store_true',
+            help='Pat vis: Do not display reads with gaps (missing CpG sites) in the requested region.')
     parser.add_argument('--no_dense', action='store_true',
             help='pat: Do not squeeze multiple reads to every line.\n'
                  'Each read appears in a different line.')
@@ -36,6 +38,8 @@ def pat_args(parser):
             help='Pat vis: add strikethrough to reads')
     parser.add_argument('--sub_sample', type=float, metavar='[0.0, 1.0]',
                         help='Pat vis: subsample from reads.')
+    parser.add_argument('--hmc', action='store_true',
+            help='Pat vis: show 5hmc information (if available) in pat files')
     parser.add_argument('--yebl', action='store_true',
             help='color yellow-blue instead of green-red')
 
