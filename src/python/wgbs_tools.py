@@ -5,7 +5,7 @@ import argparse
 import importlib
 from unittest.mock import patch
 
-VERSION = '0.2.0'
+VERSION = '0.3.0'
 
 commands = [
     # view data
