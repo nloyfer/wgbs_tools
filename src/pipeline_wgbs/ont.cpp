@@ -143,9 +143,14 @@ std::vector <std::string> patter::np_samLineToPatVec(std::vector <std::string> t
         if (np_mask[di] == 'N') {
             cur_status = UNKNOWN;
         }
-        // The current C is not mentioned in MM as modified
+        // No explicit modification call at this position in MM.
+        // With dot convention, unlisted C bases are implicitly unmethylated.
+        // But if the read has N or a mismatch (not C/G) at the CpG, there is
+        // no base to call — treat as unknown rather than unmethylated.
         else if (np_mask[di] == 'E') {
-            if (np_dot) { cur_status = UNMETH; }
+            bool has_base = (di >= 0 && di < (int)seq.size()) &&
+                            (bottom ? seq[di] == 'G' : seq[di] == 'C');
+            if (np_dot && has_base) { cur_status = UNMETH; }
             else { cur_status = UNKNOWN; }
         }
         // The current C is mentioned in MM as modified
