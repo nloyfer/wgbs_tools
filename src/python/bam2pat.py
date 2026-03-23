@@ -24,7 +24,8 @@ PAT_SUFF = '.pat.gz'
 # 10 means include only reads w.p. >= 0.9 to be mapped correctly.
 # And missing values (255)
 MAPQ = 10
-FLAGS_FILTER = 1796  # filter flags with these bits
+FLAGS_FILTER = 1796           # filter flags with these bits
+FLAGS_FILTER_NANOPORE = 3844  # 0x4+0x100+0x200+0x400+0x800 = unmapped, secondary, QC-fail, duplicate, supplementary
 MAX_READ_SIZE = 1000 # extend samtools view region by this size
 
 # currently we are missing the far mates
@@ -142,7 +143,7 @@ def is_region_empty(view_cmd, region, verbose):
 
 def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, top_only, bottom_only,
              rg, mapq, debug, blueprint, clip, temp_dir, blacklist, whitelist, min_cpg, mbias, nanopore,
-             np_thresh, verbose, long):
+             np_thresh, verbose, long, cpc_call='C'):
     """ Convert a temp single chromosome file, extracted from a bam file, into pat """
 
     # Run patter tool on a single chromosome (or region). out_path will have the following fields:
@@ -191,6 +192,8 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, top_
         patter_cmd += f' --mbias {out_path}.mb'
     if nanopore:
         patter_cmd += f' --nanopore --np_thresh {np_thresh} '
+    if nanopore and cpc_call != 'C':
+        patter_cmd += f' --cpc_call {cpc_call} '
     if long:
         patter_cmd += ' --long '
 
@@ -235,6 +238,25 @@ def is_bam_sorted(bam):
     return True
 
 
+def detect_nanopore(bam, genome_path):
+    """Auto-detect nanopore/modification-aware BAM.
+    1. Check @RG PL:ONT in header — fast, reliable for ONT BAMs.
+    2. Sample 200 reads for MM:Z: / Mm:Z: tags — catches Biomodal and others
+       (Biomodal uses PL:ILLUMINA so header alone is insufficient).
+    Returns True if either check is positive.
+    """
+    header = subprocess.check_output(f'samtools view -H {bam}', shell=True).decode()
+    if '\tPL:ONT' in header:
+        return True
+    try:
+        reads = subprocess.check_output(
+            f'samtools view {bam} -T {genome_path} | head -200',
+            shell=True, stderr=subprocess.DEVNULL).decode()
+        return any('\tMM:Z:' in line or '\tMm:Z:' in line for line in reads.splitlines())
+    except subprocess.CalledProcessError:
+        return False
+
+
 def is_pair_end(bam, genome):
     first_line = subprocess.check_output(f'samtools view {bam} -T {genome.genome_path} | head -1', shell=True)
     first_line = first_line.decode()
@@ -252,6 +274,10 @@ class Bam2Pat:
         self.bam_path = bam
         self.gr = GenomicRegion(args)
         self.PE = None
+        if not self.args.nanopore:
+            if detect_nanopore(self.bam_path, self.gr.genome.genome_path):
+                eprint('[wt bam2pat] Auto-detected modification-aware BAM — enabling --nanopore mode')
+                self.args.nanopore = True
         self.start_threads()
         tmpdir_cleanup(self.tmp_dir)
 
@@ -290,13 +316,19 @@ class Bam2Pat:
         try:
             for c in cur_regions:
                 out_path = f'{tmp_prefix}.{c}.out'
+                if self.args.nanopore:
+                    ex_flags = FLAGS_FILTER_NANOPORE
+                else:
+                    ex_flags = self.args.exclude_flags
+                mapq = 0 if self.args.nanopore else self.args.mapq
                 par = (self.bam_path, out_path, c, self.gr.genome,
-                       self.PE, self.args.exclude_flags, self.args.include_flags, 
+                       self.PE, ex_flags, self.args.include_flags,
                        self.args.top_strand, self.args.bottom_strand, self.args.read_group,
-                       self.args.mapq, self.args.debug, self.args.blueprint, self.args.clip,
+                       mapq, self.args.debug, self.args.blueprint, self.args.clip,
                        self.args.temp_dir, blist, wlist, self.args.min_cpg,
                        self.args.mbias, self.args.nanopore, self.args.np_thresh,
-                       self.verbose, self.args.long)
+                       self.verbose, self.args.long,
+                       self.args.cpc_call)
                 params.append(par)
 
             if len(cur_regions) == 1 and self.args.threads == 1:
@@ -402,7 +434,12 @@ def parse_bam2pat_args(parser):
     parser.add_argument('--blueprint', '-bp', action='store_true',
             help='filter bad bisulfite conversion reads if <90 percent of CHs are converted')
     parser.add_argument('--nanopore', '-np', action='store_true',
-            help='BETA VERSION: Input bam is of Oxford Nanopore format. Call methylation from MM & ML fields.')
+            help='Input BAM has MM/ML modification tags (ONT, Biomodal, PacBio). '
+                 'Auto-detected if @RG PL:ONT is present or MM:Z: tags are found in the first 200 reads. '
+                 'Sets -q 0 and -F 3844 (exclude unmapped, secondary, QC-fail, duplicate, supplementary).')
+    parser.add_argument('--cpc_call', default='C', choices=['C', 'H', '.'],
+            help='How to encode C+C? (Biomodal ambiguous modification) positions in the PAT. '
+                 'C=methylated (default), H=hydroxymethylated, .=unknown/skip')
     parser.add_argument('--np_thresh', type=float, default=0.67,
                         help='For Nanopore format: probability cutoff, between 0 to 1. [0.67]')
 

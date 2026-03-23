@@ -4,11 +4,12 @@
 
 #include "patter.h"
 
-/***************************************************************
- *                                                             *
- *               Load FASTA                                    *
- *                                                             *
- ***************************************************************/
+
+/***************************************************
+ *                                                 *
+ *                   Load FASTA                    *
+ *                                                 *
+ **************************************************/
 
 void patter::load_genome_ref() {
     /** Load the genome reference, corresponding to chromosome */
@@ -40,11 +41,11 @@ void patter::load_genome_ref() {
     }
 }
 
-/***************************************************************
- *                                                             *
- *               M-bias                                        *
- *                                                             *
- ***************************************************************/
+/***************************************************
+ *                                                 *
+ *                     M-bias                      *
+ *                                                 *
+ **************************************************/
 
 void dump_mbias_helper(mbias_ss *mb, std::string outpath) {
     std::ofstream mbias_stream(outpath);
@@ -71,12 +72,11 @@ void patter::dump_mbias() {
 }
 
 
-
-/***************************************************************
- *                                                             *
- *             Process single / pair of reads                  *
- *                                                             *
- ***************************************************************/
+/***************************************************
+ *                                                 *
+ *         Process single / pair of reads          *
+ *                                                 *
+ **************************************************/
 
 int patter::locus2CpGIndex(int locus) {
     /** translate genomic locus to CpG index (in range 1,...,28M~) */
@@ -186,14 +186,14 @@ int patter::compareSeqToRef(std::string &seq,
 
 std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> tokens) {
     /** Given tokens of a sam line:
-     *       QNAME, FLAG, RNAME (chrom), POS, MAPQ, CIGAR, RNEXT,
-     *       PNEXT, TLEN, SEQ, QUAL, and possibly more.
-     *  return a new vector with the following fields:
-     *  [chr, first_CpG_ind, meth_pattern, start_loc, length]
+     * QNAME, FLAG, RNAME (chrom), POS, MAPQ, CIGAR, RNEXT,
+     * PNEXT, TLEN, SEQ, QUAL, and possibly more.
+     * return a new vector with the following fields:
+     * [chr, first_CpG_ind, meth_pattern, start_loc, length]
      *
-     *  In case line is empty or invalid, return an empty vector,
-     *  and update the corresponding counter
-     *  */
+     * In case line is empty or invalid, return an empty vector,
+     * and update the corresponding counter
+     * */
 
     std::vector <std::string> res;
     if (tokens.empty()) {
@@ -227,15 +227,15 @@ std::vector <std::string> patter::samLineToPatVec(std::vector <std::string> toke
         return pack_pat(tokens[2], start_site, meth_pattern);
     }
     catch (std::exception &e) {
-        if (readsStats.nr_invalid < 100) {
+        if (readsStats.nr_invalid < 20) {
             std::string msg = "[ " + chr + " ] " + "Exception while processing line "
                               + std::to_string(line_i) + ". Line content: \n";
             std::cerr << "[ patter ] " << msg;
             print_vec(tokens);
             std::cerr << "[ patter ] " << e.what() << std::endl;
         }
-        else if (readsStats.nr_invalid == 100) {
-            std::cerr << "[ patter ] [ " + chr + " ] First 100 failed reads were printed. " +
+        else if (readsStats.nr_invalid == 20) {
+            std::cerr << "[ patter ] [ " + chr + " ] First 20 failed reads were printed. " +
                          " The next failed reads will not be printed\n";
         }
         readsStats.nr_invalid++;
@@ -266,7 +266,7 @@ void patter::proc2lines(std::vector <std::string> &tokens1,
             return;
         }
         // filter out ds-CH filter
-        if (! (is_pass_ds_test(tokens1) && (is_pass_ds_test(tokens2)) {
+        if (is_ds_test && (!(is_nanopore)) && (!(is_pass_ds_test(tokens1)) || !(is_pass_ds_test(tokens2)))) {
             readsStats.nr_invalid++;
             return;
         }
@@ -289,11 +289,11 @@ void patter::proc2lines(std::vector <std::string> &tokens1,
     }
 }
 
-/***************************************************************
- *                                                             *
- *                     print stats                             *
- *                                                             *
- ***************************************************************/
+/***************************************************
+ *                                                 *
+ *                  print stats                    *
+ *                                                 *
+ **************************************************/
 
 void patter::print_stats_msg() {
     /** print informative summary message */
@@ -315,12 +315,11 @@ void patter::print_stats_msg() {
     std::cerr << "[ patter ] " << msg;
 }
 
-/***************************************************************
- *                                                             *
- *                Init                                         *
- *                                                             *
- ***************************************************************/
-
+/***************************************************
+ *                                                 *
+ *                      Init                       *
+ *                                                 *
+ **************************************************/
 
 void patter::first_line(std::string &line) {
     // find out if the input is paired- or single-end
@@ -332,9 +331,11 @@ void patter::first_line(std::string &line) {
         chr = tokens.at(2);
         is_paired_end = (flag & 1);     // file is paired end iff flag 0x1 is on
 
-        // find out if this is a nanopore format (iff MM and ML fields are present)
-        std::vector<std::string> npvec = get_np_fields(tokens);
-        is_nanopore = (is_nanopore || ((npvec[0] != "") && (npvec[1] != "")));
+        // find out if this is a nanopore format (iff MM field is present)
+        std::string MM_str = "";
+        std::string ML_str = "";
+        bool has_np = get_np_tags(tokens, MM_str, ML_str);
+        is_nanopore = (is_nanopore || has_np);
         //std::cerr << "is nanopore: " << is_nanopore << std::endl;
 
         if (is_paired_end && is_nanopore) {
@@ -355,11 +356,11 @@ void patter::initialize_patter(std::string &line_str) {
     load_genome_ref();
 }
 
-/***************************************************************
- *                                                             *
- *                     Parse bam                               *
- *                                                             *
- ***************************************************************/
+/***************************************************
+ *                                                 *
+ *                   Parse bam                     *
+ *                                                 *
+ **************************************************/
 
 void patter::print_progress(){
     if (line_i && !(line_i % 5000000)){
@@ -413,4 +414,3 @@ void patter::parse_reads_from_stdin() {
     print_stats_msg();
     dump_mbias();
 }
-

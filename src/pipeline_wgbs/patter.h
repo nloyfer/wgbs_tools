@@ -10,6 +10,7 @@
 //#include <string>
 #include <vector>
 #include <algorithm>    // std::sort
+#include <set>
 #include <fstream>
 #include <regex>
 #include <unordered_map>
@@ -68,14 +69,19 @@ public:
     int line_i = 0;
     clock_t tick = clock();
     bool is_long = false;
+    bool is_ds_test = false;
     bool is_paired_end = false;
     bool is_nanopore = false;
+    // How to encode C+C? (Biomodal ambiguous mod) in PAT: 'C', 'H', or '.'
+    char cpc_call = 'C';
     // Nanopore fields
     bool np_dot = false;      // Does MM field starts with "C+m." or "C+m?"?
     std::vector<int> MM_vals;
     std::vector<int> ML_vals;
+    // Hydroxymethylation fields (5hmc)
     std::vector<int> MM_vals_h;
     std::vector<int> ML_vals_h;
+
     float np_thresh = 0.667;
     std::vector <std::string> dummy_tokens;
     void first_line(std::string &line);
@@ -83,9 +89,9 @@ public:
     mbias_ss mbias_OT[2];
     mbias_ss mbias_OB[2];
 
-    patter(std::string refpath, std::string rgn, std::string mb, int mc, int clip, bool is_np, float np_th, bool is_lng):
-            ref_path(refpath), region(rgn), mbias_path(mb), min_cpg(mc), 
-            clip_size(clip), is_nanopore(is_np), np_thresh(np_th), is_long(is_lng) {}
+    patter(std::string refpath, std::string rgn, std::string mb, int mc, int clip, bool is_np, float np_th, bool is_lng, bool ds_test, char cpc) :
+            ref_path(refpath), region(rgn), mbias_path(mb), min_cpg(mc),
+            clip_size(clip), is_nanopore(is_np), np_thresh(np_th), is_long(is_lng), is_ds_test(ds_test), cpc_call(cpc) {}
     ~patter() {delete[] conv;}
     void load_genome_ref();
     std::vector<long> fasta_index();

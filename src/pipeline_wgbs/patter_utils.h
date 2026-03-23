@@ -35,6 +35,7 @@ std::vector<std::string> split_by_semicolon(std::string str_line);
 
 bool hasEnding(std::string const &fullString, std::string const &suffix);
 bool is_number(const std::string& s);
+void flip_string(std::string &str);
 
 std::string exec(const char* cmd);
 
@@ -63,6 +64,7 @@ bool is_pass_ds_test(std::vector <std::string> tokens);
 const char UNKNOWN = '.';
 const char METH = 'C';
 const char UNMETH = 'T';
+const char HYDROXY = 'H';
 const std::string TAB = "\t";
 
 /***************************************************
@@ -113,4 +115,3 @@ private:
 
 
 #endif //PATTER_UTILS_H
-

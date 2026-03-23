@@ -1,4 +1,3 @@
-
 #include "patter_utils.h"
 
 /***************************************************
@@ -129,6 +128,11 @@ bool is_number(const std::string& s)
     return !s.empty() && it == s.end();
 }
 
+void flip_string(std::string &str) {
+    /** reverse a string */
+    std::reverse(str.begin(), str.end());
+}
+
 /***************************************************
  *                                                 *
  *                 Load from exec                  *
@@ -185,7 +189,10 @@ std::string reverse_comp(std::string seq) {
             nc = 'C';
         } else if (oc == 'T') {
             nc = 'A';
-        } else {
+        } else if (oc == 'N') {
+            nc = 'N';
+        }
+        else {
             throw std::runtime_error("[ patter ] Unsupported base");
         }
         revcomp += nc;
@@ -389,4 +396,3 @@ bool is_pass_ds_test(std::vector <std::string> tokens) {
 
     return true;
 }
-
