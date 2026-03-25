@@ -81,12 +81,12 @@ int Pat2Beta::proc_line(std::vector<std::string> tokens) {
         if ((cur_ind >= nr_sites) || (cur_ind < 0)) {
             continue;
         }
-        if (! ( (cur_char == 'T') || (cur_char == 'C') ) ) {
+        if (! ( (cur_char == 'T') || (cur_char == 'C') || (cur_char == 'H') ) ) {
             continue;
         }
         cover[cur_ind] += count;
-        if (cur_char == 'C') {
-            meth[cur_ind] += count; 
+        if ((cur_char == 'C') || (cur_char == 'H')) {
+            meth[cur_ind] += count;
         }
     }
     return 0;
