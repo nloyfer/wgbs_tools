@@ -74,6 +74,8 @@ public:
     bool is_nanopore = false;
     // How to encode C+C? (Biomodal ambiguous mod) in PAT: 'C', 'H', or '.'
     char cpc_call = 'C';
+    // When true, treat 5hmC (C+h) the same as 5mC — output 'C' instead of 'H'
+    bool combine_mods = false;
     // Nanopore fields
     bool np_dot = false;      // Does MM field starts with "C+m." or "C+m?"?
     std::vector<int> MM_vals;
@@ -89,9 +91,9 @@ public:
     mbias_ss mbias_OT[2];
     mbias_ss mbias_OB[2];
 
-    patter(std::string refpath, std::string rgn, std::string mb, int mc, int clip, bool is_np, float np_th, bool is_lng, bool ds_test, char cpc) :
+    patter(std::string refpath, std::string rgn, std::string mb, int mc, int clip, bool is_np, float np_th, bool is_lng, bool ds_test, char cpc, bool cmb_mods=false) :
             ref_path(refpath), region(rgn), mbias_path(mb), min_cpg(mc),
-            clip_size(clip), is_nanopore(is_np), np_thresh(np_th), is_long(is_lng), is_ds_test(ds_test), cpc_call(cpc) {}
+            clip_size(clip), is_nanopore(is_np), np_thresh(np_th), is_long(is_lng), is_ds_test(ds_test), cpc_call(cpc), combine_mods(cmb_mods) {}
     ~patter() {delete[] conv;}
     void load_genome_ref();
     std::vector<long> fasta_index();

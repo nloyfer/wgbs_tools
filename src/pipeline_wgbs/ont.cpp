@@ -38,30 +38,48 @@ std::string patter::make_meth_mask(std::string &work_seq) {
         if (work_seq[i] != 'C') { continue; }
 
         char cur_status = 'N';
-        // update 5hmc
-        if ((MM_vals_h_ind < MM_vals_h.size()) && (C_counter == MM_vals_h.at(MM_vals_h_ind))) {
-            if (ML_vals_h[MM_vals_h_ind] > (255 * np_thresh)) {
-                cur_status = 'H';
-            } else if (ML_vals_h[MM_vals_h_ind] < (255 * (1 - np_thresh))) { 
-                cur_status = 'U';
-            }
-            np_mask[i] = cur_status;
-            MM_vals_h_ind++;
-        }
-        // update 5mc (overwrite 5hmc if both are present with high confidence)
-        if ((MM_vals_ind < MM_vals.size()) && (C_counter == MM_vals.at(MM_vals_ind))) {
-            if (ML_vals[MM_vals_ind] > (255 * np_thresh)) {
-                cur_status = 'M';
-            } else if (ML_vals[MM_vals_ind] < (255 * (1 - np_thresh))) { 
-                // make sure this is not a 5hmc
-                if (cur_status != 'H') {
+        if (combine_mods) {
+            // Combine 5hmC + 5mC: sum their probabilities and threshold as a single modification
+            int h_prob = 0, m_prob = 0;
+            bool has_h = (MM_vals_h_ind < MM_vals_h.size()) && (C_counter == MM_vals_h.at(MM_vals_h_ind));
+            bool has_m = (MM_vals_ind < MM_vals.size()) && (C_counter == MM_vals.at(MM_vals_ind));
+            if (has_h) { h_prob = ML_vals_h[MM_vals_h_ind]; MM_vals_h_ind++; }
+            if (has_m) { m_prob = ML_vals[MM_vals_ind]; MM_vals_ind++; }
+            if (has_h || has_m) {
+                int combined = std::min(h_prob + m_prob, 255);
+                if (combined > (255 * np_thresh)) {
+                    cur_status = 'M';
+                } else if (combined < (255 * (1 - np_thresh))) {
                     cur_status = 'U';
                 }
-            } else if (cur_status != 'H') {
-                cur_status = 'N';
+                np_mask[i] = cur_status;
             }
-            np_mask[i] = cur_status;
-            MM_vals_ind++;
+        } else {
+            // update 5hmc
+            if ((MM_vals_h_ind < MM_vals_h.size()) && (C_counter == MM_vals_h.at(MM_vals_h_ind))) {
+                if (ML_vals_h[MM_vals_h_ind] > (255 * np_thresh)) {
+                    cur_status = 'H';
+                } else if (ML_vals_h[MM_vals_h_ind] < (255 * (1 - np_thresh))) {
+                    cur_status = 'U';
+                }
+                np_mask[i] = cur_status;
+                MM_vals_h_ind++;
+            }
+            // update 5mc (overwrite 5hmc if both are present with high confidence)
+            if ((MM_vals_ind < MM_vals.size()) && (C_counter == MM_vals.at(MM_vals_ind))) {
+                if (ML_vals[MM_vals_ind] > (255 * np_thresh)) {
+                    cur_status = 'M';
+                } else if (ML_vals[MM_vals_ind] < (255 * (1 - np_thresh))) {
+                    // make sure this is not a 5hmc
+                    if (cur_status != 'H') {
+                        cur_status = 'U';
+                    }
+                } else if (cur_status != 'H') {
+                    cur_status = 'N';
+                }
+                np_mask[i] = cur_status;
+                MM_vals_ind++;
+            }
         }
         C_counter++;
     }

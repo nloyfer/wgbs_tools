@@ -143,7 +143,7 @@ def is_region_empty(view_cmd, region, verbose):
 
 def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, top_only, bottom_only,
              rg, mapq, debug, blueprint, clip, temp_dir, blacklist, whitelist, min_cpg, mbias, nanopore,
-             np_thresh, verbose, long, cpc_call='C'):
+             np_thresh, verbose, long, cpc_call='C', combine_mods=False):
     """ Convert a temp single chromosome file, extracted from a bam file, into pat """
 
     # Run patter tool on a single chromosome (or region). out_path will have the following fields:
@@ -194,6 +194,8 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, top_
         patter_cmd += f' --nanopore --np_thresh {np_thresh} '
     if nanopore and cpc_call != 'C':
         patter_cmd += f' --cpc_call {cpc_call} '
+    if nanopore and combine_mods:
+        patter_cmd += ' --combine_mods '
     if long:
         patter_cmd += ' --long '
 
@@ -328,7 +330,7 @@ class Bam2Pat:
                        self.args.temp_dir, blist, wlist, self.args.min_cpg,
                        self.args.mbias, self.args.nanopore, self.args.np_thresh,
                        self.verbose, self.args.long,
-                       self.args.cpc_call)
+                       self.args.cpc_call, self.args.combine_mods)
                 params.append(par)
 
             if len(cur_regions) == 1 and self.args.threads == 1:
@@ -442,6 +444,9 @@ def parse_bam2pat_args(parser):
                  'C=methylated (default), H=hydroxymethylated, .=unknown/skip')
     parser.add_argument('--np_thresh', type=float, default=0.67,
                         help='For Nanopore format: probability cutoff, between 0 to 1. [0.67]')
+    parser.add_argument('--combine_mods', action='store_true',
+                        help='Combine 5mC (C+m) and 5hmC (C+h) modifications, treating both as methylated. '
+                             'Sums probabilities before thresholding. Output will contain only C/T/. (no H).')
 
 
 def add_samtools_view_flags(parser):

@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
             np_thresh = std::stof(np_thresh_str);
         }
         if (argc < 3) {
-            throw std::invalid_argument("Usage: patter CPG_DICT REGION [--mbias MBIAS_PATH] [--clip CLIP] [--nanopore] [--np_thresh NP_THRESH] [--cpc_call {C|H|.}] [--long]");
+            throw std::invalid_argument("Usage: patter CPG_DICT REGION [--mbias MBIAS_PATH] [--clip CLIP] [--nanopore] [--np_thresh NP_THRESH] [--cpc_call {C|H|.}] [--combine_mods] [--long]");
         }
         std::string mbias_path = input.getCmdOption("--mbias");
         bool is_np = input.cmdOptionExists("--nanopore");
@@ -46,7 +46,8 @@ int main(int argc, char **argv) {
                 throw std::invalid_argument("Invalid --cpc_call value. Must be C, H, or .");
             }
         }
-        patter p(argv[1], argv[2], mbias_path, min_cpg, clip, is_np, np_thresh, is_long, is_ds_test, cpc_call);
+        bool combine_mods = input.cmdOptionExists("--combine_mods");
+        patter p(argv[1], argv[2], mbias_path, min_cpg, clip, is_np, np_thresh, is_long, is_ds_test, cpc_call, combine_mods);
         p.parse_reads_from_stdin();
 
     }
