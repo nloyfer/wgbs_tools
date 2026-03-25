@@ -501,6 +501,13 @@ wgbstools vis ctrl_01.pat.gz --min_len 3 -r chr10:22631957-22632057 --hmc --text
 
 <img src="images/vis_5hmc.png" width="500" />
 
+### Combining 5mC and 5hmC (`--combine_mods`)
+If you don't need to distinguish 5mC from 5hmC, use `--combine_mods` to merge them into a single methylation signal. The 5mC and 5hmC probabilities are summed before thresholding, so the output contains only `C`/`T`/`.` (no `H` characters):
+```bash
+wgbstools bam2pat DualSeq_sample.bam --combine_mods
+```
+This is analogous to modkit's `--combine-mods` mode.
+
 ### Biomodal DualSeq: C+C? handling
 Biomodal BAMs may include a `C+C?` section in the MM tag for ambiguous modification calls. The `--cpc_call` flag controls how these positions appear in the PAT:
 - `C` (default): treat as methylated (5mC)
