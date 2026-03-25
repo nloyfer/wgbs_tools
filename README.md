@@ -72,6 +72,13 @@ wgbstools vis *.beta -r chr3:119528843-119529245 --heatmap
 <!--![alt text](docs/img/colon.beta.png "beta vis example")-->
 <img src="docs/img/colon.beta.png" width="450" height="600" />
 
+### **UPDATE:** 5hmC support (ONT, Biomodal DualSeq)
+wgbstools now supports modification-aware BAM files (ONT, Biomodal DualSeq) with automatic detection of MM/ML tags. Hydroxymethylated CpGs appear as `H` in PAT files and are visualized in yellow:
+
+<img src="tutorial/images/vis_5hmc.png" width="500" />
+
+See the [5hmC tutorial](tutorial/README.md#5hmc-support-ont-biomodal-dualseq) for details on `--cpc_call`, `--hmc`, and other options.
+
 ### Deconvolution
 To deconvolve tissues or blood samples, see our [UXM](https://github.com/nloyfer/UXM_deconv) software
 

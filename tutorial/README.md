@@ -10,6 +10,7 @@ In this tutorial some of the main features are explained, including:
 7. [Fragment-level counts](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#counting-homogenously-methylated-fragments) of methylated, unmethylated, and mixed fragments within a region
 8. [Differentially methylated regions](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#differentially-methylated-regions) - Find markers to differentiate between different groups of cell types
 9. [Bimodal and ASM analysis](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#bimodal-and-asm-analysis) - Analyze bimodality and identify allele-specific methylation.
+10. [5hmC support](https://github.com/nloyfer/wgbs_tools/tree/master/tutorial#5hmc-support-ont-biomodal-dualseq) - Working with ONT and Biomodal DualSeq modification-aware BAMs
 
 
 
@@ -460,4 +461,53 @@ wgbstools vis -r $region Left_Ventricle_STL001.IGF2.chr11:2019496*pat.gz
 <img src="images/split_by_allele.png" width="399" height="627" />
 
 As we can see, almost all of the reads with the A genotype are methylated while all of the reads with the C genotype are unmethylated, displaying clear ASM within the sample. In this case it is known that this region is imprinted, therefore further analysis of more samples will probably reveal that the methylation pattern is correlated with parental origin rather than with any specific SNP.
+
+## 5hmC support (ONT, Biomodal DualSeq)
+
+wgbstools supports modification-aware BAM files that carry MM/ML tags, such as those produced by Oxford Nanopore (ONT) or Biomodal DualSeq.
+
+### Automatic detection
+These BAMs are **auto-detected** — if `@RG PL:ONT` is present in the header or `MM:Z:` tags are found in the first 200 reads, `bam2pat` automatically enables modification-aware mode. You can also force it with `--nanopore`:
+
+```bash
+# Auto-detected — no extra flags needed for most ONT / Biomodal BAMs
+wgbstools bam2pat DualSeq_sample.bam
+
+# Explicitly enable, and set a custom probability threshold
+wgbstools bam2pat DualSeq_sample.bam --nanopore --np_thresh 0.8
+```
+
+When modification-aware mode is active, `bam2pat` uses `-F 3844 -q 0` (exclude unmapped, secondary, QC-fail, duplicate, supplementary; no MAPQ filter).
+
+### PAT encoding
+In the resulting PAT file, CpG sites are encoded as:
+
+| Symbol | Meaning |
+|--------|---------|
+| `C` | Methylated (5mC) |
+| `T` | Unmethylated |
+| `H` | Hydroxymethylated (5hmC) |
+| `.` | Unknown |
+
+By default, `H` sites are counted as methylated in the beta file (same as `C`).
+
+### Visualizing 5hmC
+PAT files with `H` characters are visualized as-is — `H` sites appear in yellow, `C` in red, and `T` in green. No special flag is needed.
+
+By default, the methylation average shown above the visualization includes `H` sites as methylated. Use `--hmc` to report 5mC and 5hmC averages separately:
+```bash
+wgbstools vis ctrl_01.pat.gz --min_len 3 -r chr10:22631957-22632057 --hmc --text
+```
+
+<img src="images/vis_5hmc.png" width="500" />
+
+### Biomodal DualSeq: C+C? handling
+Biomodal BAMs may include a `C+C?` section in the MM tag for ambiguous modification calls. The `--cpc_call` flag controls how these positions appear in the PAT:
+- `C` (default): treat as methylated (5mC)
+- `H`: treat as hydroxymethylated (5hmC)
+- `.`: treat as unknown
+
+```bash
+wgbstools bam2pat DualSeq_sample.bam --cpc_call H
+```
 

@@ -24,8 +24,9 @@ Each site is represented by a single character: <br/>
 
 | symbol  | meaning  |
 |---|---|
-| `C`  | Methylated CpG  |
+| `C`  | Methylated CpG (5mC)  |
 | `T`  | Unmethylated CpG  |
+| `H`  | Hydroxymethylated CpG (5hmC) — produced by modification-aware sequencing (ONT, Biomodal DualSeq)  |
 | `.`  | CpG with an unknown status  |
 
 
