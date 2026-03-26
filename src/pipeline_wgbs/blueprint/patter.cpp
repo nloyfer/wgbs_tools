@@ -3,7 +3,7 @@
 //
 
 #include "patter.h"
-
+#include <cstdint>
 char METH = 'C';
 char UNMETH = 'T';
 char UNKNOWN = '.';

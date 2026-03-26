@@ -1,4 +1,5 @@
 #include "patter_utils.h"
+#include <cstdint>
 
 /***************************************************
  *                                                 *
