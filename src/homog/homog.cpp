@@ -2,7 +2,7 @@
 #include "homog.h"
 
 int32_t *Homog::init_array(int len) {
-    int *arr = new int32_t[nr_blocks * len];
+    int32_t *arr = new int32_t[nr_blocks * len];
     std::fill_n(arr, nr_blocks * len, 0);
     return arr;
 }
@@ -30,7 +30,7 @@ Homog::Homog(std::string in_blocks_path, std::vector<float> in_range,
 }
 
 Homog::~Homog() {
-    //delete[] counts;
+    delete[] counts;
 }
 
 
@@ -40,7 +40,6 @@ int Homog::blocks_helper(std::istream &instream) {
     std::string line;
     int cur_start = 0, cur_end = 0;
     int bi = 0;
-    int abc = 0;
     while (std::getline(instream, line)) {
 
         // skip empty lines and comments
@@ -120,7 +119,7 @@ int Homog::read_blocks() {
 
     blocks_helper(ss);
 
-    if (borders_starts.size() == 0) {
+    if (borders_starts.empty()) {
         std::cerr << sname + "Error while loading blocks. 0 blocks found.\n";
         //std::cerr << "Error while loading blocks. 0 blocks found.\nMaybe all blocks are too short.\n";
         throw std::invalid_argument("");
@@ -144,14 +143,14 @@ void Homog::dump(int32_t *data, int width) {
     }
 }
 
-void Homog::update_m2(int block_ind, std::string pat, int count) {
+void Homog::update_m2(int block_ind, const std::string &pat, int count) {
 
     int nrC = 0;
     int nrT = 0;
     for (int i = 0; i < pat.length(); i++) {
-        if (pat[i] == 'C')
+        if ((pat[i] == METH) || (pat[i] == HYDROXY))
             nrC++;
-        else if (pat[i] == 'T')
+        else if (pat[i] == UNMETH)
             nrT++;
     }
 
@@ -175,16 +174,16 @@ void Homog::update_m2(int block_ind, std::string pat, int count) {
     counts[block_ind * nr_bins + bin_ind] += count;
 }
 
-void Homog::update_block(int block_ind, std::string pat, std::string orig_pat, int32_t count) {
+void Homog::update_block(int block_ind, const std::string &pat, const std::string &orig_pat, int32_t count) {
 
-    std::string work_pat = inclusive ? orig_pat : pat;
+    const std::string &work_pat = inclusive ? orig_pat : pat;
 
     // skip reads with less then min_cpgs sites
     if (work_pat.length() < min_cpgs) { return; }
     update_m2(block_ind, work_pat, count);
 }
 
-int Homog::proc_line(std::vector <std::string> tokens) {
+int Homog::proc_line(const std::vector <std::string> &tokens) {
     /**
      * Given one line of the form "chr1 1245345 CCT 3", update counts array -
      * Increase in the corresponding cells.
@@ -209,9 +208,11 @@ int Homog::proc_line(std::vector <std::string> tokens) {
     // read starts after current block ends - move on to next relevant block
     //                   CTCTCT
     //         |-----|
-    while ((read_start >= borders_ends[cur_block_ind]) && (cur_block_ind < nr_blocks)) {
+    while ((cur_block_ind < nr_blocks) && (read_start >= borders_ends[cur_block_ind])) {
         cur_block_ind++;
     }
+    if (cur_block_ind >= nr_blocks)
+        return 1;
     // todo: dump block line on the fly
     // read ends before current block starts: skip read.
     //  CTCTCT
@@ -298,17 +299,17 @@ std::vector<float> parse_range(std::string &range_str) {
     float tmp = -1;
     for (std::size_t i = 0; i < vect.size(); i++) {
         if (vect[i] <= tmp) {
-            std::cout << "Invalid range - non monotonic: " << range_str << std::endl;
+            std::cerr << "Invalid range - non monotonic: " << range_str << std::endl;
             throw std::invalid_argument("Invalid range");
         }
         if ((vect[i] < 0) || (vect[i] > 1)) {
-            std::cout << "Invalid range - must be in [0,1]: " << vect[i] << std::endl;
+            std::cerr << "Invalid range - must be in [0,1]: " << vect[i] << std::endl;
             throw std::invalid_argument("Invalid range");
         }
         tmp = vect[i];
     }
     if ((vect[0] > 0) || (vect[vect.size() - 1] < 1)) {
-        std::cout << "Invalid range - must start with 0 and end with 1."  << std::endl;
+        std::cerr << "Invalid range - must start with 0 and end with 1."  << std::endl;
         throw std::invalid_argument("Invalid range");
     }
     return vect;

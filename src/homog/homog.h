@@ -44,12 +44,12 @@ class Homog {
 
     int read_blocks();
 
-    void dump(int *data, int width);
-    void update_m2(int block_ind, std::string pat, int count);
+    void dump(int32_t *data, int width);
+    void update_m2(int block_ind, const std::string &pat, int count);
 
-    int proc_line(std::vector <std::string> tokens);
+    int proc_line(const std::vector <std::string> &tokens);
 
-    void update_block(int ind, std::string pat, std::string orig_pattern, int count);
+    void update_block(int ind, const std::string &pat, const std::string &orig_pattern, int count);
 
     int32_t* init_array(int len);
 

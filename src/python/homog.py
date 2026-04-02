@@ -1,13 +1,15 @@
 #!/usr/bin/python3 -u
 
 import argparse
+import os
 import os.path as op
 import sys
 import subprocess
+import tempfile
 from io import StringIO
 import numpy as np
 import pandas as pd
-from beta_to_blocks import load_blocks_file, is_block_file_nice
+from beta_to_blocks import load_blocks_file
 from utils_wgbs import IllegalArgumentError, homog_tool, main_script, \
         splitextgz, validate_file_list, COORDS_COLS5, validate_local_exe, \
         mkdirp, delete_or_skip, pretty_name
@@ -15,6 +17,48 @@ from utils_wgbs import IllegalArgumentError, homog_tool, main_script, \
 
 def homog_log(*args, **kwargs):
     print('[ wt homog ]', *args, file=sys.stderr, **kwargs)
+
+
+def _blocks_are_sorted(df):
+    """Return True if blocks are sorted by startCpG (and endCpG as tiebreaker)."""
+    starts = df['startCpG'].values
+    ends = df['endCpG'].values
+    for i in range(1, len(starts)):
+        if starts[i] < starts[i - 1]:
+            return False
+        if starts[i] == starts[i - 1] and ends[i] < ends[i - 1]:
+            return False
+    return True
+
+
+def _validate_blocks_ignore_sort(df):
+    """Check block validity except sort order. Returns (ok, msg)."""
+    if df[['startCpG', 'endCpG']].isna().values.sum() > 0:
+        return False, 'Some blocks are empty (NA)'
+    if not (df['endCpG'] - df['startCpG'] > 0).all():
+        return False, 'Some blocks are empty (startCpG==endCpG)'
+    # check overlaps on the sorted copy
+    sdf = df.sort_values(by='startCpG')
+    if not (sdf['startCpG'].values[1:] - sdf['endCpG'].values[:-1] >= 0).all():
+        return False, 'Some blocks overlap'
+    return True, ''
+
+
+def _sort_blocks_to_file(blocks_df, tmpdir):
+    """Sort blocks by startCpG, write to a temp bed file. Returns (path, sort_order).
+
+    sort_order is an array mapping sorted position → original position,
+    used to restore the original block order after the C++ tool runs.
+    """
+    sort_order = blocks_df['startCpG'].values.argsort(kind='stable')
+    sorted_df = blocks_df.iloc[sort_order].reset_index(drop=True)
+    tmp = tempfile.NamedTemporaryFile(
+        mode='w', suffix='.bed', dir=tmpdir, delete=False,
+    )
+    sorted_df.to_csv(tmp, sep='\t', header=False, index=False)
+    tmp.close()
+    homog_log(f'Wrote sorted blocks to {tmp.name}')
+    return tmp.name, sort_order
 
 
 ######################################################
@@ -56,7 +100,8 @@ def ctool_wrap(pat, name, blocks_path, rates_cmd, view_full, inclusive, verbose=
     return df
 
 
-def homog_process(pat, blocks, args, outdir, prefix, nodump=False):
+def homog_process(pat, blocks, args, outdir, prefix,
+                   sorted_blocks_path=None, sort_order=None, nodump=False):
     # generate output path:
     name = pretty_name(pat)
     if prefix is None:
@@ -78,11 +123,20 @@ def homog_process(pat, blocks, args, outdir, prefix, nodump=False):
         th2 = round((l - 1) / l, 3)
         rate_cmd += f'0,{th1},{th2},1 '
 
+    # Use sorted blocks path for C++ tool if blocks were reordered
+    ctool_blocks_path = sorted_blocks_path if sorted_blocks_path else args.blocks_file
+
     # for a long marker file (>10K marker),
     # parse the whole pat file instead of running "cview -L BED"
     view_full = blocks.shape[0] > 1e4
 
-    df = ctool_wrap(pat, name, args.blocks_file, rate_cmd, view_full, args.inclusive, args.verbose)
+    df = ctool_wrap(pat, name, ctool_blocks_path, rate_cmd, view_full, args.inclusive, args.verbose)
+
+    if sort_order is not None:
+        # C++ output is in sorted order — restore to original block order
+        inv_order = np.argsort(sort_order, kind='stable')
+        df = df.iloc[inv_order].reset_index(drop=True)
+
     df = pd.concat([blocks.reset_index(drop=True), df], axis=1)
     df = blocks.merge(df, how='left', on=COORDS_COLS5)
 
@@ -136,14 +190,33 @@ def main():
 
     # load blocks:
     blocks_df = load_blocks_file(args.blocks_file)
-    is_nice, msg = is_block_file_nice(blocks_df)
-    # TODO: support unsorted block files
-    if not is_nice:
+
+    # validate blocks (allowing unsorted)
+    ok, msg = _validate_blocks_ignore_sort(blocks_df)
+    if not ok:
         homog_log(msg)
         raise IllegalArgumentError(f'Invalid blocks file: {args.blocks_file}')
 
-    for pat in sorted(pats):
-        homog_process(pat, blocks_df, args, outdir, prefix)
+    # sort blocks if needed
+    sorted_blocks_path = None
+    sort_order = None
+    if not _blocks_are_sorted(blocks_df):
+        homog_log(f'WARNING: blocks file is not sorted by startCpG. Sorting...')
+        sorted_blocks_path, sort_order = _sort_blocks_to_file(
+            blocks_df, args.tmp_dir,
+        )
+
+    try:
+        for pat in sorted(pats):
+            homog_process(pat, blocks_df, args, outdir, prefix,
+                          sorted_blocks_path=sorted_blocks_path,
+                          sort_order=sort_order)
+    finally:
+        if sorted_blocks_path is not None:
+            try:
+                os.remove(sorted_blocks_path)
+            except OSError:
+                pass
 
 
 def parse_args():
@@ -166,7 +239,9 @@ def parse_args():
     parser.add_argument('--rlen', '-l', type=int, default=3,
             help='Minimal read length (in CpGs) to consider. Default is 3')
     parser.add_argument('--debug', '-d', action='store_true')
-    # todo: keep --bed for backward compatability
+    parser.add_argument('-T', '--tmp_dir', default=None,
+            help='Directory for temporary files (e.g. sorted blocks). '
+                 'Default: system temp directory')
 
     return parser.parse_args()
 
