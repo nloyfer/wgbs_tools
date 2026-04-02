@@ -71,13 +71,6 @@ int read_blocks(std::string block_data, std::vector<Block> &borders) {
         Block b = {cur_start, cur_end, 1};
         borders.push_back(b);
 
-        // make sure there's no overlap or non-monotonic blocks
-        if ( (bi > 0) && (borders.at(bi).start < borders.at(bi - 1).end) ) {
-            std::cerr << "Invalid block start: " << cur_start << std::endl;
-            std::cerr << "Make sure blocks are sorted by CpG-Index and monotonic (blockEnd > blockStart).\n";
-            throw std::invalid_argument("Invalid blocks");
-        }
-
         bi++;
     }
     if (borders.size() == 0) {

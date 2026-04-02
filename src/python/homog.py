@@ -32,15 +32,11 @@ def _blocks_are_sorted(df):
 
 
 def _validate_blocks_ignore_sort(df):
-    """Check block validity except sort order. Returns (ok, msg)."""
+    """Check block validity except sort order. Overlapping blocks are allowed. Returns (ok, msg)."""
     if df[['startCpG', 'endCpG']].isna().values.sum() > 0:
         return False, 'Some blocks are empty (NA)'
     if not (df['endCpG'] - df['startCpG'] > 0).all():
         return False, 'Some blocks are empty (startCpG==endCpG)'
-    # check overlaps on the sorted copy
-    sdf = df.sort_values(by='startCpG')
-    if not (sdf['startCpG'].values[1:] - sdf['endCpG'].values[:-1] >= 0).all():
-        return False, 'Some blocks overlap'
     return True, ''
 
 
