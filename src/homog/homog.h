@@ -7,16 +7,11 @@
 
 #include <vector>
 #include <deque>
-#include <sstream>
 #include <iostream>
-#include <fstream>
-#include <math.h>
 #include <string>
 #include <stdlib.h>
 #include <stdexcept>    // std::invalid_argument
-#include <algorithm>    // std::find
-#include <array>        // std::array
-#include <memory>       // std::unique_ptr
+#include <algorithm>    // std::max, std::min
 #include <climits>      // INT_MAX
 #include "../pipeline_wgbs/patter_utils.h"
 
@@ -24,9 +19,8 @@
 #define DEFAULT_LEN "5"
 
 struct BlockData {
-    int start;                    // startCpG
-    int end;                      // endCpG
-    std::string coords;           // "chr\tstart\tend"
+    int start;              // startCpG
+    int end;                // endCpG
     std::vector<int32_t> counts;  // bin counts, size = nr_bins
 };
 
@@ -34,6 +28,7 @@ class Homog {
 
     bool debug;
     bool inclusive;
+    bool sort_blocks;
     std::string blocks_path;
     std::string name;
     std::string sname;
@@ -53,6 +48,7 @@ class Homog {
     // Block streaming
     void open_blocks_pipe();
     void load_blocks_until(int max_start);
+    void close_blocks_pipe();
 
     // Flushing
     void flush_block(BlockData &b);
@@ -65,14 +61,15 @@ class Homog {
     inline int block_end(int i)   { return blocks[i - flush_offset].end; }
     inline int loaded_end()       { return flush_offset + (int)blocks.size(); }
 
-    void update_m2(int block_ind, const std::string &pat, int count);
+    void update_m2(int block_ind, const std::string &pat, int offset, int length, int count);
     int proc_line(const std::vector <std::string> &tokens);
-    void update_block(int ind, const std::string &pat, const std::string &orig_pattern, int count);
+    void update_block(int ind, const std::string &pat, int offset, int length,
+                      const std::string &orig_pattern, int count);
 
 public:
     Homog(std::string blocks_path, std::vector<float> range,
             int m_order, bool deb, std::string name,
-            std::string chrom, bool inclusive);
+            std::string chrom, bool inclusive, bool sort_blocks);
 
     ~Homog();
 

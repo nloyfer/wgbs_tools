@@ -3,23 +3,21 @@
 
 Homog::Homog(std::string in_blocks_path, std::vector<float> in_range,
              int in_min_cpgs, bool deb, std::string in_name,
-             std::string in_chrom, bool incl) {
+             std::string in_chrom, bool incl, bool in_sort_blocks) {
     min_cpgs = in_min_cpgs;
     blocks_path = in_blocks_path;
     range = in_range;
     chrom = in_chrom;
     debug = deb;
     inclusive = incl;
+    sort_blocks = in_sort_blocks;
     name = in_name;
     sname = "[ homog " + name + " ] ";
     nr_bins = range.size() - 1;
 }
 
 Homog::~Homog() {
-    if (blocks_pipe != nullptr) {
-        pclose(blocks_pipe);
-        blocks_pipe = nullptr;
-    }
+    close_blocks_pipe();
 }
 
 
@@ -35,9 +33,25 @@ void Homog::open_blocks_pipe() {
         cmd = "gunzip -c ";
     }
     cmd += blocks_path;
+    if (sort_blocks) {
+        cmd += " | sort -k4,4n -k5,5n";
+        std::cerr << sname + "WARNING: blocks file is not sorted. "
+                  << "Sorting on the fly (requires buffering the entire file in memory)." << std::endl;
+    }
     blocks_pipe = popen(cmd.c_str(), "r");
     if (blocks_pipe == nullptr) {
         throw std::invalid_argument(sname + "Error: Unable to open blocks path: " + blocks_path);
+    }
+}
+
+void Homog::close_blocks_pipe() {
+    if (blocks_pipe != nullptr) {
+        int status = pclose(blocks_pipe);
+        blocks_pipe = nullptr;
+        if (status != 0) {
+            std::cerr << sname + "WARNING: blocks pipe exited with status "
+                      << status << " (possible truncated or corrupt file)" << std::endl;
+        }
     }
 }
 
@@ -84,7 +98,6 @@ void Homog::load_blocks_until(int max_start) {
         BlockData b;
         b.start = cur_start;
         b.end = cur_end;
-        b.coords = tokens[0] + "\t" + tokens[1] + "\t" + tokens[2];
         b.counts.assign(nr_bins, 0);
         blocks.push_back(std::move(b));
         blocks_loaded++;
@@ -138,11 +151,11 @@ void Homog::flush_remaining() {
  *                                                 *
  **************************************************/
 
-void Homog::update_m2(int block_ind, const std::string &pat, int count) {
+void Homog::update_m2(int block_ind, const std::string &pat, int offset, int length, int count) {
 
     int nrC = 0;
     int nrT = 0;
-    for (int i = 0; i < pat.length(); i++) {
+    for (int i = offset; i < offset + length; i++) {
         if ((pat[i] == METH) || (pat[i] == HYDROXY))
             nrC++;
         else if (pat[i] == UNMETH)
@@ -169,13 +182,17 @@ void Homog::update_m2(int block_ind, const std::string &pat, int count) {
     block_at(block_ind).counts[bin_ind] += count;
 }
 
-void Homog::update_block(int block_ind, const std::string &pat, const std::string &orig_pat, int32_t count) {
+void Homog::update_block(int block_ind, const std::string &pat, int offset, int length,
+                         const std::string &orig_pat, int32_t count) {
 
-    const std::string &work_pat = inclusive ? orig_pat : pat;
-
-    // skip reads with less then min_cpgs sites
-    if (work_pat.length() < min_cpgs) { return; }
-    update_m2(block_ind, work_pat, count);
+    if (inclusive) {
+        // inclusive mode: use the full original pattern
+        if ((int)orig_pat.length() < min_cpgs) { return; }
+        update_m2(block_ind, orig_pat, 0, (int)orig_pat.length(), count);
+    } else {
+        if (length < min_cpgs) { return; }
+        update_m2(block_ind, pat, offset, length, count);
+    }
 }
 
 int Homog::proc_line(const std::vector <std::string> &tokens) {
@@ -189,7 +206,7 @@ int Homog::proc_line(const std::vector <std::string> &tokens) {
     }
 
     int read_start = std::stoi(tokens[1]);
-    std::string pattern = tokens[2];
+    const std::string &pattern = tokens[2];
     int count = std::stoi(tokens[3]);
     int read_end = read_start + (int) pattern.length() - 1;
     int pat_len = (int) pattern.length();
@@ -235,9 +252,9 @@ int Homog::proc_line(const std::vector <std::string> &tokens) {
         if (overlap_start >= overlap_end)
             continue;
 
-        std::string clipped = pattern.substr(overlap_start - read_start,
-                                             overlap_end - overlap_start);
-        update_block(bi, clipped, pattern, (int32_t) count);
+        int offset = overlap_start - read_start;
+        int length = overlap_end - overlap_start;
+        update_block(bi, pattern, offset, length, pattern, (int32_t) count);
     }
     return 0;
 }
@@ -281,6 +298,8 @@ void Homog::parse() {
         load_blocks_until(INT_MAX);
         // flush everything still in the deque
         flush_remaining();
+        // check pipe exit status
+        close_blocks_pipe();
 
         std::cerr << sname + "finished " << line_i << " reads, "
                   << blocks_loaded << " blocks." << std::endl;
@@ -325,13 +344,14 @@ std::vector<float> parse_range(std::string &range_str) {
 int main(int argc, char *argv[]) {
 
     if ((argc < 3)) {
-        std::cerr << "Usage: EXEC -r RANGE -b BLOCKS_PATH [-l MIN_LEN] [-n NAME] [-d]\n"
-                  << "-l       Minimal sites in read to consider. Default is l=5.\n"
-                  << "-r       Ranges of methylation average, in [0,1]. For example: 0,0.2001,0.8,1.\n"
-                  << "-b       Blocks file. No header. First 5 columns are:\n"
-                  << "         <chr, start, end, startCpG, endCpG>.\n"
-                  << "         File may be gzipped. Note sometimes bgzip causes problems.\n"
-                  << "-d       Debug mode. Only use the first 2,500 blocks in the blocks file."
+        std::cerr << "Usage: EXEC -r RANGE -b BLOCKS_PATH [-l MIN_LEN] [-n NAME] [-d] [--sort_blocks]\n"
+                  << "-l            Minimal sites in read to consider. Default is l=5.\n"
+                  << "-r            Ranges of methylation average, in [0,1]. For example: 0,0.2001,0.8,1.\n"
+                  << "-b            Blocks file. No header. First 5 columns are:\n"
+                  << "              <chr, start, end, startCpG, endCpG>.\n"
+                  << "              File may be gzipped. Note sometimes bgzip causes problems.\n"
+                  << "-d            Debug mode. Only use the first 2,500 blocks in the blocks file.\n"
+                  << "--sort_blocks Sort blocks by CpG index before processing.\n"
                   << std::endl;
         return -1;
     }
@@ -344,10 +364,11 @@ int main(int argc, char *argv[]) {
     std::string chrom = input.getCmdOption("--chrom");
     bool debug = input.cmdOptionExists("-d");
     bool inclusive = input.cmdOptionExists("--inclusive");
+    bool sort_blocks = input.cmdOptionExists("--sort_blocks");
 
     try {
         std::vector<float> range = parse_range(range_str);
-        Homog(blocks_path, range, min_cpgs, debug, name, chrom, inclusive).parse();
+        Homog(blocks_path, range, min_cpgs, debug, name, chrom, inclusive, sort_blocks).parse();
     }
     catch (std::exception &e) {
         std::cerr << e.what() << std::endl;

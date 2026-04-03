@@ -1,17 +1,15 @@
 #!/usr/bin/python3 -u
 
 import argparse
-import os
 import os.path as op
 import sys
 import subprocess
-import tempfile
 from io import StringIO
 import numpy as np
 import pandas as pd
 from beta_to_blocks import load_blocks_file
 from utils_wgbs import IllegalArgumentError, homog_tool, main_script, \
-        splitextgz, validate_file_list, COORDS_COLS5, validate_local_exe, \
+        validate_file_list, COORDS_COLS5, validate_local_exe, \
         mkdirp, delete_or_skip, pretty_name
 
 
@@ -40,23 +38,6 @@ def _validate_blocks_ignore_sort(df):
     return True, ''
 
 
-def _sort_blocks_to_file(blocks_df, tmpdir):
-    """Sort blocks by startCpG, write to a temp bed file. Returns (path, sort_order).
-
-    sort_order is an array mapping sorted position → original position,
-    used to restore the original block order after the C++ tool runs.
-    """
-    sort_order = blocks_df['startCpG'].values.argsort(kind='stable')
-    sorted_df = blocks_df.iloc[sort_order].reset_index(drop=True)
-    tmp = tempfile.NamedTemporaryFile(
-        mode='w', suffix='.bed', dir=tmpdir, delete=False,
-    )
-    sorted_df.to_csv(tmp, sep='\t', header=False, index=False)
-    tmp.close()
-    homog_log(f'Wrote sorted blocks to {tmp.name}')
-    return tmp.name, sort_order
-
-
 ######################################################
 #                                                    #
 #    wrap the c++ tool                               #
@@ -77,7 +58,8 @@ def trim_uxm_to_uint8(data, nr_bits):
     return res
 
 
-def ctool_wrap(pat, name, blocks_path, rates_cmd, view_full, inclusive, verbose=False):
+def ctool_wrap(pat, name, blocks_path, rates_cmd, view_full, inclusive,
+               sort_blocks=False, verbose=False):
     if view_full:
         cmd = f'gunzip -c {pat}'
     else:
@@ -85,6 +67,8 @@ def ctool_wrap(pat, name, blocks_path, rates_cmd, view_full, inclusive, verbose=
     cmd += f' | {homog_tool} -b {blocks_path} -n {name} {rates_cmd}'
     if inclusive:
         cmd += ' --inclusive'
+    if sort_blocks:
+        cmd += ' --sort_blocks'
     se = None if verbose else subprocess.PIPE
     txt = subprocess.check_output(cmd, shell=True, stderr=se).decode()
     if verbose:
@@ -97,7 +81,7 @@ def ctool_wrap(pat, name, blocks_path, rates_cmd, view_full, inclusive, verbose=
 
 
 def homog_process(pat, blocks, args, outdir, prefix,
-                   sorted_blocks_path=None, sort_order=None, nodump=False):
+                   sort_blocks=False, nodump=False):
     # generate output path:
     name = pretty_name(pat)
     if prefix is None:
@@ -119,22 +103,24 @@ def homog_process(pat, blocks, args, outdir, prefix,
         th2 = round((l - 1) / l, 3)
         rate_cmd += f'0,{th1},{th2},1 '
 
-    # Use sorted blocks path for C++ tool if blocks were reordered
-    ctool_blocks_path = sorted_blocks_path if sorted_blocks_path else args.blocks_file
-
-    # for a long marker file (>10K marker),
+    # for a long marker file (>5K blocks),
     # parse the whole pat file instead of running "cview -L BED"
-    view_full = blocks.shape[0] > 1e4
+    view_full = blocks.shape[0] > 5e3
 
-    df = ctool_wrap(pat, name, ctool_blocks_path, rate_cmd, view_full, args.inclusive, args.verbose)
+    df = ctool_wrap(pat, name, args.blocks_file, rate_cmd, view_full,
+                    args.inclusive, sort_blocks=sort_blocks, verbose=args.verbose)
 
-    if sort_order is not None:
-        # C++ output is in sorted order — restore to original block order
-        inv_order = np.argsort(sort_order, kind='stable')
+    if sort_blocks:
+        # C++ output is in sorted CpG order — restore to original block order
+        # Build mapping: for each row in sorted output, find its original position
+        sorted_starts = blocks['startCpG'].values.argsort(kind='stable')
+        inv_order = np.argsort(sorted_starts, kind='stable')
         df = df.iloc[inv_order].reset_index(drop=True)
 
-    df = pd.concat([blocks.reset_index(drop=True), df], axis=1)
-    df = blocks.merge(df, how='left', on=COORDS_COLS5)
+    df = blocks.merge(
+        pd.concat([blocks[COORDS_COLS5].reset_index(drop=True), df], axis=1),
+        how='left', on=COORDS_COLS5,
+    )
 
     if nodump:
         return df
@@ -193,26 +179,15 @@ def main():
         homog_log(msg)
         raise IllegalArgumentError(f'Invalid blocks file: {args.blocks_file}')
 
-    # sort blocks if needed
-    sorted_blocks_path = None
-    sort_order = None
-    if not _blocks_are_sorted(blocks_df):
-        homog_log(f'WARNING: blocks file is not sorted by startCpG. Sorting...')
-        sorted_blocks_path, sort_order = _sort_blocks_to_file(
-            blocks_df, args.tmp_dir,
-        )
+    # check if blocks need sorting (C++ binary handles it via --sort_blocks)
+    sort_blocks = not _blocks_are_sorted(blocks_df)
+    if sort_blocks:
+        homog_log(f'WARNING: blocks file is not sorted by startCpG. '
+                  f'C++ binary will sort internally.')
 
-    try:
-        for pat in sorted(pats):
-            homog_process(pat, blocks_df, args, outdir, prefix,
-                          sorted_blocks_path=sorted_blocks_path,
-                          sort_order=sort_order)
-    finally:
-        if sorted_blocks_path is not None:
-            try:
-                os.remove(sorted_blocks_path)
-            except OSError:
-                pass
+    for pat in sorted(pats):
+        homog_process(pat, blocks_df, args, outdir, prefix,
+                      sort_blocks=sort_blocks)
 
 
 def parse_args():
@@ -235,10 +210,6 @@ def parse_args():
     parser.add_argument('--rlen', '-l', type=int, default=3,
             help='Minimal read length (in CpGs) to consider. Default is 3')
     parser.add_argument('--debug', '-d', action='store_true')
-    parser.add_argument('-T', '--tmp_dir', default=None,
-            help='Directory for temporary files (e.g. sorted blocks). '
-                 'Default: system temp directory')
-
     return parser.parse_args()
 
 
