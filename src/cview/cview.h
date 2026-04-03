@@ -18,10 +18,9 @@
 struct Block {
     int start;
     int end;
-    int count;
 };
 
-int read_blocks(std::string block_data, std::vector<Block> &borders);
+int read_blocks(const std::string &block_data, std::vector<Block> &borders);
 
 class Cview {
     std::vector<Block> borders;

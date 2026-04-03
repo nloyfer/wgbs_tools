@@ -16,17 +16,29 @@ void Cview::pass_read(std::vector <std::string> &tokens) {
     output_vec(tokens);
 }
 
-std::string block_path_to_string_data(std::string blocks_path) {
+std::string block_path_to_string_data(const std::string &blocks_path) {
     std::string cmd = hasEnding(blocks_path, ".gz") ? "gunzip -c " : "cat ";
-    cmd += blocks_path + " " + " | cut -f4-5 | sort -k1,1n";
-    std::string block_data = exec(cmd.c_str());
-    if (block_data.length() == 0) {
+    cmd += blocks_path + " | cut -f4-5 | sort -k1,1n";
+    FILE *pipe = popen(cmd.c_str(), "r");
+    if (pipe == nullptr) {
+        throw std::invalid_argument("[ cview ] Error: Unable to open blocks file: " + blocks_path);
+    }
+    std::string block_data;
+    char buf[4096];
+    while (fgets(buf, sizeof(buf), pipe) != nullptr) {
+        block_data += buf;
+    }
+    int status = pclose(pipe);
+    if (block_data.empty()) {
         throw std::invalid_argument("[ cview ] Error: Unable to read blocks file: " + blocks_path);
+    }
+    if (status != 0) {
+        std::cerr << "[ cview ] WARNING: blocks pipe exited with status " << status << std::endl;
     }
     return block_data;
 }
 
-int read_blocks(std::string block_data, std::vector<Block> &borders) {
+int read_blocks(const std::string &block_data, std::vector<Block> &borders) {
     // Load blocks to string
     std::stringstream ss(block_data);
 
@@ -61,19 +73,12 @@ int read_blocks(std::string block_data, std::vector<Block> &borders) {
             throw std::invalid_argument("Invalid block: startCpG < 1");
         }
 
-        // if block is duplicated, continue
-        if ((bi > 0) && (borders.at(bi - 1).start == cur_start) && (borders.at(bi - 1).end == cur_end)) {
-            borders.at(bi - 1).count++;
-            continue;
-        }
-        
-        // block isn't dup:
-        Block b = {cur_start, cur_end, 1};
+        Block b = {cur_start, cur_end};
         borders.push_back(b);
 
         bi++;
     }
-    if (borders.size() == 0) {
+    if (borders.empty()) {
         throw std::invalid_argument("Error while loading blocks. 0 blocks found.\n");
      }
     return borders.size();
@@ -106,10 +111,12 @@ int Cview::proc_line(std::vector <std::string> tokens) {
     /** read starts after current block ends - move on to next relevant block
                        CTCTCT
              |-----|                                                         */
-    while ((read_start >= borders.at(cur_block_ind).end) && (cur_block_ind < nr_blocks)) {
+    while ((cur_block_ind < nr_blocks) && (read_start >= borders.at(cur_block_ind).end)) {
         cur_block_ind++;
     }
-    
+    if (cur_block_ind >= nr_blocks)
+        return 1;
+
     /** read ends before current block starts: skip read.
         CTCTCT
                |-----|                                                      */
