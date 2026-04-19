@@ -137,31 +137,28 @@ class SegmentByChunks:
     def run(self):
         # break input region/s to small chunks
         tags, starts, ends = self.break_to_chunks()
-        # segment each chunk separately in a single thread
-        p = Pool(self.args.threads)
-        params = [(dict(self.param_dict, **{'sites': (s, e)}),) for s, e in zip(starts, ends)]
-        arr = p.starmap(segment_process, params)
-        p.close()
-        p.join()
 
-        # merge chunks from the same "tag" group
-        # (i.e. the same chromosome, or the same region of the provided bed file)
-        df = pd.DataFrame()
-        for tag in set(tags):
-            carr = [arr[i] for i in range(len(arr)) if tags[i] == tag]
-            merged = self.merge_df_list(carr)
-            df = pd.concat([df, pd.DataFrame({'startCpG': merged[:-1], 'endCpG': merged[1:]})])
+        # Single Pool for the whole run — previously a fresh Pool was forked
+        # for the initial chunk pass AND inside every iteration of
+        # merge_df_list's pairwise-reduce while-loop.
+        with Pool(self.args.threads) as pool:
+            params = [(dict(self.param_dict, **{'sites': (s, e)}),) for s, e in zip(starts, ends)]
+            arr = pool.starmap(segment_process, params)
+
+            # merge chunks from the same "tag" group
+            # (i.e. the same chromosome, or the same region of the provided bed file)
+            df = pd.DataFrame()
+            for tag in set(tags):
+                carr = [arr[i] for i in range(len(arr)) if tags[i] == tag]
+                merged = self.merge_df_list(carr, pool)
+                df = pd.concat([df, pd.DataFrame({'startCpG': merged[:-1], 'endCpG': merged[1:]})])
         self.dump_result(df.reset_index(drop=True))
 
-    def merge_df_list(self, dflist):
+    def merge_df_list(self, dflist, pool):
         # Given a set of chunks to merge, recursively pairwise stich them.
-
         while len(dflist) > 1:
-            p = Pool(self.args.threads)
             params = [(dflist[i - 1], dflist[i], self.param_dict) for i in range(1, len(dflist), 2)]
-            arr = p.starmap(stitch_2_dfs, params)
-            p.close()
-            p.join()
+            arr = pool.starmap(stitch_2_dfs, params)
 
             last_df = [dflist[-1]] if len(dflist) % 2 else []
             dflist = arr + last_df
@@ -211,7 +208,6 @@ def stitch_2_dfs(b1, b2, params):
     n2 = b2[-1] - b2[0]
     patch1_size = min(50, n1)
     patch2_size = min(50, n2)
-    patch = np.array([], dtype=int)
     while patch1_size <= n1 and patch2_size <= n2:
         # calculate blocks for patch:
         start = b1[-1] - patch1_size #- 1

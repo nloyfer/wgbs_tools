@@ -1,6 +1,7 @@
 //
 // Created by nloyfer on 11/2/18.
 //
+#include <memory>
 #include <stdexcept>
 #include <limits>
 #include "segmentor.h"
@@ -46,70 +47,6 @@ void segmentor::load_dists(uint32_t *dists) {
     }
 }
 
-void segmentor::cost_memoization(std::vector<float*> &all_data){
-    /**
-     * Create a cost matrix of size (nr_sites * nr_sites)
-     * mem[i, j] = j >= i: cost of the block [i,...,j]
-     *             i > j: cost(i,j) = -inf
-     * The cost of a block is calculated as follows:
-     * First, find p_mle = (#meth + pseudo_count) / (#total + 2*pseudo_count)
-     * Then the score is the log likelihood:
-     *              (#meth) * log(p_mle) + (#unmeth) * log(1-p_mle)
-     * */
-    auto nr_dsets = (int) all_data.size();
-    auto *nmeth = new float[nr_dsets];
-    auto *ntotal = new float[nr_dsets];
-    auto *dists = new uint32_t[nr_sites];
-    double ll_sum, z;
-    float p_mle_k, ll_k, ntotal_k, nmeth_k;
-    
-    load_dists(dists);
-
-    for (int i = 0; i < nr_sites; i++) {
-        memset(nmeth, 0, nr_dsets * sizeof(*nmeth));
-        memset(ntotal, 0, nr_dsets * sizeof(*ntotal));
-
-        int window = std::min((int)nr_sites - i, max_cpg);
-        for (int j = 0; j < window; j++) {
-
-
-            if ( (dists[i + j] - dists[i] > params.max_bp) || (dists[i + j] < dists[i]) ) {
-                mem[i * max_cpg + j] = -std::numeric_limits<float>::infinity();
-                continue;
-            }
-
-            ll_sum = 0;
-
-            for (int k = 0; k < nr_dsets; k++) {
-
-                nmeth[k] += all_data[k][(i + j) * 2];
-                ntotal[k] += all_data[k][((i + j) * 2) + 1];
-                ntotal_k = ntotal[k];
-                nmeth_k = nmeth[k];
-                if (!ntotal_k) { continue; }
-
-                //log likelihood = nmeth * log(p_mle) + (ntotal - nmeth) * log(1 - p_mle)
-                p_mle_k = (nmeth_k + pseudo_count) / (ntotal_k + (2 * pseudo_count));
-                ll_k = 0;
-                if (p_mle_k > 0.0) {
-                    ll_k += (nmeth_k * log2(p_mle_k));
-                }
-                if (p_mle_k < 1.0) {
-                    ll_k += (ntotal_k - nmeth_k) * log2(1.0 - p_mle_k);
-                }
-                // weighted average of the log likelihoods
-                ll_sum += ll_k;
-            }
-
-            if (ll_sum) {
-                mem[i * max_cpg + j] = ll_sum;
-            }
-        }
-    }
-    delete[] nmeth;
-    delete[] ntotal;
-}
-
 std::vector<int> segmentor::traceback(const int *T) {
     std::vector<int> borders;
     int i = nr_sites;
@@ -121,27 +58,93 @@ std::vector<int> segmentor::traceback(const int *T) {
 }
 
 void segmentor::dp(std::vector<float*> &all_data){
-
-    // cost memoization:
-    mem = new double[nr_sites * max_cpg]();
-    cost_memoization(all_data);
     /**
-     * init M, T, all to zeros.
+     * Compute each row of the cost matrix on the fly into a small ring
+     * buffer, then fold it directly into the DP transition.
      *
-     *  M[i] - The maximal score for segmenting sites 1,...,i
+     * Previously a full (nr_sites x max_cpg) cost matrix was materialized
+     * ahead of time in cost_memoization(). With defaults (chunk_size=60000,
+     * max_cpg=1000) that was ~480 MB per worker.
      *
-     *  T - Traceback table.
-     *  T[i] is the index of the last border we opened in the current segmentation
+     * The DP at step i needs block costs for the last `max_cpg` rows only
+     * (rows in [i+1-max_cpg, i]), so we keep exactly that many rows and
+     * map row k to slot (k & ring_mask). Ring size is rounded up to the
+     * next power of two so the per-access index is `& mask` rather than
+     * `% ring_size` (the modulo was a measurable slowdown in the DP inner
+     * loop). After: ring_size * max_cpg doubles, ~8 MB.
+     *
+     * NOTE: the intermediate `ll_k` must stay `float` (not `double`) to
+     * match the pre-refactor numerics exactly — even a tiny precision
+     * difference here can nudge marginal block-merge decisions at the DP
+     * boundary. Verified byte-identical on whole-chromosome regressions.
+     *
+     * Cost formula:
+     *   p_mle = (#meth + pseudo_count) / (#total + 2*pseudo_count)
+     *   score = #meth * log2(p_mle) + #unmeth * log2(1-p_mle)
+     * summed over datasets.
      */
-    auto M = new double[nr_sites + 1]();
-    auto T = new int[nr_sites + 1]();
+    int nr_dsets = (int) all_data.size();
+    std::unique_ptr<float[]>    nmeth(new float[nr_dsets]);
+    std::unique_ptr<float[]>    ntotal(new float[nr_dsets]);
+    std::unique_ptr<uint32_t[]> dists(new uint32_t[nr_sites]);
+    load_dists(dists.get());
 
-    for (int i = 0; i < nr_sites; i++) {
-        double best_score = -std::numeric_limits<float>::infinity();
+    int ring_size = 1;
+    while (ring_size < max_cpg) ring_size <<= 1;
+    int ring_mask = ring_size - 1;
+    std::unique_ptr<double[]> mem_ring(new double[(size_t)ring_size * max_cpg]());
+
+    std::unique_ptr<double[]> M(new double[nr_sites + 1]());
+    std::unique_ptr<int[]>    T(new int[nr_sites + 1]());
+
+    const double NEG_INF_D = -std::numeric_limits<double>::infinity();
+    const double NEG_INF_F = -std::numeric_limits<float>::infinity();
+
+    for (int i = 0; i < (int)nr_sites; i++) {
+        // Compute row i of the cost matrix into its ring slot.
+        double *row = &mem_ring[(size_t)(i & ring_mask) * max_cpg];
+        std::fill(row, row + max_cpg, 0.0);
+
+        memset(nmeth.get(),  0, (size_t)nr_dsets * sizeof(float));
+        memset(ntotal.get(), 0, (size_t)nr_dsets * sizeof(float));
+
+        int window = std::min((int)nr_sites - i, max_cpg);
+        for (int j = 0; j < window; j++) {
+
+            if ( (dists[i + j] - dists[i] > params.max_bp) || (dists[i + j] < dists[i]) ) {
+                row[j] = NEG_INF_F;
+                continue;
+            }
+
+            double ll_sum = 0;
+            for (int k = 0; k < nr_dsets; k++) {
+                nmeth[k]  += all_data[k][(i + j) * 2];
+                ntotal[k] += all_data[k][((i + j) * 2) + 1];
+                float ntotal_k = ntotal[k];
+                float nmeth_k  = nmeth[k];
+                if (!ntotal_k) { continue; }
+
+                float p_mle_k = (nmeth_k + pseudo_count) / (ntotal_k + (2 * pseudo_count));
+                float ll_k = 0;
+                if (p_mle_k > 0.0) {
+                    ll_k += (nmeth_k * log2(p_mle_k));
+                }
+                if (p_mle_k < 1.0) {
+                    ll_k += (ntotal_k - nmeth_k) * log2(1.0 - p_mle_k);
+                }
+                ll_sum += ll_k;
+            }
+            if (ll_sum) row[j] = ll_sum;
+        }
+
+        // DP step i: M[i+1] = max over k in [max(0, i+1-max_cpg), i+1)
+        //   of M[k] + mem[k][i - k].
+        double best_score = NEG_INF_F;
         int best_ind = -1;
-        int start = std::max(0, i + 1 - max_cpg);
-        for (int k = start; k < i + 1; k++) {
-            double tmp = M[k] + mem[k * max_cpg + i - k];
+        int start_k = std::max(0, i + 1 - max_cpg);
+        for (int k = start_k; k < i + 1; k++) {
+            double *kth = &mem_ring[(size_t)(k & ring_mask) * max_cpg];
+            double tmp = M[k] + kth[i - k];
             if (tmp > best_score) {
                 best_score = tmp;
                 best_ind = k;
@@ -150,12 +153,9 @@ void segmentor::dp(std::vector<float*> &all_data){
         M[i+1] = best_score;
         T[i+1] = best_ind;
     }
-    std::vector<int> borders = traceback(T);
-   // print_mem(mem, nr_sites, max_cpg);
-    //print_MT(M, T, nr_sites);
-    print_borders(borders);
 
-    delete [] mem; delete [] M; delete [] T;
+    std::vector<int> borders = traceback(T.get());
+    print_borders(borders);
 }
 
 /**
