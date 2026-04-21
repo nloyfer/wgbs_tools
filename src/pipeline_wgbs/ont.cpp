@@ -382,9 +382,23 @@ void subset_to_Cm_section(std::string &MM_str, std::string &ML_str,
         ML_str = "";
         return;
     }
+
+    // Compute the ML offset: the number of probability values belonging to all
+    // MM sections that precede MM_pos.  Each section contributes exactly as
+    // many ML values as it has position entries (the comma-separated numbers
+    // after the "C+x" header).  This must be done before MM_str is overwritten.
+    int ml_offset = 0;
+    {
+        std::vector<std::string> all_sections = split_by_semicolon(MM_str);
+        for (int s = 0; s < MM_pos; s++) {
+            std::string sec = all_sections[s];   // local copy – trim modifies in-place
+            ml_offset += (int)split_by_comma(trim_from_first_comma(sec)).size();
+        }
+    }
+
     MM_str = sub_MM;
     np_dot = (!((MM_str.size() > 3) && (MM_str[3] == '?'))); // differentiate "C+m." and "C+m" from "C+m?"
-    
+
     // Use local copies so MM_str/ML_str are not modified here;
     // parse_np_fields_by_mod will call trim_from_first_comma on them afterward.
     std::string mm_copy = MM_str;
@@ -393,24 +407,19 @@ void subset_to_Cm_section(std::string &MM_str, std::string &ML_str,
     std::vector<int> ML_vec = split_by_comma(trim_from_first_comma(ml_copy));
 
     if (ML_str == "") { return; } // No ML field (e.g., BioModal)
-    
+
     int nr_MM_vals = MM_vec.size();
     if (nr_MM_vals == 0) {
         ML_str = "";
         return;
     }
-    // If ML exists, check modulus
-    if (!(ML_vec.size() % nr_MM_vals == 0) && ML_vec.size() > 0) {
-        // Only throw if structure is fundamentally broken
-        std::cerr << "Error in find_Cm: not modulu 0" << std::endl;;
-        throw std::invalid_argument("Unsupported MM field:" + MM_str);
-    }
-    
-    // slice the ML vector
-    // Note: This assumes ML contains concatenated blocks for all mods in MM
-    if (ML_vec.size() >= (MM_pos + 1) * nr_MM_vals) {
-        std::vector<int> sliced_ML_vals(ML_vec.begin() + (MM_pos * nr_MM_vals), 
-                                        ML_vec.begin() + ((MM_pos + 1) * nr_MM_vals));
+
+    // Slice the ML vector using the per-section offset.
+    // SAM spec: ML values are ordered the same way as the positions in MM,
+    // across all modification sections in sequence.
+    if (ml_offset + nr_MM_vals <= (int)ML_vec.size()) {
+        std::vector<int> sliced_ML_vals(ML_vec.begin() + ml_offset,
+                                        ML_vec.begin() + ml_offset + nr_MM_vals);
         ML_str = "," + int_vec_to_str(sliced_ML_vals);
     }
 }

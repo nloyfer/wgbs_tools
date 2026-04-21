@@ -5,6 +5,7 @@
 #include "snp_patter.h"
 #include "patter_utils.h"
 #include <set>
+#include <cstdint>
 
 
 /***************************************************************
