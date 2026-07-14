@@ -116,6 +116,9 @@ class MFParams:
             if self.sort_by not in sort_by_ops:
                 eprint(f'sort_by argument must be in: {", ".join(sort_by_ops)}')
                 raise IllegalArgumentError()
+        # in cases where 'sort_by' param is not passed on command line
+        else:
+            self.sort_by = 'delta_means'
 
         test_ops = ('t', 'mw', 'm_t')
         if self.test_type not in test_ops:
@@ -202,8 +205,8 @@ def parse_args():
                         help='The statistical test used for p-value calculation filtering. Options are {t, mw, m_t}. Use "t"'
                              ' for a two-sample t-test, "mw" for a Mann–Whitney U test, or "m_t" for a t-test using'
                              ' M-values. [t]')
-    parser.add_argument('--sort_by',
-            help='sort output markers by this column.')
+    parser.add_argument('--sort_by', type=str,
+            help='sort output markers by this column ["delta_means"].')
     parser.add_argument('--chunk_size', type=int, help='Number of blocks to load on each step')
     parser.add_argument('--verbose', '-v', action='store_true')
     add_multi_thread_args(parser)
