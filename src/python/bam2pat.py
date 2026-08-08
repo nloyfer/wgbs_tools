@@ -143,7 +143,7 @@ def is_region_empty(view_cmd, region, verbose):
 
 def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, top_only, bottom_only,
              rg, mapq, debug, blueprint, clip, temp_dir, blacklist, whitelist, min_cpg, mbias, nanopore,
-             np_thresh, verbose, long, cpc_call='C', combine_mods=False):
+             np_thresh, verbose, long, cpc_call='C', combine_mods=False, five_base=False):
     """ Convert a temp single chromosome file, extracted from a bam file, into pat """
 
     # Run patter tool on a single chromosome (or region). out_path will have the following fields:
@@ -198,6 +198,8 @@ def proc_chr(bam, out_path, region, genome, paired_end, ex_flags, in_flags, top_
         patter_cmd += ' --combine_mods '
     if long:
         patter_cmd += ' --long '
+    if five_base:
+        patter_cmd += ' --five_base '
 
     if blueprint:
         patter_cmd, match_cmd = blueprint_legacy(genome, region, paired_end)
@@ -330,7 +332,7 @@ class Bam2Pat:
                        self.args.temp_dir, blist, wlist, self.args.min_cpg,
                        self.args.mbias, self.args.nanopore, self.args.np_thresh,
                        self.verbose, self.args.long,
-                       self.args.cpc_call, self.args.combine_mods)
+                       self.args.cpc_call, self.args.combine_mods, self.args.five_base)
                 params.append(par)
 
             if len(cur_regions) == 1 and self.args.threads == 1:
@@ -447,6 +449,10 @@ def parse_bam2pat_args(parser):
     parser.add_argument('--combine_mods', action='store_true',
                         help='Combine 5mC (C+m) and 5hmC (C+h) modifications, treating both as methylated. '
                              'Sums probabilities before thresholding. Output will contain only C/T/. (no H).')
+    parser.add_argument('--five_base', action='store_true',
+                        help='Input BAM is from an inverted-polarity chemistry (Illumina 5-Base, TAPS): '
+                             '5mC reads as T while unmethylated C stays C. Swaps the methylated/unmethylated '
+                             'call characters. Default behaviour without this flag is unchanged.')
 
 
 def add_samtools_view_flags(parser):
